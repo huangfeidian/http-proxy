@@ -11,7 +11,7 @@
 #include <cstdint>
 
 #include <boost/asio.hpp>
-#include <boost/optional.hpp>
+//include <boost/optional.hpp>
 
 #include "http_chunk_checker.hpp"
 
@@ -39,21 +39,21 @@ struct http_proxy_server_connection_context {
     bool reconnect_on_error;
     std::string origin_server_name;
     unsigned short origin_server_port;
-    boost::optional<boost::asio::ip::tcp::endpoint> origin_server_endpoint;
+    std::unique_ptr<boost::asio::ip::tcp::endpoint> origin_server_endpoint;
 };
 
 struct http_proxy_server_connection_read_request_context {
     bool is_proxy_client_keep_alive;
-    boost::optional<std::uint64_t> content_length;
+    std::uint64_t content_length;
     std::uint64_t content_length_has_read;
-    boost::optional<http_chunk_checker> chunk_checker;
+    http_chunk_checker chunk_checker;
 };
 
 struct http_proxy_server_connection_read_response_context {
     bool is_origin_server_keep_alive;
-    boost::optional<std::uint64_t> content_length;
+	std::uint64_t content_length;
     std::uint64_t content_length_has_read;
-    boost::optional<http_chunk_checker> chunk_checker;
+    http_chunk_checker chunk_checker;
 };
 
 } // namespace azure_proxy
