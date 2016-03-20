@@ -1,3 +1,0 @@
-[submodule "src/jsonxx"]
-	path = src/jsonxx
-	url = https://github.com/hjiang/jsonxx.git
