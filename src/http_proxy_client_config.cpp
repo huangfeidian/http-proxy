@@ -9,17 +9,7 @@
 #include <cctype>
 #include <fstream>
 #include <memory>
-
-#ifdef _WIN32
-#include <Windows.h>
-#else
-extern "C" {
-#include <unistd.h>
-#include <sys/types.h>
-#include <pwd.h>
-}
-#endif
-
+#include <streambuf>
 #include "encrypt.hpp"
 #include "http_proxy_client_config.hpp"
 #include "jsonxx/jsonxx.h"
@@ -31,8 +21,10 @@ namespace azure_proxy
 	{
 	}
 
-	bool http_proxy_client_config::load_config(const std::string& config_data)
+	bool http_proxy_client_config::load_config(const std::string& config_filename)
 	{
+		std::ifstream the_file(config_filename);
+		std::string config_data((std::istreambuf_iterator<char>(the_file)), (std::istreambuf_iterator<char>()));
 		bool rollback = true;
 		std::shared_ptr<bool> auto_rollback(&rollback, [this](bool* rollback)
 		{
@@ -159,72 +151,6 @@ namespace azure_proxy
 		rollback = false;
 		return true;
 	}
-
-	bool http_proxy_client_config::load_config()
-	{
-		std::string config_data;
-#ifdef _WIN32
-		wchar_t path_buffer[MAX_PATH];
-		if (GetModuleFileNameW(NULL, path_buffer, MAX_PATH) == 0 || GetLastError() == ERROR_INSUFFICIENT_BUFFER)
-		{
-			std::cerr << "Failed to get retrieve the path of the executable file" << std::endl;
-		}
-		std::wstring config_file_path(path_buffer);
-		config_file_path.resize(config_file_path.find_last_of(L'\\') + 1);
-		config_file_path += L"client.json";
-		std::shared_ptr<std::remove_pointer<HANDLE>::type> config_file_handle(
-			CreateFileW(config_file_path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL),
-			[](HANDLE native_handle)
-		{
-			if (native_handle != INVALID_HANDLE_VALUE)
-			{
-				CloseHandle(native_handle);
-			}
-		});
-		if (config_file_handle.get() == INVALID_HANDLE_VALUE)
-		{
-			std::cerr << "Failed to open config file \"client.json\"" << std::endl;
-			return false;
-		}
-		char ch;
-		DWORD size_read = 0;
-		BOOL read_result = ReadFile(config_file_handle.get(), &ch, 1, &size_read, NULL);
-		while (read_result != FALSE && size_read != 0)
-		{
-			config_data.push_back(ch);
-			read_result = ReadFile(config_file_handle.get(), &ch, 1, &size_read, NULL);
-		}
-		if (read_result == FALSE)
-		{
-			std::cerr << "Failed to read data from config file" << std::endl;
-			return false;
-		}
-#else
-		auto bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
-		if (bufsize == -1) {
-			bufsize = 16384;
-		}
-		std::unique_ptr<char[]> buf(new char[bufsize]);
-		passwd pwd, *result = nullptr;
-		getpwuid_r(getuid(), &pwd, buf.get(), bufsize, &result);
-		if (result == nullptr) {
-			return false;
-		}
-		std::string config_path = pwd.pw_dir;
-		config_path += "/.ahpc/client.json";
-		std::ifstream ifile(config_path.c_str());
-		if (!ifile.is_open()) {
-			std::cerr << "Failed to open \"" << config_path << "\"" << std::endl;
-			return false;
-		}
-		char ch;
-		while (ifile.get(ch)) {
-			config_data.push_back(ch);
-		}
-#endif
-		return this->load_config(config_data);
-	}
-
 	const std::string& http_proxy_client_config::get_proxy_server_address() const
 	{
 		return this->get_config_value<const std::string&>("proxy_server_address");

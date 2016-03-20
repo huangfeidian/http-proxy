@@ -34,9 +34,8 @@ namespace azure_proxy
 			return boost::any_cast<T>(iter->second);
 		}
 		http_proxy_client_config();
-		bool load_config(const std::string& config_data);
 	public:
-		bool load_config();
+		bool load_config(const std::string& config_filename);
 		const std::string& get_proxy_server_address() const;
 		unsigned short get_proxy_server_port() const;
 		const std::string& get_bind_address() const;

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.6)
 project(azure-http-proxy)
 
+
+SET(BOOST_ROOT "C:\\Unix\\boost_1_59_0")
 set(Boost_USE_MULTITHREAD ON)
 
 find_package(Boost REQUIRED COMPONENTS system regex)

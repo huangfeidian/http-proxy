@@ -11,6 +11,8 @@ AHP(Azure Http Proxy)是一款高速、安全、轻量级和跨平台的HTTP代�
  - 服务端同时支持多种数据加密方式，数据加密方式可由客户端任意指定，客户端可以权衡机器性能以及安全需求选择合适的加密方式
  - 多线程并发处理，充分利用多处理器的优势，能同时处理成千上万的并发连接
  - 多用户支持，允许为每个用户使用独立的帐号和密码
+## 新增特性
+可指定配置文件，允许一台机器运行多个实例。
 
 ## 编译和安装
 
@@ -26,7 +28,9 @@ AHP使用了部分C++11特性，所以对编译器的版本有较高要求，下
  - MinGW >= 4.8
 
 参考：http://en.cppreference.com/w/cpp/compiler_support
-
+###本版本修改
+我的版本将原始版本对boost::any boost::optional的依赖都去除了，同时将原来的json依赖替换为了nlohmann 的json，https://github.com/nlohmann/json。
+引入了std::make_unique，经测试gcc 4.8已无法满足make_unique的，如需使用请升级到4.9.同时Visual Studio 2015可完美编译，Clang未测试。
 ### 安装依赖
 
 AHP依赖Boost和OpenSSL库，且要求Boost库版本不低于1.52
@@ -48,7 +52,8 @@ AHP依赖Boost和OpenSSL库，且要求Boost库版本不低于1.52
     $ yum install openssl-devel
 
 Windows则需要自己编译Boost库，而OpenSSL库可以从 https://www.openssl.org/related/binaries.html 下载到编译好的。
-
+#### 本版本修改
+正在逐步的剥离对boost的依赖，并允许使用非boost版本的Asio.
 ### 编译
 AHP使用自动化构建工具CMake来实现跨平台构建
 
@@ -77,8 +82,8 @@ Windows下可以使用cmake-gui.exe，Linux或其他类Unix系统可以使用下
 服务端保留私钥并将公钥告诉客户端。
 
 ### 配置服务端 
-
-编辑server.json文件，Windows下应将此文件放到ahps.exe同目录下，Linux或其他类Unix系统将此文件放到~/.ahps/server.json。
+服务端默认配置文件为server.json，同时用户可提供其他文件作为命令行参数输入。注意最好将该文件放在当前可执行文件的相同目录下，如果是不同目录可能会崩溃。
+下面是一个配置文件的样本：
 
     {
       "bind_address": "0.0.0.0",
@@ -111,7 +116,8 @@ users           | 用户列表           | auth为true时必选 | 无        |
 
 ### 配置客户端
 
-编辑client.json文件，Windows下应将此文件放到ahpc.exe或ahpc-gui.exe同目录下，Linux或其他类Unix系统将此文件放到~/.ahpc/client.json。
+客户端默认配置文件为client.json，用户也可在命令行指定文件。与服务器配置文件一样，最好把配置文件放在可执行文件的同一目录下。
+下面是客户端配置文件示例：
 
     {
       "proxy_server_address": "127.0.0.1",
@@ -153,21 +159,21 @@ workers              | 并发工作线程数       | 否               | 2      
 
  Linux或其他类Unix系统
  
-    $ ./ahps
+    $ ./ahps [配置文件名称]
  
  Windows
  
-    $ ahps.exe
+    $ ahps.exe [配置文件名称]
  
 ### 运行客户端
 
 Linux或其他类Unix系统
 
-    $ ./ahpc
+    $ ./ahpc [配置文件名称]
  
 Windows
  
-    $ ahpc.exe
+    $ ahpc.exe [配置文件名称]
  
  Enjoy!
  
