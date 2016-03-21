@@ -1,0 +1,3 @@
+[submodule "src/json"]
+	path = src/json
+	url = git@github.com:nlohmann/json.git

@@ -33,7 +33,7 @@ void http_proxy_server::run()
 
     std::vector<std::thread> td_vec;
 
-    for (auto i = 0u; i < config.get_workers(); ++i) {
+    for (auto i = 0; i < config.get_workers(); ++i) {
         td_vec.emplace_back([this]() {
             try {
                 this->io_service.run();

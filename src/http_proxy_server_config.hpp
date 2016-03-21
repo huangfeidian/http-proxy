@@ -13,12 +13,12 @@
 #include <stdexcept>
 #include <string>
 
-#include <boost/any.hpp>
+#include <json.hpp>
 
 namespace azure_proxy {
-
+	using json = nlohmann::json;
 class http_proxy_server_config {
-    std::map<std::string, boost::any> config_map;
+    json config_map;
 private:
     template<typename T>
     T get_config_value(const std::string& key) const {
@@ -27,17 +27,17 @@ private:
         if (iter == this->config_map.end()) {
             throw std::invalid_argument("invalid argument");
         }
-        return boost::any_cast<T>(iter->second);
+        return this->config_map[key].get<T>();
     }
     http_proxy_server_config();
     
 public:
 	bool load_config(const std::string& config_filename);
-    const std::string& get_bind_address() const;
-    unsigned short get_listen_port() const;
-    const std::string& get_rsa_private_key() const;
-    unsigned int get_timeout() const;
-    unsigned int get_workers() const;
+	std::string get_bind_address() const;
+	int get_listen_port() const;
+	std::string get_rsa_private_key() const;
+	int get_timeout() const;
+	int get_workers() const;
     bool enable_auth() const;
 
     static http_proxy_server_config& get_instance();

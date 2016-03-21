@@ -8,20 +8,11 @@
 #include <memory>
 #include <fstream>
 
-#ifdef _WIN32
-#include <Windows.h>
-#else
-extern "C" {
-#include <unistd.h>
-#include <sys/types.h>
-#include <pwd.h>
-}
-#endif
 
 #include "authentication.hpp"
 #include "encrypt.hpp"
 #include "http_proxy_server_config.hpp"
-#include "jsonxx/jsonxx.h"
+
 
 namespace azure_proxy {
 
@@ -36,33 +27,43 @@ bool http_proxy_server_config::load_config(const std::string& config_filename)
     bool rollback = true;
     std::shared_ptr<bool> auto_rollback(&rollback, [this](bool* rollback) {
         if (*rollback) {
-            this->config_map.clear();
+            this->config_map=json();
             authentication::get_instance().remove_all_users();
         }
     });
 
-    jsonxx::Object json_obj;
-    if (!json_obj.parse(config_data)) {
-        std::cerr << "Failed to parse config" << std::endl;
-        return false;
-    }
-    if (json_obj.has<jsonxx::String>("bind_address")) {
-        this->config_map["bind_address"] = std::string(json_obj.get<jsonxx::String>("bind_address"));
+    json json_obj(config_data);
+	try
+	{
+		json_obj = json::parse(config_data);
+	}
+	catch (std::exception& e)
+	{
+		std::cerr << "Failed to parse config" << std::endl;
+		return false;
+	}
+	if (!json_obj.is_object())
+	{
+		std::cerr << "The data should be a map" << std::endl;
+		return false;
+	}
+    if (json_obj.find("bind_address")!=json_obj.end()) {
+        this->config_map["bind_address"] = json_obj["bind_address"];
     }
     else {
-        this->config_map["bind_address"] = std::string("0.0.0.0");
+        this->config_map["bind_address"] = json("0.0.0.0");
     }
-    if (json_obj.has<jsonxx::Number>("listen_port")) {
-        this->config_map["listen_port"] = static_cast<unsigned short>(json_obj.get<jsonxx::Number>("listen_port"));
+    if (json_obj.find("listen_port")!=json_obj.end()) {
+        this->config_map["listen_port"] = json_obj["listen_port"];
     }
     else {
-        this->config_map["listen_port"] = static_cast<unsigned short>(8090);
+        this->config_map["listen_port"] = json(8090);
     }
-    if (!json_obj.has<jsonxx::String>("rsa_private_key")) {
+    if (json_obj.find("rsa_private_key")==json_obj.end()) {
         std::cerr << "Could not find \"rsa_private_key\" in config or it's value is not a string" << std::endl;
         return false;
     }
-    const std::string& rsa_private_key = json_obj.get<jsonxx::String>("rsa_private_key");
+    const std::string& rsa_private_key = json_obj["rsa_private_key"];
     try {
         rsa rsa_pri(rsa_private_key);
         if (rsa_pri.modulus_size() < 128) {
@@ -74,39 +75,38 @@ bool http_proxy_server_config::load_config(const std::string& config_filename)
         std::cerr << "The value of rsa_private_key is bad" << std::endl;
         return false;
     }
-    this->config_map["rsa_private_key"] = rsa_private_key;
-    if (json_obj.has<jsonxx::Number>("timeout")) {
-        int timeout = static_cast<int>(json_obj.get<jsonxx::Number>("timeout"));
-        this->config_map["timeout"] = static_cast<unsigned int>(timeout < 30 ? 30 : timeout);
+    this->config_map["rsa_private_key"] = json_obj["rsa_private_key"];
+    if (json_obj.find("timeout")!=json_obj.end()) {
+        int timeout = static_cast<int>(json_obj["timeout"]);
+        this->config_map["timeout"] = json(timeout < 30 ? 30 : timeout);
     }
     else {
-        this->config_map["timeout"] = 240ul;
+        this->config_map["timeout"] = json(240);
     }
-    if (json_obj.has<jsonxx::Number>("workers")) {
-        int threads = static_cast<int>(json_obj.get<jsonxx::Number>("workers"));
-        this->config_map["workers"] = static_cast<unsigned int>(threads < 1 ? 1 : (threads > 16 ? 16 : threads));
+    if (json_obj.find("workers")!=json_obj.end()) {
+        int threads = json_obj["workers"];
+        this->config_map["workers"] = json(threads < 1 ? 1 : (threads > 16 ? 16 : threads));
     }
     else {
-        this->config_map["workers"] = 4ul;
+        this->config_map["workers"] = json(4);
     }
-    if (json_obj.has<jsonxx::Boolean>("auth")) {
-        this->config_map["auth"] = json_obj.get<jsonxx::Boolean>("auth");
-        if (!json_obj.has<jsonxx::Array>("users")) {
+    if (json_obj.find("auth")!=json_obj.end()) {
+        this->config_map["auth"] = json_obj["auth"];
+        if (json_obj.find("users")==json_obj.end()) {
             std::cerr << "Could not find \"users\" in config or it's value is not a array" << std::endl;
             return false;
         }
-        const jsonxx::Array& users_array = json_obj.get<jsonxx::Array>("users");
+        json users_array = json_obj["users"];
         for (size_t i = 0; i < users_array.size(); ++i) {
-            if (!users_array.has<jsonxx::Object>(i) || !users_array.get<jsonxx::Object>(i).has<jsonxx::String>("username") || !users_array.get<jsonxx::Object>(i).has<jsonxx::String>("username")) {
+            if (users_array[i].find("username")==users_array[i].end() || users_array[i].find("username")==users_array[i].end()) {
                 std::cerr << "The value of \"users\" contains unexpected element" << std::endl;
                 return false;
             }
-            authentication::get_instance().add_user(users_array.get<jsonxx::Object>(i).get<jsonxx::String>("username"),
-                users_array.get<jsonxx::Object>(i).get<jsonxx::String>("password"));
+            authentication::get_instance().add_user(users_array[i]["username"],users_array[i]["password"]);
         }
     }
     else {
-        this->config_map["auth"] = false;
+        this->config_map["auth"] = json(false);
     }
 
     rollback = false;
@@ -114,29 +114,29 @@ bool http_proxy_server_config::load_config(const std::string& config_filename)
 }
 
 
-const std::string& http_proxy_server_config::get_bind_address() const
+std::string http_proxy_server_config::get_bind_address() const
 {
-    return this->get_config_value<const std::string&>("bind_address");
+    return this->get_config_value<std::string>("bind_address");
 }
 
-unsigned short http_proxy_server_config::get_listen_port() const
+int http_proxy_server_config::get_listen_port() const
 {
-    return this->get_config_value<unsigned short>("listen_port");
+    return this->get_config_value<int>("listen_port");
 }
 
-const std::string& http_proxy_server_config::get_rsa_private_key() const
+std::string http_proxy_server_config::get_rsa_private_key() const
 {
-    return this->get_config_value<const std::string&>("rsa_private_key");
+    return this->get_config_value<std::string>("rsa_private_key");
 }
 
-unsigned int http_proxy_server_config::get_timeout() const
+int http_proxy_server_config::get_timeout() const
 {
-    return this->get_config_value<unsigned int>("timeout");
+    return this->get_config_value<int>("timeout");
 }
 
-unsigned int http_proxy_server_config::get_workers() const
+int http_proxy_server_config::get_workers() const
 {
-    return this->get_config_value<unsigned int>("workers");
+    return this->get_config_value<int>("workers");
 }
 
 bool http_proxy_server_config::enable_auth() const

@@ -34,7 +34,7 @@ namespace azure_proxy
 		this->start_accept();
 
 		std::vector<std::thread> td_vec;
-		for (auto i = 0u; i < config.get_workers(); ++i)
+		for (auto i = 0; i < config.get_workers(); ++i)
 		{
 			td_vec.emplace_back([this]()
 			{

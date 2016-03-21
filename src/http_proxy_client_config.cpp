@@ -12,7 +12,7 @@
 #include <streambuf>
 #include "encrypt.hpp"
 #include "http_proxy_client_config.hpp"
-#include "jsonxx/jsonxx.h"
+
 
 namespace azure_proxy
 {
@@ -33,47 +33,54 @@ namespace azure_proxy
 				this->config_map.clear();
 			}
 		});
-
-		jsonxx::Object json_obj;
-		if (!json_obj.parse(config_data))
+		json json_obj;
+		try
+		{
+			json_obj=json::parse(config_data);
+		}
+		catch (std::exception& e)
 		{
 			std::cerr << "Failed to parse config" << std::endl;
 			return false;
 		}
-		if (!json_obj.has<jsonxx::String>("proxy_server_address"))
+		if (!json_obj.is_object())
+		{
+			std::cerr << "The data shoud be  a map" << std::endl;
+		}
+		if (json_obj.find("proxy_server_address")==json_obj.end())
 		{
 			std::cerr << "Could not find \"proxy_server_address\" in config or it's value is not a string" << std::endl;
 			return false;
 		}
-		this->config_map["proxy_server_address"] = std::string(json_obj.get<jsonxx::String>("proxy_server_address"));
-		if (!json_obj.has<jsonxx::Number>("proxy_server_port"))
+		this->config_map["proxy_server_address"] = json_obj["proxy_server_address"];
+		if (json_obj.find("proxy_server_port")==json_obj.end())
 		{
 			std::cerr << "Could not find \"proxy_server_port\" in config or it's value is not a number" << std::endl;
 			return false;
 		}
-		this->config_map["proxy_server_port"] = static_cast<unsigned short>(json_obj.get<jsonxx::Number>("proxy_server_port"));
-		if (json_obj.has<jsonxx::String>("bind_address"))
+		this->config_map["proxy_server_port"] = json_obj["proxy_server_port"];
+		if (json_obj.find("bind_address")!=json_obj.end())
 		{
-			this->config_map["bind_address"] = std::string(json_obj.get<jsonxx::String>("bind_address"));
+			this->config_map["bind_address"] = json_obj["bind_address"];
 		}
 		else
 		{
-			this->config_map["bind_address"] = std::string("127.0.0.1");
+			this->config_map["bind_address"] = json("127.0.0.1");
 		}
-		if (json_obj.has<jsonxx::Number>("listen_port"))
+		if (json_obj.find("listen_port")!=json_obj.end())
 		{
-			this->config_map["listen_port"] = static_cast<unsigned short>(json_obj.get<jsonxx::Number>("listen_port"));
+			this->config_map["listen_port"] = json_obj["listen_port"];
 		}
 		else
 		{
-			this->config_map["listen_port"] = static_cast<unsigned short>(8089);
+			this->config_map["listen_port"] = json(8089);
 		}
-		if (!json_obj.has<jsonxx::String>("rsa_public_key"))
+		if (json_obj.find("rsa_public_key")==json_obj.end())
 		{
 			std::cerr << "Could not find \"rsa_public_key\" in config or it's value is not a string" << std::endl;
 			return false;
 		}
-		const std::string& rsa_public_key = json_obj.get<jsonxx::String>("rsa_public_key");
+		const std::string& rsa_public_key = json_obj["rsa_public_key"];
 		try
 		{
 			rsa rsa_pub(rsa_public_key);
@@ -88,10 +95,10 @@ namespace azure_proxy
 			std::cerr << "The value of rsa_public_key is bad" << std::endl;
 			return false;
 		}
-		this->config_map["rsa_public_key"] = rsa_public_key;
-		if (json_obj.has<jsonxx::String>("cipher"))
+		this->config_map["rsa_public_key"] = json_obj["rsa_public_key"];
+		if (json_obj.find("cipher")!=json_obj.end())
 		{
-			std::string cipher = std::string(json_obj.get<jsonxx::String>("cipher"));
+			std::string cipher = json_obj["cipher"];
 			for (auto& ch : cipher)
 			{
 				ch = std::tolower(static_cast<unsigned char>(ch));
@@ -123,72 +130,72 @@ namespace azure_proxy
 				std::cerr << "Unsupported cipher: " << cipher << std::endl;
 				return false;
 			}
-			this->config_map["cipher"] = cipher;
+			this->config_map["cipher"] = json_obj["cipher"];
 		}
 		else
 		{
-			this->config_map["cipher"] = std::string("aes-256-ofb");
+			this->config_map["cipher"] = json("aes-256-ofb");
 		}
-		if (json_obj.has<jsonxx::Number>("timeout"))
+		if (json_obj.find("timeout")!=json_obj.end())
 		{
-			int timeout = static_cast<int>(json_obj.get<jsonxx::Number>("timeout"));
-			this->config_map["timeout"] = static_cast<unsigned int>(timeout < 30 ? 30 : timeout);
-		}
-		else
-		{
-			this->config_map["timeout"] = 240ul;
-		}
-		if (json_obj.has<jsonxx::Number>("workers"))
-		{
-			int threads = static_cast<int>(json_obj.get<jsonxx::Number>("workers"));
-			this->config_map["workers"] = static_cast<unsigned int>(threads < 1 ? 1 : (threads > 16 ? 16 : threads));
+			int timeout = static_cast<int>(json_obj["timeout"]);
+			this->config_map["timeout"] = json(timeout < 30 ? 30 : timeout);
 		}
 		else
 		{
-			this->config_map["workers"] = 2ul;
+			this->config_map["timeout"] = json(240);
+		}
+		if (json_obj.find("workers")!=json_obj.end())
+		{
+			int threads = json_obj["workers"];
+			this->config_map["workers"] = json(threads < 1 ? 1 : (threads > 16 ? 16 : threads));
+		}
+		else
+		{
+			this->config_map["workers"] = json(2);
 		}
 
 		rollback = false;
 		return true;
 	}
-	const std::string& http_proxy_client_config::get_proxy_server_address() const
+	std::string http_proxy_client_config::get_proxy_server_address() const
 	{
-		return this->get_config_value<const std::string&>("proxy_server_address");
+		return this->get_config_value<std::string>("proxy_server_address");
 	}
 
-	unsigned short http_proxy_client_config::get_proxy_server_port() const
+	int http_proxy_client_config::get_proxy_server_port() const
 	{
-		return this->get_config_value<unsigned short>("proxy_server_port");
+		return this->get_config_value<int>("proxy_server_port");
 	}
 
-	const std::string& http_proxy_client_config::get_bind_address() const
+	std::string http_proxy_client_config::get_bind_address() const
 	{
-		return this->get_config_value<const std::string&>("bind_address");
+		return this->get_config_value<std::string>("bind_address");
 	}
 
-	unsigned short http_proxy_client_config::get_listen_port() const
+	int http_proxy_client_config::get_listen_port() const
 	{
-		return this->get_config_value<unsigned short>("listen_port");
+		return this->get_config_value<int>("listen_port");
 	}
 
-	const std::string& http_proxy_client_config::get_rsa_public_key() const
+	std::string http_proxy_client_config::get_rsa_public_key() const
 	{
-		return this->get_config_value<const std::string&>("rsa_public_key");
+		return this->get_config_value<std::string>("rsa_public_key");
 	}
 
-	const std::string& http_proxy_client_config::get_cipher() const
+	std::string http_proxy_client_config::get_cipher() const
 	{
-		return this->get_config_value<const std::string&>("cipher");
+		return this->get_config_value<std::string>("cipher");
 	}
 
-	unsigned int http_proxy_client_config::get_timeout() const
+	int http_proxy_client_config::get_timeout() const
 	{
-		return this->get_config_value<unsigned int>("timeout");
+		return this->get_config_value<int>("timeout");
 	}
 
-	unsigned int http_proxy_client_config::get_workers() const
+	int http_proxy_client_config::get_workers() const
 	{
-		return this->get_config_value<unsigned int>("workers");
+		return this->get_config_value<int>("workers");
 	}
 
 	http_proxy_client_config& http_proxy_client_config::get_instance()
