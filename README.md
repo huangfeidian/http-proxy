@@ -13,17 +13,18 @@ AHP(Azure Http Proxy)是一款高速、安全、轻量级和跨平台的HTTP代�
  - 多用户支持，允许为每个用户使用独立的帐号和密码
 ## 新增特性
 可指定配置文件，允许一台机器运行多个实例；允许使用单独使用Asio的standalone模式，或者使用依赖于boost的模式，开关选项在`config.hpp`中。如果使用Asio的standalone模式的话，需要在asio 的 `detail/config.hpp`文件里加入一下内容
-	#define ASIO_HAS_STD_ARRAY 1
-	#define ASIO_HAS_MOVE 1
-	#define ASIO_HAS_STD_SHARED_PTR 1
-	#define ASIO_HAS_WEAK_PTR 1
-	#define ASIO_HAS_STD_ADDRESSOF 1
-	#define ASIO_HAS_STD_SYSTEM_ERROR 1
-	#define ASIO_HAS_STD_ATOMIC 1
-	#define ASIO_HAS_CSTDINT 1
-	#define ASIO_HAS_NULLPTR 1
-	#define ASIO_HAS_STD_TYPE_TRAITS 1
-
+```
+#define ASIO_HAS_STD_ARRAY 1
+#define ASIO_HAS_MOVE 1
+#define ASIO_HAS_STD_SHARED_PTR 1
+#define ASIO_HAS_WEAK_PTR 1
+#define ASIO_HAS_STD_ADDRESSOF 1
+#define ASIO_HAS_STD_SYSTEM_ERROR 1
+#define ASIO_HAS_STD_ATOMIC 1
+#define ASIO_HAS_CSTDINT 1
+#define ASIO_HAS_NULLPTR 1
+#define ASIO_HAS_STD_TYPE_TRAITS 1
+```
 ## 编译和安装
 
 Windows平台可以从 https://github.com/lxrite/azure-http-proxy/releases 下载已经编译好的(win32-binary.zip)。
