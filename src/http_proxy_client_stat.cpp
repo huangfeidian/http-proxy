@@ -130,18 +130,18 @@ std::uint32_t http_proxy_client_stat::get_current_connections() const
     return this->current_connections.load(std::memory_order_acquire);
 }
 
-void http_proxy_client_stat::start_stat(boost::asio::io_service& io_service)
+void http_proxy_client_stat::start_stat(asio::io_service& io_service)
 {
-    auto sp_timer = std::make_shared<boost::asio::basic_waitable_timer<std::chrono::steady_clock>>(io_service);
+    auto sp_timer = std::make_shared<asio::basic_waitable_timer<std::chrono::steady_clock>>(io_service);
     sp_timer->expires_from_now(std::chrono::seconds(1));
-    sp_timer->async_wait([this, sp_timer](const boost::system::error_code& error) {
+    sp_timer->async_wait([this, sp_timer](const asio::error_code& error) {
         this->callback(error, sp_timer);
     });
 }
 
-void http_proxy_client_stat::callback(const boost::system::error_code& error, std::shared_ptr<boost::asio::basic_waitable_timer<std::chrono::steady_clock>> sp_timer)
+void http_proxy_client_stat::callback(const asio::error_code& error, std::shared_ptr<asio::basic_waitable_timer<std::chrono::steady_clock>> sp_timer)
 {
-    if (error != boost::asio::error::operation_aborted) {
+    if (error != asio::error::operation_aborted) {
         std::uint32_t up_rate_in = this->upgoing_bytes_in.exchange(0, std::memory_order_acq_rel);
         std::uint32_t up_rate_out = this->upgoing_bytes_out.exchange(0, std::memory_order_acq_rel);
         std::uint32_t down_rate_in = this->downgoing_bytes_in.exchange(0, std::memory_order_acq_rel);
@@ -182,7 +182,7 @@ void http_proxy_client_stat::callback(const boost::system::error_code& error, st
         this->downgoing_speed_out.store(calc_speed(this->downgoing_rate_out_queue), std::memory_order_release);
 
         sp_timer->expires_from_now(std::chrono::seconds(1));
-        sp_timer->async_wait([this, sp_timer](const boost::system::error_code& error) {
+        sp_timer->async_wait([this, sp_timer](const asio::error_code& error) {
             this->callback(error, sp_timer);
         });
     }

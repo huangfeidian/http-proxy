@@ -4,10 +4,15 @@
  *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
  *
  */
-
+#define ASIO_STANDALONE 1
 #include <iostream>
-
+#if ASIO_STANDALONE
+#include <asio.hpp>
+#else
 #include <boost/asio.hpp>
+using asio = boost::asio;
+#endif
+
 
 #include "http_proxy_client.hpp"
 #include "http_proxy_client_stat.hpp"
@@ -46,7 +51,7 @@ int main(int argc,char** argv)
             std::cout << "server address: " << config.get_proxy_server_address() << ':' << config.get_proxy_server_port() << std::endl;
             std::cout << "local address: " << config.get_bind_address() << ':' << config.get_listen_port() << std::endl;
             std::cout << "cipher: " << config.get_cipher() << std::endl;
-            boost::asio::io_service io_service;
+            asio::io_service io_service;
             http_proxy_client_stat::get_instance().start_stat(io_service);
             http_proxy_client client(io_service);
             client.run();

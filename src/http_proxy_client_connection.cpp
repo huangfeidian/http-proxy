@@ -17,7 +17,7 @@
 namespace azure_proxy
 {
 
-	http_proxy_client_connection::http_proxy_client_connection(boost::asio::ip::tcp::socket&& ua_socket) :
+	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket) :
 		strand(ua_socket.get_io_service()),
 		user_agent_socket(std::move(ua_socket)),
 		proxy_server_socket(this->user_agent_socket.get_io_service()),
@@ -34,7 +34,7 @@ namespace azure_proxy
 		http_proxy_client_stat::get_instance().decrease_current_connections();
 	}
 
-	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(boost::asio::ip::tcp::socket&& ua_socket)
+	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(asio::ip::tcp::socket&& ua_socket)
 	{
 		return std::shared_ptr<http_proxy_client_connection>(new http_proxy_client_connection(std::move(ua_socket)));
 	}
@@ -221,10 +221,10 @@ namespace azure_proxy
 		}
 
 		auto self(this->shared_from_this());
-		boost::asio::ip::tcp::resolver::query query(http_proxy_client_config::get_instance().get_proxy_server_address(), std::to_string(http_proxy_client_config::get_instance().get_proxy_server_port()));
+		asio::ip::tcp::resolver::query query(http_proxy_client_config::get_instance().get_proxy_server_address(), std::to_string(http_proxy_client_config::get_instance().get_proxy_server_port()));
 		this->connection_state = proxy_connection_state::resolve_proxy_server_address;
 		this->set_timer();
-		this->resolver.async_resolve(query, [this, self](const boost::system::error_code& error, boost::asio::ip::tcp::resolver::iterator iterator)
+		this->resolver.async_resolve(query, [this, self](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
 		{
 			if (this->cancel_timer())
 			{
@@ -232,7 +232,7 @@ namespace azure_proxy
 				{
 					this->connection_state = proxy_connection_state::connecte_to_proxy_server;
 					this->set_timer();
-					this->proxy_server_socket.async_connect(*iterator, this->strand.wrap([this, self](const boost::system::error_code& error)
+					this->proxy_server_socket.async_connect(*iterator, this->strand.wrap([this, self](const error_code& error)
 					{
 						if (this->cancel_timer())
 						{
@@ -259,7 +259,7 @@ namespace azure_proxy
 	{
 		auto self(this->shared_from_this());
 		this->set_timer();
-		this->user_agent_socket.async_read_some(boost::asio::buffer(this->upgoing_buffer_read.data(), this->upgoing_buffer_read.size()), this->strand.wrap([this, self](const boost::system::error_code& error, std::size_t bytes_transferred)
+		this->user_agent_socket.async_read_some(asio::buffer(this->upgoing_buffer_read.data(), this->upgoing_buffer_read.size()), this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer())
 			{
@@ -284,7 +284,7 @@ namespace azure_proxy
 		{
 			this->set_timer();
 		}
-		this->proxy_server_socket.async_read_some(boost::asio::buffer(this->downgoing_buffer_read.data(), this->downgoing_buffer_read.size()), this->strand.wrap([this, self](const boost::system::error_code& error, std::size_t bytes_transferred)
+		this->proxy_server_socket.async_read_some(asio::buffer(this->downgoing_buffer_read.data(), this->downgoing_buffer_read.size()), this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer())
 			{
@@ -306,8 +306,8 @@ namespace azure_proxy
 	{
 		auto self(this->shared_from_this());
 		this->set_timer();
-		this->user_agent_socket.async_write_some(boost::asio::buffer(write_buffer + offset, size),
-			this->strand.wrap([this, self, write_buffer, offset, size](const boost::system::error_code& error, std::size_t bytes_transferred)
+		this->user_agent_socket.async_write_some(asio::buffer(write_buffer + offset, size),
+			this->strand.wrap([this, self, write_buffer, offset, size](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer())
 			{
@@ -335,8 +335,8 @@ namespace azure_proxy
 	{
 		auto self(this->shared_from_this());
 		this->set_timer();
-		this->proxy_server_socket.async_write_some(boost::asio::buffer(write_buffer + offset, size),
-			this->strand.wrap([this, self, write_buffer, offset, size](const boost::system::error_code& error, std::size_t bytes_transferred)
+		this->proxy_server_socket.async_write_some(asio::buffer(write_buffer + offset, size),
+			this->strand.wrap([this, self, write_buffer, offset, size](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer())
 			{
@@ -368,9 +368,9 @@ namespace azure_proxy
 			assert(false);
 		}
 		auto self(this->shared_from_this());
-		this->timer.async_wait(this->strand.wrap([this, self](const boost::system::error_code& error)
+		this->timer.async_wait(this->strand.wrap([this, self](const error_code& error)
 		{
-			if (error != boost::asio::error::operation_aborted)
+			if (error != asio::error::operation_aborted)
 			{
 				this->on_timeout();
 			}
@@ -390,18 +390,18 @@ namespace azure_proxy
 		this->async_read_data_from_proxy_server(false);
 	}
 
-	void http_proxy_client_connection::on_error(const boost::system::error_code& error)
+	void http_proxy_client_connection::on_error(const error_code& error)
 	{
 		this->cancel_timer();
-		boost::system::error_code ec;
+		error_code ec;
 		if (this->proxy_server_socket.is_open())
 		{
-			this->proxy_server_socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+			this->proxy_server_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
 			this->proxy_server_socket.close(ec);
 		}
 		if (this->user_agent_socket.is_open())
 		{
-			this->user_agent_socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+			this->user_agent_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
 			this->user_agent_socket.close(ec);
 		}
 	}
@@ -414,15 +414,15 @@ namespace azure_proxy
 		}
 		else
 		{
-			boost::system::error_code ec;
+			error_code ec;
 			if (this->proxy_server_socket.is_open())
 			{
-				this->proxy_server_socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+				this->proxy_server_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
 				this->proxy_server_socket.close(ec);
 			}
 			if (this->user_agent_socket.is_open())
 			{
-				this->user_agent_socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+				this->user_agent_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
 				this->user_agent_socket.close(ec);
 			}
 		}

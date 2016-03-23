@@ -13,8 +13,14 @@
 #include <memory>
 #include <vector>
 
+#include "config.hpp"
+#if ASIO_STANDALONE
+#include <asio.hpp>
+using error_code = asio::error_code;
+#else
 #include <boost/asio.hpp>
-
+using error_code = boost::system::error_code
+#endif
 #include "encrypt.hpp"
 
 const std::size_t BUFFER_LENGTH = 2048;
@@ -32,12 +38,12 @@ namespace azure_proxy
 			tunnel_transfer
 		};
 	private:
-		boost::asio::io_service::strand strand;
-		boost::asio::ip::tcp::socket user_agent_socket;
-		boost::asio::ip::tcp::socket proxy_server_socket;
-		boost::asio::ip::tcp::resolver resolver;
+		asio::io_service::strand strand;
+		asio::ip::tcp::socket user_agent_socket;
+		asio::ip::tcp::socket proxy_server_socket;
+		asio::ip::tcp::resolver resolver;
 		proxy_connection_state connection_state;
-		boost::asio::basic_waitable_timer<std::chrono::steady_clock> timer;
+		asio::basic_waitable_timer<std::chrono::steady_clock> timer;
 		std::vector<unsigned char> encrypted_cipher_info;
 		std::array<char, BUFFER_LENGTH> upgoing_buffer_read;
 		std::array<char, BUFFER_LENGTH> upgoing_buffer_write;
@@ -47,10 +53,10 @@ namespace azure_proxy
 		std::unique_ptr<stream_decryptor> decryptor;
 		std::chrono::seconds timeout;
 	private:
-		http_proxy_client_connection(boost::asio::ip::tcp::socket&& ua_socket);
+		http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket);
 	public:
 		~http_proxy_client_connection();
-		static std::shared_ptr<http_proxy_client_connection> create(boost::asio::ip::tcp::socket&& ua_socket);
+		static std::shared_ptr<http_proxy_client_connection> create(asio::ip::tcp::socket&& ua_socket);
 		void start();
 	private:
 		void async_read_data_from_user_agent();
@@ -62,7 +68,7 @@ namespace azure_proxy
 		bool cancel_timer();
 
 		void on_connection_established();
-		void on_error(const boost::system::error_code& error);
+		void on_error(const asio::error_code& error);
 		void on_timeout();
 	};
 

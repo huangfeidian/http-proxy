@@ -13,7 +13,14 @@
 #include <cstdint>
 #include <deque>
 
+#include "config.hpp"
+#if ASIO_STANDALONE
+#include <asio.hpp>
+using error_code = asio::error_code;
+#else
 #include <boost/asio.hpp>
+using error_code=boost::system::error_code
+#endif
 
 namespace azure_proxy {
 
@@ -46,10 +53,10 @@ private:
 
     std::atomic<std::uint32_t> current_connections;
 public:
-    void start_stat(boost::asio::io_service& io_service);
+    void start_stat(asio::io_service& io_service);
 private:
     http_proxy_client_stat();
-    void callback(const boost::system::error_code& error, std::shared_ptr<boost::asio::basic_waitable_timer<std::chrono::steady_clock>> sp_timer);
+    void callback(const error_code& error, std::shared_ptr<asio::basic_waitable_timer<std::chrono::steady_clock>> sp_timer);
 public:
     std::uint32_t increase_current_connections();
     std::uint32_t decrease_current_connections();
