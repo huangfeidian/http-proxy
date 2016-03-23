@@ -11,8 +11,14 @@
 #include <array>
 #include <chrono>
 
+#include "config.hpp"
+#if ASIO_STANDALONE
+#include <asio.hpp>
+using error_code = asio::error_code;
+#else
 #include <boost/asio.hpp>
-//#include <boost/optional.hpp>
+using error_code = boost::system::error_code
+#endif
 
 #include "encrypt.hpp"
 #include "http_header_parser.hpp"
@@ -23,11 +29,11 @@ namespace azure_proxy {
 const std::size_t BUFFER_LENGTH = 2048;
 
 class http_proxy_server_connection : public std::enable_shared_from_this<http_proxy_server_connection> {
-    boost::asio::io_service::strand strand;
-    boost::asio::ip::tcp::socket proxy_client_socket;
-    boost::asio::ip::tcp::socket origin_server_socket;
-    boost::asio::ip::tcp::resolver resolver;
-    boost::asio::basic_waitable_timer<std::chrono::steady_clock> timer;
+    asio::io_service::strand strand;
+    asio::ip::tcp::socket proxy_client_socket;
+    asio::ip::tcp::socket origin_server_socket;
+    asio::ip::tcp::resolver resolver;
+    asio::basic_waitable_timer<std::chrono::steady_clock> timer;
     std::array<char, BUFFER_LENGTH> upgoing_buffer_read;
     std::array<char, BUFFER_LENGTH> upgoing_buffer_write;
     std::array<char, BUFFER_LENGTH> downgoing_buffer_read;
@@ -46,10 +52,10 @@ class http_proxy_server_connection : public std::enable_shared_from_this<http_pr
     http_proxy_server_connection_read_request_context read_request_context;
     http_proxy_server_connection_read_response_context read_response_context;
 private:
-    http_proxy_server_connection(boost::asio::ip::tcp::socket&& proxy_client_socket);
+    http_proxy_server_connection(asio::ip::tcp::socket&& proxy_client_socket);
 public:
     ~http_proxy_server_connection();
-    static std::shared_ptr<http_proxy_server_connection> create(boost::asio::ip::tcp::socket&& client_socket);
+    static std::shared_ptr<http_proxy_server_connection> create(asio::ip::tcp::socket&& client_socket);
     void start();
 private:
     void async_read_data_from_proxy_client(std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH);
@@ -66,13 +72,13 @@ private:
     void set_timer();
     bool cancel_timer();
 
-    void on_resolved(boost::asio::ip::tcp::resolver::iterator endpoint_iterator);
+    void on_resolved(asio::ip::tcp::resolver::iterator endpoint_iterator);
     void on_connect();
     void on_proxy_client_data_arrived(std::size_t bytes_transferred);
     void on_origin_server_data_arrived(std::size_t bytes_transferred);
     void on_proxy_client_data_written();
     void on_origin_server_data_written();
-    void on_error(const boost::system::error_code& error);
+    void on_error(const error_code& error);
     void on_timeout();
 };
 

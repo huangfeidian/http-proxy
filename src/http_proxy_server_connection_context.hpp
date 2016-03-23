@@ -10,8 +10,14 @@
 
 #include <cstdint>
 
+#include "config.hpp"
+#if ASIO_STANDALONE
+#include <asio.hpp>
+using error_code = asio::error_code;
+#else
 #include <boost/asio.hpp>
-//include <boost/optional.hpp>
+using error_code = boost::system::error_code
+#endif
 
 #include "http_chunk_checker.hpp"
 
@@ -39,7 +45,7 @@ struct http_proxy_server_connection_context {
     bool reconnect_on_error;
     std::string origin_server_name;
     unsigned short origin_server_port;
-    std::unique_ptr<boost::asio::ip::tcp::endpoint> origin_server_endpoint;
+    std::unique_ptr<asio::ip::tcp::endpoint> origin_server_endpoint;
 };
 
 struct http_proxy_server_connection_read_request_context {

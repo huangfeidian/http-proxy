@@ -40,6 +40,7 @@ namespace azure_proxy
 		}
 		catch (std::exception& e)
 		{
+			std::cerr << e.what() << std::endl;
 			std::cerr << "Failed to parse config" << std::endl;
 			return false;
 		}

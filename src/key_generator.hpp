@@ -25,7 +25,7 @@ namespace azure_proxy
 		{
 			//用时间与new出来一个变量的地址做异或 也是蛮拼的
 			std::uint64_t seed = reinterpret_cast<std::uint64_t>(std::unique_ptr<int>(new int(0)).get()) ^ static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count());
-			this->gen.seed(seed);
+			this->gen.seed(static_cast<unsigned int>(seed));
 		}
 	public:
 		void generate(unsigned char* out, std::size_t length)
