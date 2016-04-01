@@ -12,26 +12,15 @@ AHP(Azure Http Proxy)是一款高速、安全、轻量级和跨平台的HTTP代�
  - 多线程并发处理，充分利用多处理器的优势，能同时处理成千上万的并发连接
  - 多用户支持，允许为每个用户使用独立的帐号和密码
 ## 新增特性
-可指定配置文件，允许一台机器运行多个实例；允许使用单独使用Asio的standalone模式，或者使用依赖于boost的模式，开关选项在`config.hpp`中。如果使用Asio的standalone模式的话，需要在asio 的 `detail/config.hpp`文件里加入一下内容
-```
-#define ASIO_HAS_STD_ARRAY 1
-#define ASIO_HAS_MOVE 1
-#define ASIO_HAS_STD_SHARED_PTR 1
-#define ASIO_HAS_WEAK_PTR 1
-#define ASIO_HAS_STD_ADDRESSOF 1
-#define ASIO_HAS_STD_SYSTEM_ERROR 1
-#define ASIO_HAS_STD_ATOMIC 1
-#define ASIO_HAS_CSTDINT 1
-#define ASIO_HAS_NULLPTR 1
-#define ASIO_HAS_STD_TYPE_TRAITS 1
-```
+可指定配置文件，允许一台机器运行多个实例；允许使用单独使用Asio的standalone模式，或者使用依赖于boost的模式，开关选项在CMakeLists.txt 中指定。如果指定了单独模式，请修改对应的asio路径。
+
 ## 编译和安装
 
 Windows平台可以从 https://github.com/lxrite/azure-http-proxy/releases 下载已经编译好的(win32-binary.zip)。
 
 ### 编译器
 
-AHP使用了部分C++11特性，所以对编译器的版本有较高要求，下面列出了部分已测试过可以用来编译AHP的编译器
+AHP使用了部分C++11/14特性，所以对编译器的版本有较高要求，下面列出了部分已测试过可以用来编译AHP的编译器
 
  - Microsoft Visual Studio >= 2013
  - GCC >= 4.9
@@ -62,11 +51,11 @@ AHP依赖Boost和OpenSSL库，且要求Boost库版本不低于1.52
     $ yum install openssl
     $ yum install openssl-devel
 
-Windows则需要自己编译Boost库，而OpenSSL库可以从 https://www.openssl.org/related/binaries.html 下载到编译好的。
+Windows则需要自己编译Boost库，而OpenSSL库可以从 https://wiki.openssl.org/index.php/Binaries 下载到编译好的。
 #### 本版本修改
 已剥离对boost的依赖，并允许使用非boost版本的Asio.
 ### 编译
-AHP使用自动化构建工具CMake来实现跨平台构建，构建时请修改`CMakelist.txt`文件中`ASIO_DIR`的路径。
+AHP使用自动化构建工具CMake来实现跨平台构建，构建时选择是否单独使用`ASIO`,如果使用这种模式请修改`CMakelist.txt`文件中`ASIO_DIR`的路径。
 
  - CMake >= 2.8
 
@@ -93,7 +82,7 @@ Windows下可以使用cmake-gui.exe，Linux或其他类Unix系统可以使用下
 服务端保留私钥并将公钥告诉客户端。
 
 ### 配置服务端 
-服务端默认配置文件为server.json，同时用户可提供其他文件作为命令行参数输入。注意最好将该文件放在当前可执行文件的相同目录下，如果是不同目录可能会崩溃。
+服务端默认配置文件为`server.json`，同时用户可提供其他文件作为命令行参数输入。注意最好将该文件放在当前可执行文件的相同目录下，如果是不同目录可能会崩溃。
 下面是一个配置文件的样本：
 
     {
@@ -125,9 +114,10 @@ workers         | 并发工作线程数     | 否               | 4         |
 auth            | 启用代理身份验证   | 否               | false     |
 users           | 用户列表           | auth为true时必选 | 无        |
 
+如果是监听`ipv6`地址的话，则需要在地址那里填写"::"
 ### 配置客户端
 
-客户端默认配置文件为client.json，用户也可在命令行指定文件。与服务器配置文件一样，最好把配置文件放在可执行文件的同一目录下。
+客户端默认配置文件为`client.json`，用户也可在命令行指定文件。与服务器配置文件一样，最好把配置文件放在可执行文件的同一目录下。
 下面是客户端配置文件示例：
 
     {
