@@ -8,13 +8,14 @@
 #ifndef AZURE_HTTP_PROXY_CLIENT_HPP
 #define AZURE_HTTP_PROXY_CLIENT_HPP
 
-#include "config.hpp"
-#if ASIO_STANDALONE
+#ifdef ASIO_STANDALONE
 #include <asio.hpp>
 using error_code = asio::error_code;
+
 #else
 #include <boost/asio.hpp>
-using error_code = boost::system::error_code
+namespace asio = boost::asio;
+using error_code = boost::system::error_code;
 #endif
 
 namespace azure_proxy

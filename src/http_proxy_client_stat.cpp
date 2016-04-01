@@ -134,12 +134,12 @@ void http_proxy_client_stat::start_stat(asio::io_service& io_service)
 {
     auto sp_timer = std::make_shared<asio::basic_waitable_timer<std::chrono::steady_clock>>(io_service);
     sp_timer->expires_from_now(std::chrono::seconds(1));
-    sp_timer->async_wait([this, sp_timer](const asio::error_code& error) {
+    sp_timer->async_wait([this, sp_timer](const error_code& error) {
         this->callback(error, sp_timer);
     });
 }
 
-void http_proxy_client_stat::callback(const asio::error_code& error, std::shared_ptr<asio::basic_waitable_timer<std::chrono::steady_clock>> sp_timer)
+void http_proxy_client_stat::callback(const error_code& error, std::shared_ptr<asio::basic_waitable_timer<std::chrono::steady_clock>> sp_timer)
 {
     if (error != asio::error::operation_aborted) {
         std::uint32_t up_rate_in = this->upgoing_bytes_in.exchange(0, std::memory_order_acq_rel);
@@ -182,7 +182,7 @@ void http_proxy_client_stat::callback(const asio::error_code& error, std::shared
         this->downgoing_speed_out.store(calc_speed(this->downgoing_rate_out_queue), std::memory_order_release);
 
         sp_timer->expires_from_now(std::chrono::seconds(1));
-        sp_timer->async_wait([this, sp_timer](const asio::error_code& error) {
+        sp_timer->async_wait([this, sp_timer](const error_code& error) {
             this->callback(error, sp_timer);
         });
     }

@@ -129,20 +129,20 @@ namespace azure_proxy
 			this->set_timer();
 			this->resolver.async_resolve(query,
 				this->strand.wrap([this, self](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
-			{
-				if (this->cancel_timer())
 				{
-					if (!error)
+					if (this->cancel_timer())
 					{
-						this->on_resolved(iterator);
+						if (!error)
+						{
+							this->on_resolved(iterator);
+						}
+						else
+						{
+							this->on_error(error);
+						}
 					}
-					else
-					{
-						this->on_error(error);
-					}
-				}
-			})
-				);
+				})
+			);
 		}
 	}
 

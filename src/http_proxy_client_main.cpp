@@ -4,13 +4,17 @@
  *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
  *
  */
-#define ASIO_STANDALONE 1
+
 #include <iostream>
-#if ASIO_STANDALONE
+
+#ifdef ASIO_STANDALONE
 #include <asio.hpp>
+using error_code = asio::error_code;
+
 #else
 #include <boost/asio.hpp>
-using asio = boost::asio;
+namespace asio = boost::asio;
+using error_code = boost::system::error_code;
 #endif
 
 
@@ -43,21 +47,21 @@ int main(int argc,char** argv)
 		}
 		
 	}
-    using namespace azure_proxy;
-    try {
-        auto& config = http_proxy_client_config::get_instance();
-        if (config.load_config(config_filename)) {
-            std::cout << "Azure Http Proxy Client" << std::endl;
-            std::cout << "server address: " << config.get_proxy_server_address() << ':' << config.get_proxy_server_port() << std::endl;
-            std::cout << "local address: " << config.get_bind_address() << ':' << config.get_listen_port() << std::endl;
-            std::cout << "cipher: " << config.get_cipher() << std::endl;
-            asio::io_service io_service;
-            http_proxy_client_stat::get_instance().start_stat(io_service);
-            http_proxy_client client(io_service);
-            client.run();
-        }
-    }
-    catch (std::exception& e) {
-        std::cerr << "Exception: " << e.what() << "\n";
-    }
+	using namespace azure_proxy;
+	try {
+		auto& config = http_proxy_client_config::get_instance();
+		if (config.load_config(config_filename)) {
+			std::cout << "Azure Http Proxy Client" << std::endl;
+			std::cout << "server address: " << config.get_proxy_server_address() << ':' << config.get_proxy_server_port() << std::endl;
+			std::cout << "local address: " << config.get_bind_address() << ':' << config.get_listen_port() << std::endl;
+			std::cout << "cipher: " << config.get_cipher() << std::endl;
+			asio::io_service io_service;
+			http_proxy_client_stat::get_instance().start_stat(io_service);
+			http_proxy_client client(io_service);
+			client.run();
+		}
+	}
+	catch (std::exception& e) {
+		std::cerr << "Exception: " << e.what() << "\n";
+	}
 }
