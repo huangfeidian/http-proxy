@@ -18,17 +18,13 @@
 namespace azure_proxy {
 	using json = nlohmann::json;
 class http_proxy_server_config {
-    json config_map;
+    std::map<std::string,int> config_map_int;
+	std::map<std::string, std::string> config_map_str;
 private:
     template<typename T>
-    T get_config_value(const std::string& key) const {
-        assert(!this->config_map.empty());
-        auto iter = this->config_map.find(key);
-        if (iter == this->config_map.end()) {
-            throw std::invalid_argument("invalid argument");
-        }
-        return this->config_map[key].get<T>();
-    }
+	T get_config_value(const std::string& key) const;
+	template<typename T>
+	void set_config_value(const std::string& key, T value);
     http_proxy_server_config();
     
 public:

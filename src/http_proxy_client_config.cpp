@@ -20,7 +20,42 @@ namespace azure_proxy
 	http_proxy_client_config::http_proxy_client_config()
 	{
 	}
-
+	template<>
+	void http_proxy_client_config::set_config_value<int>(const std::string& key, int value)
+	{
+		config_map_int[key] = value;
+	}
+	template<>
+	void http_proxy_client_config::set_config_value<std::string>(const std::string& key, std::string value)
+	{
+		config_map_str[key] = value;
+	}
+	template<>
+	int http_proxy_client_config::get_config_value<int>(const std::string& key)const
+	{
+		auto iter = config_map_int.find(key);
+		if (iter == config_map_int.end())
+		{
+			throw std::invalid_argument(key);
+		}
+		else
+		{
+			return iter->second;
+		}
+	}
+	template<>
+	std::string http_proxy_client_config::get_config_value<std::string>(const std::string& key)const
+	{
+		auto iter = config_map_str.find(key);
+		if (iter == config_map_str.end())
+		{
+			throw std::invalid_argument(key);
+		}
+		else
+		{
+			return iter->second;
+		}
+	}
 	bool http_proxy_client_config::load_config(const std::string& config_filename)
 	{
 		std::ifstream the_file(config_filename);
@@ -30,7 +65,8 @@ namespace azure_proxy
 		{
 			if (*rollback)
 			{
-				this->config_map.clear();
+				this->config_map_int.clear();
+				this->config_map_str.clear();
 			}
 		});
 		json json_obj;
@@ -47,34 +83,35 @@ namespace azure_proxy
 		if (!json_obj.is_object())
 		{
 			std::cerr << "The data shoud be  a map" << std::endl;
+			return false;
 		}
 		if (json_obj.find("proxy_server_address")==json_obj.end())
 		{
 			std::cerr << "Could not find \"proxy_server_address\" in config or it's value is not a string" << std::endl;
 			return false;
 		}
-		this->config_map["proxy_server_address"] = json_obj["proxy_server_address"];
+		set_config_value("proxy_server_address", json_obj["proxy_server_address"].get<std::string>());
 		if (json_obj.find("proxy_server_port")==json_obj.end())
 		{
 			std::cerr << "Could not find \"proxy_server_port\" in config or it's value is not a number" << std::endl;
 			return false;
 		}
-		this->config_map["proxy_server_port"] = json_obj["proxy_server_port"];
+		set_config_value("proxy_server_port" , json_obj["proxy_server_port"].get<int>());
 		if (json_obj.find("bind_address")!=json_obj.end())
 		{
-			this->config_map["bind_address"] = json_obj["bind_address"];
+			set_config_value("bind_address", json_obj["bind_address"].get<std::string>());
 		}
 		else
 		{
-			this->config_map["bind_address"] = json("127.0.0.1");
+			set_config_value("bind_address", std::string("127.0.0.1"));
 		}
 		if (json_obj.find("listen_port")!=json_obj.end())
 		{
-			this->config_map["listen_port"] = json_obj["listen_port"];
+			set_config_value("listen_port",json_obj["listen_port"].get<int>());
 		}
 		else
 		{
-			this->config_map["listen_port"] = json(8089);
+			set_config_value("listen_port",8089);
 		}
 		if (json_obj.find("rsa_public_key")==json_obj.end())
 		{
@@ -96,7 +133,7 @@ namespace azure_proxy
 			std::cerr << "The value of rsa_public_key is bad" << std::endl;
 			return false;
 		}
-		this->config_map["rsa_public_key"] = json_obj["rsa_public_key"];
+		set_config_value("rsa_public_key",rsa_public_key);
 		if (json_obj.find("cipher")!=json_obj.end())
 		{
 			std::string cipher = json_obj["cipher"];
@@ -131,29 +168,29 @@ namespace azure_proxy
 				std::cerr << "Unsupported cipher: " << cipher << std::endl;
 				return false;
 			}
-			this->config_map["cipher"] = json_obj["cipher"];
+			set_config_value("cipher",json_obj["cipher"].get<std::string>());
 		}
 		else
 		{
-			this->config_map["cipher"] = json("aes-256-ofb");
+			set_config_value("cipher", std::string("aes-256-ofb"));
 		}
 		if (json_obj.find("timeout")!=json_obj.end())
 		{
 			int timeout = static_cast<int>(json_obj["timeout"]);
-			this->config_map["timeout"] = json(timeout < 30 ? 30 : timeout);
+			set_config_value("timeout", timeout < 30 ? 30 : timeout);
 		}
 		else
 		{
-			this->config_map["timeout"] = json(240);
+			set_config_value("timeout",240);
 		}
 		if (json_obj.find("workers")!=json_obj.end())
 		{
 			int threads = json_obj["workers"];
-			this->config_map["workers"] = json(threads < 1 ? 1 : (threads > 16 ? 16 : threads));
+			set_config_value("workers", threads < 1 ? 1 : (threads > 16 ? 16 : threads));
 		}
 		else
 		{
-			this->config_map["workers"] = json(2);
+			set_config_value("workers",2);
 		}
 
 		rollback = false;

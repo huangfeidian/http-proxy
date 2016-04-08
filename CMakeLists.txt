@@ -11,7 +11,7 @@ link_directories(${OPENSSL_LIBRARY_DIR})
 OPTION(ASIO_STANDALONE "use asio without boost" ON)
 
 if(ASIO_STANDALONE)
-set(ASIO_DIR "D:\\Github\\asio\\asio\\include")
+set(ASIO_DIR "D:\\Github\\asio-1.10.6\\include")
 include_directories(${ASIO_DIR})
 add_definitions(-DASIO_STANDALONE)
 add_definitions(-DASIO_HAS_STD_ARRAY )
