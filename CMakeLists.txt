@@ -10,7 +10,7 @@ link_directories(${OPENSSL_LIBRARY_DIR})
 
 OPTION(ASIO_STANDALONE "use asio without boost" ON)
 
-OPTION(WITH_LOG "use  log" OFF)
+
 
 if(ASIO_STANDALONE)
 set(ASIO_DIR "D:\\Github\\asio\\asio\\include")
@@ -32,11 +32,7 @@ include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIR})
 endif()
 
-if(WITH_LOG)
-add_definitions(-DWITH_LOG)
 
-
-endif()
 
 
 
