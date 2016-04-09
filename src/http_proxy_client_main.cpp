@@ -16,12 +16,7 @@ using error_code = asio::error_code;
 namespace asio = boost::asio;
 using error_code = boost::system::error_code;
 #endif
-#ifdef WITH_LOG
-#include <fstream>
-#include <sstream>
-#include <ctime>
-#include <iomanip>
-#endif
+
 #include "http_proxy_client.hpp"
 #include "http_proxy_client_stat.hpp"
 #include "http_proxy_client_config.hpp"
@@ -29,14 +24,7 @@ using error_code = boost::system::error_code;
 
 int main(int argc, char** argv)
 {
-#ifdef WITH_LOG
-	std::time_t now = std::time(nullptr);
-	std::string time_format = "%Y-%m-%d %H-%M-%S";
-	std::ostringstream oss;
-	oss<<std::put_time(std::gmtime(&now),time_format.c_str());
-	std::string time_str = oss.str();
-	std::ofstream dumpfile(time_str+"-client_dump.txt");
-#endif
+
 	std::string default_config_filename = "client.json";
 	std::string config_filename;
 	if (argc == 1)
@@ -70,11 +58,9 @@ int main(int argc, char** argv)
 			std::cout << "cipher: " << config.get_cipher() << std::endl;
 			asio::io_service io_service;
 			http_proxy_client_stat::get_instance().start_stat(io_service);
-#ifdef WITH_LOG
-			http_proxy_client client(io_service,dumpfile);
-#else
+
 			http_proxy_client client(io_service);
-#endif
+
 			client.run();
 		}
 	}

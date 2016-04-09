@@ -51,16 +51,16 @@ struct http_proxy_server_connection_context {
 
 struct http_proxy_server_connection_read_request_context {
 	bool is_proxy_client_keep_alive;
-	std::uint64_t content_length;
+	std::unique_ptr<std::uint64_t> content_length;
 	std::uint64_t content_length_has_read;
-	http_chunk_checker chunk_checker;
+	std::unique_ptr<http_chunk_checker> chunk_checker;
 };
 
 struct http_proxy_server_connection_read_response_context {
 	bool is_origin_server_keep_alive;
-	std::uint64_t content_length;
+	std::unique_ptr<std::uint64_t> content_length;
 	std::uint64_t content_length_has_read;
-	http_chunk_checker chunk_checker;
+	std::unique_ptr<http_chunk_checker> chunk_checker;
 };
 
 } // namespace azure_proxy

@@ -10,23 +10,11 @@
 #include "http_proxy_server_config.hpp"
 #include "http_proxy_server.hpp"
 
-#ifdef WITH_LOG
-#include <ctime>
-#include <sstream>
-#include <iomanip>
-#include <fstream>
-#endif
+
 
 int main(int argc, char** argv)
 {
-#ifdef WITH_LOG
-	std::time_t now = std::time(nullptr);
-	std::string time_format = "%Y-%m-%d %H-%M-%S";
-	std::ostringstream oss;
-	oss << std::put_time(std::gmtime(&now), time_format.c_str());
-	std::string time_str = oss.str();
-	std::ofstream dumpfile(time_str + "-server_log.txt");
-#endif
+
 	std::string default_config_filename = "server.json";
 	std::string config_filename;
 	if (argc == 1)
@@ -57,11 +45,8 @@ int main(int argc, char** argv)
 			std::cout << "Azure Http Proxy Server" << std::endl;
 			std::cout << "bind address: " << config.get_bind_address() << ':' << config.get_listen_port() << std::endl;
 			asio::io_service io_service;
-#ifdef WITH_LOG
-			http_proxy_server server(io_service,dumpfile);
-#else 
 			http_proxy_server server(io_service);
-#endif
+
 			server.run();
 		}
 	}

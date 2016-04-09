@@ -18,24 +18,17 @@ namespace asio = boost::asio;
 using error_code = boost::system::error_code;
 #endif
 
-#ifdef WITH_LOG
-#include <fstream>
-#endif
 
 namespace azure_proxy {
 
 	class http_proxy_server {
 		asio::io_service& io_service;
 		asio::ip::tcp::acceptor acceptor;
-#ifdef WITH_LOG
-		std::ofstream& lg;
-#endif
+
 	public:
-#ifdef WITH_LOG
-		http_proxy_server(asio::io_service& io_service, std::ofstream& in_lg);
-#else
+
 		http_proxy_server(asio::io_service& io_service);
-#endif
+
 		
 		void run();
 	private:

@@ -15,19 +15,12 @@
 #include "http_proxy_server_connection.hpp"
 
 namespace azure_proxy {
-#ifdef WITH_LOG
-http_proxy_server::http_proxy_server(asio::io_service& io_service, std::ofstream& in_lg) :
-	io_service(io_service),
-	acceptor(io_service),
-	lg(in_lg)
-{
-}
-#else
+
 http_proxy_server::http_proxy_server(asio::io_service& io_service) :
 	io_service(io_service),
 	acceptor(io_service)
 {}
-#endif
+
 void http_proxy_server::run()
 {
 	const auto& config = http_proxy_server_config::get_instance();
@@ -60,11 +53,9 @@ void http_proxy_server::start_accept()
 	auto socket = std::make_shared<asio::ip::tcp::socket>(this->acceptor.get_io_service());
 	this->acceptor.async_accept(*socket, [socket, this](const error_code& error) {
 		if (!error) {
-#ifdef WITH_LOG
-			auto connection = http_proxy_server_connection::create(std::move(*socket),lg);
-#else
+
 			auto connection = http_proxy_server_connection::create(std::move(*socket));
-#endif
+
 			connection->start();
 			this->start_accept();
 		}

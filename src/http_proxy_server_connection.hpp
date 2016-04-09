@@ -21,10 +21,7 @@ namespace asio = boost::asio;
 using error_code = boost::system::error_code;
 #endif
 
-#ifdef WITH_LOG
-#include <fstream>
 
-#endif
 
 #include "encrypt.hpp"
 #include "http_header_parser.hpp"
@@ -57,23 +54,17 @@ class http_proxy_server_connection : public std::enable_shared_from_this<http_pr
 	http_proxy_server_connection_context connection_context;
 	http_proxy_server_connection_read_request_context read_request_context;
 	http_proxy_server_connection_read_response_context read_response_context;
-#ifdef WITH_LOG
-	std::ofstream& lg;
-#endif
+
 private:
-#ifdef WITH_LOG
-	http_proxy_server_connection(asio::ip::tcp::socket&& proxy_client_socket, std::ofstream&  in_lg);
-#else
+
 	http_proxy_server_connection(asio::ip::tcp::socket&& proxy_client_socket);
-#endif
+
 	
 public:
 	~http_proxy_server_connection();
-#ifdef WITH_LOG
-	static std::shared_ptr<http_proxy_server_connection> create(asio::ip::tcp::socket&& client_socket, std::ofstream&  in_lg);
-#else
+
 	static std::shared_ptr<http_proxy_server_connection> create(asio::ip::tcp::socket&& client_socket);
-#endif
+
 	void start();
 private:
 	void async_read_data_from_proxy_client(std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH);
