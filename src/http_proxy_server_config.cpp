@@ -13,9 +13,9 @@
 #include "encrypt.hpp"
 #include "http_proxy_server_config.hpp"
 
-
+#include <json.hpp>
 namespace azure_proxy {
-
+	using json = nlohmann::json;
 http_proxy_server_config::http_proxy_server_config()
 {
 }

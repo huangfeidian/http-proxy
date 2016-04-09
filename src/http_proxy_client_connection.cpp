@@ -16,7 +16,20 @@
 
 namespace azure_proxy
 {
-
+#ifdef WITH_LOG
+	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket,std::ofstream& in_lg) :
+		strand(ua_socket.get_io_service()),
+		user_agent_socket(std::move(ua_socket)),
+		proxy_server_socket(this->user_agent_socket.get_io_service()),
+		resolver(this->user_agent_socket.get_io_service()),
+		connection_state(proxy_connection_state::ready),
+		timer(this->user_agent_socket.get_io_service()),
+		timeout(std::chrono::seconds(http_proxy_client_config::get_instance().get_timeout())),
+		lg(in_lg)
+	{
+		http_proxy_client_stat::get_instance().increase_current_connections();
+	}
+#else
 	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket) :
 		strand(ua_socket.get_io_service()),
 		user_agent_socket(std::move(ua_socket)),
@@ -28,17 +41,22 @@ namespace azure_proxy
 	{
 		http_proxy_client_stat::get_instance().increase_current_connections();
 	}
-
+#endif
 	http_proxy_client_connection::~http_proxy_client_connection()
 	{
 		http_proxy_client_stat::get_instance().decrease_current_connections();
 	}
-
+#ifdef WITH_LOG
+	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(asio::ip::tcp::socket&& ua_socket, std::ofstream&in_lg)
+	{
+		return std::shared_ptr<http_proxy_client_connection>(new http_proxy_client_connection(std::move(ua_socket),in_lg));
+	}
+#else
 	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(asio::ip::tcp::socket&& ua_socket)
 	{
 		return std::shared_ptr<http_proxy_client_connection>(new http_proxy_client_connection(std::move(ua_socket)));
 	}
-
+#endif
 	void http_proxy_client_connection::start()
 	{
 		std::array<unsigned char, 86> cipher_info_raw;
@@ -265,9 +283,15 @@ namespace azure_proxy
 			{
 				if (!error)
 				{
+#ifdef WITH_LOG
+					lg<< "get data from ua:\n" << std::string(&this->upgoing_buffer_read[0], bytes_transferred)<<std::endl;
+#endif
 					http_proxy_client_stat::get_instance().on_upgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
 					this->encryptor->encrypt(reinterpret_cast<const unsigned char*>(&this->upgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->upgoing_buffer_write[0]), bytes_transferred);
 					this->async_write_data_to_proxy_server(this->upgoing_buffer_write.data(), 0, bytes_transferred);
+#ifdef WITH_LOG
+					lg << "send data to server:\n" << std::string(&this->upgoing_buffer_write[0], bytes_transferred) << std::endl;
+#endif
 				}
 				else
 				{
@@ -292,7 +316,11 @@ namespace azure_proxy
 				{
 					http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
 					this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
+#ifdef WITH_LOG
+					lg<< "sending data to ua:\n " << std::string(&downgoing_buffer_write.data()[0], bytes_transferred)<<std::endl;
+#endif
 					this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, bytes_transferred);
+
 				}
 				else
 				{
@@ -386,6 +414,9 @@ namespace azure_proxy
 
 	void http_proxy_client_connection::on_connection_established()
 	{
+#ifdef WITH_LOG
+		lg << " sending cipher to server " << std::endl;
+#endif
 		this->async_write_data_to_proxy_server(reinterpret_cast<const char*>(this->encrypted_cipher_info.data()), 0, this->encrypted_cipher_info.size());
 		this->async_read_data_from_proxy_server(false);
 	}

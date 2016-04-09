@@ -10,8 +10,10 @@ link_directories(${OPENSSL_LIBRARY_DIR})
 
 OPTION(ASIO_STANDALONE "use asio without boost" ON)
 
+OPTION(WITH_LOG "use  log" OFF)
+
 if(ASIO_STANDALONE)
-set(ASIO_DIR "D:\\Github\\asio-1.10.6\\include")
+set(ASIO_DIR "D:\\Github\\asio\\asio\\include")
 include_directories(${ASIO_DIR})
 add_definitions(-DASIO_STANDALONE)
 add_definitions(-DASIO_HAS_STD_ARRAY )
@@ -29,6 +31,14 @@ find_package(Boost REQUIRED COMPONENTS system regex)
 include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIR})
 endif()
+
+if(WITH_LOG)
+add_definitions(-DWITH_LOG)
+
+
+endif()
+
+
 
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   add_definitions(-DBOOST_ASIO_HAS_MOVE)
@@ -54,6 +64,8 @@ target_link_libraries(ahps  ${OPENSSL_LIBRARIES})
 else()
 target_link_libraries(ahps  ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${OPENSSL_LIBRARIES})
 endif()
+
+
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_link_libraries(ahpc atomic)

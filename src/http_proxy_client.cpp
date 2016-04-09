@@ -15,15 +15,24 @@
 #include "http_proxy_client_connection.hpp"
 #include "http_proxy_client_config.hpp"
 
+
 namespace azure_proxy
 {
-
-	http_proxy_client::http_proxy_client(asio::io_service& io_service) :
+#ifdef WITH_LOG
+	http_proxy_client::http_proxy_client(asio::io_service& io_service,std::ofstream& in_lg) :
 		io_service(io_service),
-		acceptor(io_service)
+		acceptor(io_service),
+		lg(in_lg)
 	{
 	}
+#else
+	http_proxy_client::http_proxy_client(asio::io_service& io_serviceg) :
+		io_service(io_service),
+		acceptor(io_service)
 
+	{
+	}
+#endif
 	void http_proxy_client::run()
 	{
 		const auto& config = http_proxy_client_config::get_instance();
@@ -63,7 +72,12 @@ namespace azure_proxy
 			if (!error)
 			{
 				this->start_accept();
+#ifdef WITH_LOG
+				lg << "new connection created"<<std::endl;
+				auto connection = http_proxy_client_connection::create(std::move(*socket),lg);
+#else
 				auto connection = http_proxy_client_connection::create(std::move(*socket));
+#endif
 				connection->start();
 			}
 		});

@@ -25,6 +25,10 @@ using error_code = boost::system::error_code;
 
 #include "encrypt.hpp"
 
+#ifdef WITH_LOG
+#include <fstream>
+
+#endif
 const std::size_t BUFFER_LENGTH = 2048;
 
 namespace azure_proxy
@@ -54,11 +58,22 @@ namespace azure_proxy
 		std::unique_ptr<stream_encryptor> encryptor;
 		std::unique_ptr<stream_decryptor> decryptor;
 		std::chrono::seconds timeout;
+#ifdef WITH_LOG
+		std::ofstream& lg;
+#endif
 	private:
+#ifdef WITH_LOG
+		http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, std::ofstream& in_lg);
+#else
 		http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket);
+#endif
 	public:
 		~http_proxy_client_connection();
+#ifdef WITH_LOG
+		static std::shared_ptr<http_proxy_client_connection> create(asio::ip::tcp::socket&& ua_socket, std::ofstream& in_lg);
+#else
 		static std::shared_ptr<http_proxy_client_connection> create(asio::ip::tcp::socket&& ua_socket);
+#endif
 		void start();
 	private:
 		void async_read_data_from_user_agent();

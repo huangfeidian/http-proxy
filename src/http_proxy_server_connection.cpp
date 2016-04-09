@@ -19,7 +19,19 @@ static const std::size_t MAX_RESPONSE_HEADER_LENGTH = 10240;
 
 namespace azure_proxy
 {
-
+#ifdef WITH_LOG
+	http_proxy_server_connection::http_proxy_server_connection(asio::ip::tcp::socket&& proxy_client_socket, std::ofstream& in_lg) :
+		strand(proxy_client_socket.get_io_service()),
+		proxy_client_socket(std::move(proxy_client_socket)),
+		origin_server_socket(this->proxy_client_socket.get_io_service()),
+		resolver(this->proxy_client_socket.get_io_service()),
+		timer(this->proxy_client_socket.get_io_service()),
+		rsa_pri(http_proxy_server_config::get_instance().get_rsa_private_key()),
+		lg(in_lg)
+	{
+		this->connection_context.connection_state = proxy_connection_state::read_cipher_data;
+	}
+#else
 	http_proxy_server_connection::http_proxy_server_connection(asio::ip::tcp::socket&& proxy_client_socket) :
 		strand(proxy_client_socket.get_io_service()),
 		proxy_client_socket(std::move(proxy_client_socket)),
@@ -30,19 +42,28 @@ namespace azure_proxy
 	{
 		this->connection_context.connection_state = proxy_connection_state::read_cipher_data;
 	}
-
+#endif
 	http_proxy_server_connection::~http_proxy_server_connection()
 	{
 	}
-
+#ifdef WITH_LOG
+	std::shared_ptr<http_proxy_server_connection> http_proxy_server_connection::create(asio::ip::tcp::socket&& client_socket, std::ofstream& in_lg)
+	{
+		return std::shared_ptr<http_proxy_server_connection>(new http_proxy_server_connection(std::move(client_socket),in_lg));
+	}
+#else
 	std::shared_ptr<http_proxy_server_connection> http_proxy_server_connection::create(asio::ip::tcp::socket&& client_socket)
 	{
 		return std::shared_ptr<http_proxy_server_connection>(new http_proxy_server_connection(std::move(client_socket)));
 	}
-
+#endif
 	void http_proxy_server_connection::start()
 	{
+
 		this->connection_context.connection_state = proxy_connection_state::read_cipher_data;
+#ifdef WITH_LOG
+		lg<<"new connection start"<<std::endl;
+#endif
 		this->async_read_data_from_proxy_client(1, std::min<std::size_t>(this->rsa_pri.modulus_size(), BUFFER_LENGTH));
 	}
 
@@ -107,6 +128,9 @@ namespace azure_proxy
 			if (this->request_header->method() == "CONNECT")
 			{
 				error_code ec;
+#ifdef WITH_LOG
+				lg<<" The connection to " << this->request_header->path_and_query() << " is already open, shutting it down"<<std::endl;
+#endif
 				this->origin_server_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
 				this->origin_server_socket.close(ec);
 			}
@@ -116,11 +140,17 @@ namespace azure_proxy
 			this->request_header->host() == this->connection_context.origin_server_name &&
 			this->request_header->port() == this->connection_context.origin_server_port)
 		{
+#ifdef WITH_LOG
+			lg<<" The request " << this->request_header->path_and_query() << " is opened"<<std::endl;
+#endif
 			this->connection_context.reconnect_on_error = true;
 			this->on_connect();
 		}
 		else
 		{
+#ifdef WITH_LOG
+			lg<<" Connecting to " << this->request_header->host()<<" " << this->request_header->port();
+#endif
 			this->connection_context.origin_server_name = this->request_header->host();
 			this->connection_context.origin_server_port = this->request_header->port();
 			asio::ip::tcp::resolver::query query(this->request_header->host(), std::to_string(this->request_header->port()));
@@ -167,6 +197,9 @@ namespace azure_proxy
 			this->modified_request_data += "\r\n";
 		}
 		this->modified_request_data += "\r\n";
+#ifdef WITH_LOG
+		lg<<" Sending request header " << this->modified_request_data << " to  " << this->request_header->host();
+#endif
 		this->modified_request_data.append(request_content_begin, this->request_data.end());
 		this->connection_context.connection_state = proxy_connection_state::write_http_request_header;
 		this->async_write_data_to_origin_server(this->modified_request_data.data(), 0, this->modified_request_data.size());
@@ -195,6 +228,9 @@ namespace azure_proxy
 			this->modified_response_data += "\r\n";
 		}
 		this->modified_response_data += "\r\n";
+#ifdef WITH_LOG
+		lg<<" Sending response header " << this->modified_response_data << " back to  client" ;
+#endif
 		this->modified_response_data.append(response_content_begin, this->response_data.end());
 		unsigned char temp_buffer[256];
 		std::size_t blocks = this->modified_response_data.size() / 256;
@@ -234,6 +270,9 @@ namespace azure_proxy
 					}
 					else
 					{
+#ifdef WITH_LOG
+						lg<<" Sending request header " << this->modified_request_data << " to  " << this->request_header->host()<<" finished"<<std::endl;
+#endif
 						this->on_origin_server_data_written();
 					}
 				}
@@ -263,6 +302,9 @@ namespace azure_proxy
 					}
 					else
 					{
+#ifdef WITH_LOG
+						lg<<" Sending response to client finished"<<std::endl;
+#endif
 						this->on_proxy_client_data_written();
 					}
 				}
@@ -278,6 +320,9 @@ namespace azure_proxy
 	void http_proxy_server_connection::start_tunnel_transfer()
 	{
 		this->connection_context.connection_state = proxy_connection_state::tunnel_transfer;
+#ifdef WITH_LOG
+		lg<<" tunnel transfer between server and client is set"<<std::endl;
+#endif
 		this->async_read_data_from_proxy_client();
 		this->async_read_data_from_origin_server(false);
 	}
@@ -324,7 +369,9 @@ namespace azure_proxy
 		{
 			this->modified_response_data += response_content;
 		}
-
+#ifdef WITH_LOG
+		lg<<" Sending error header "<<this->modified_response_data<<" to  "<<proxy_client_socket.remote_endpoint();
+#endif
 		unsigned char temp_buffer[16];
 		for (std::size_t i = 0; i * 16 < this->modified_response_data.size(); ++i)
 		{
@@ -366,6 +413,9 @@ namespace azure_proxy
 			std::copy(temp_buffer, temp_buffer + block_length, reinterpret_cast<unsigned char*>(&this->modified_response_data[i * 16]));
 		}
 		this->connection_context.connection_state = proxy_connection_state::report_error;
+#ifdef WITH_LOG
+		lg << " Authentication failure from  " << proxy_client_socket.local_endpoint();
+#endif
 		this->async_write_data_to_proxy_client(this->modified_response_data.data(), 0, this->modified_response_data.size());
 	}
 
@@ -380,6 +430,9 @@ namespace azure_proxy
 		{
 			if (error != asio::error::operation_aborted)
 			{
+#ifdef WITH_LOG
+				lg << std::string(" Timer time out");
+#endif
 				this->on_timeout();
 			}
 		}));
@@ -405,6 +458,9 @@ namespace azure_proxy
 					return;
 				}
 				error_code ec;
+#ifdef WITH_LOG
+				lg<< " Socket is already open. Can't reuse current endpoint for  " << connection_context.origin_server_name<<"\n Shuting down connection"<<std::endl;
+#endif
 				this->origin_server_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
 				this->origin_server_socket.close(ec);
 			}
@@ -420,6 +476,9 @@ namespace azure_proxy
 			{
 				if (!error)
 				{
+#ifdef WITH_LOG
+					lg<<" Connected to   " << connection_context.origin_server_name << "with endpoint " << endpoint_iterator->endpoint();
+#endif
 					this->on_connect();
 				}
 				else
@@ -432,6 +491,9 @@ namespace azure_proxy
 					}
 					else
 					{
+#ifdef WITH_LOG
+						lg<< " Can't connect to  " << connection_context.origin_server_name ;
+#endif
 						this->on_error(error);
 					}
 				}
@@ -446,6 +508,9 @@ namespace azure_proxy
 		{
 			const unsigned char response_message [] = "HTTP/1.1 200 Connection Established\r\nConnection: Close\r\n\r\n";
 			this->modified_response_data.resize(sizeof(response_message) - 1);
+#ifdef WITH_LOG
+			lg<<" Connection to server successed. Sending  ok message to client  " <<this->proxy_client_socket.remote_endpoint();
+#endif
 			this->encryptor->encrypt(response_message, const_cast<unsigned char*>(reinterpret_cast<const unsigned char*>(&this->modified_response_data[0])), this->modified_response_data.size());
 			this->connection_context.connection_state = proxy_connection_state::report_connection_established;
 			this->async_write_data_to_proxy_client(&this->modified_response_data[0], 0, this->modified_response_data.size());
@@ -460,6 +525,9 @@ namespace azure_proxy
 	{
 		if (this->connection_context.connection_state == proxy_connection_state::read_cipher_data)
 		{
+#ifdef WITH_LOG
+			lg << " validating the cipher from client " << this->proxy_client_socket.remote_endpoint() << std::endl;
+#endif
 			std::copy(this->upgoing_buffer_read.begin(), this->upgoing_buffer_read.begin() + bytes_transferred, std::back_inserter(this->encrypted_cipher_info));
 			if (this->encrypted_cipher_info.size() < this->rsa_pri.modulus_size())
 			{
@@ -598,6 +666,9 @@ namespace azure_proxy
 			{
 				return;
 			}
+#ifdef WITH_LOG
+			lg<<"Validate the cypher from client "<<this->proxy_client_socket.remote_endpoint()<<" sucessed"<<std::endl;
+#endif
 			this->connection_context.connection_state = proxy_connection_state::read_http_request_header;
 			this->async_read_data_from_proxy_client();
 			return;
@@ -617,6 +688,9 @@ namespace azure_proxy
 				}
 				else
 				{
+#ifdef WITH_LOG
+					lg<< " 400 Bad Request request header too long"<<"\n"<<this->request_data<<std::endl;
+#endif
 					this->report_error("400", "Bad Request", "Request header too long");
 				}
 				return;
@@ -625,25 +699,37 @@ namespace azure_proxy
 			this->request_header = http_header_parser::parse_request_header(this->request_data.begin(), this->request_data.begin() + double_crlf_pos + 4);
 			if (!this->request_header)
 			{
+#ifdef WITH_LOG
+				lg<< " 400 Bad Request Failed to parse the http request header" << "\n"<< this->request_data.substr(0, double_crlf_pos + 4)<<std::endl;
+#endif
 				this->report_error("400", "Bad Request", "Failed to parse the http request header");
+
 				return;
 			}
-
+#ifdef WITH_LOG
+			lg << "This Request Header" << "\n" << std::string(this->request_data.begin(), this->request_data.begin() + double_crlf_pos + 4)<<std::endl;
+#endif
 			if (this->request_header->method() != "GET"
 				// && this->request_header->method() != "OPTIONS"
 				&& this->request_header->method() != "HEAD"
 				&& this->request_header->method() != "POST"
 				&& this->request_header->method() != "PUT"
 				&& this->request_header->method() != "DELETE"
-				// && this->request_header->method() != "TRACE"
+				// && this->request_header->method() != "error"
 				&& this->request_header->method() != "CONNECT")
 			{
+#ifdef WITH_LOG
+				lg<< " 405 Method Not Allowed" << this->request_header->method() << std::endl;
+#endif
 				this->report_error("405", "Method Not Allowed", std::string());
 				return;
 			}
 			if (this->request_header->http_version() != "1.1"
 				&& this->request_header->http_version() != "1.0")
 			{
+#ifdef WITH_LOG
+				lg << " HTTP Version Not Supported" << this->request_header->http_version() << std::endl;
+#endif
 				this->report_error("505", "HTTP Version Not Supported", std::string());
 				return;
 			}
@@ -656,11 +742,26 @@ namespace azure_proxy
 				{
 					if (authentication::get_instance().auth(*proxy_authorization_value) == auth_result::ok)
 					{
+#ifdef WITH_LOG
+						lg<< " proxy authorization successed  with value " << *proxy_authorization_value << std::endl;
+#endif
 						auth_success = true;
 					}
+					else
+					{
+						auth_success = false;
+#ifdef WITH_LOG			
+						lg << "Authentic failure with \n " << *proxy_authorization_value << std::endl;
+#endif
+						this->report_authentication_failed();
+						return;
+					}
 				}
-				if (!auth_success)
+				else
 				{
+#ifdef WITH_LOG			
+					lg << "Authentic failure with empty proxy authorization value"<<std::endl;
+#endif
 					this->report_authentication_failed();
 					return;
 				}
@@ -675,6 +776,9 @@ namespace azure_proxy
 			{
 				if (this->request_header->scheme() != "http")
 				{
+#ifdef WITH_LOG
+					lg << " HTTP Version Not Supported" << this->request_header->http_version() << std::endl;
+#endif
 					this->report_error("400", "Bad Request", "Unsupported scheme");
 					return;
 				}
@@ -697,6 +801,7 @@ namespace azure_proxy
 						{
 							this->read_request_context.is_proxy_client_keep_alive = false;
 						}
+
 					}
 					else
 					{
@@ -707,6 +812,7 @@ namespace azure_proxy
 							this->read_request_context.is_proxy_client_keep_alive = true;
 						}
 					}
+
 				}
 				else
 				{
@@ -718,6 +824,7 @@ namespace azure_proxy
 					{
 						this->read_request_context.is_proxy_client_keep_alive = false;
 					}
+
 					if (connection_value)
 					{
 						string_to_lower_case(*connection_value);
@@ -731,7 +838,9 @@ namespace azure_proxy
 						}
 					}
 				}
-
+#ifdef WITH_LOG
+				lg << " set keeping alive " << this->read_request_context.is_proxy_client_keep_alive << std::endl;
+#endif
 				this->read_request_context.content_length = 0;
 				this->read_request_context.content_length_has_read = 0;
 
@@ -751,6 +860,9 @@ namespace azure_proxy
 						}
 						catch (const std::exception&)
 						{
+#ifdef WITH_LOG
+							lg << " 400 Bad Request Invalid Content-Length in request " << *content_length_value << std::endl;
+#endif
 							this->report_error("400", "Bad Request", "Invalid Content-Length in request");
 							return;
 						}
@@ -763,6 +875,9 @@ namespace azure_proxy
 						{
 							if (!this->read_request_context.chunk_checker.check(this->request_data.begin() + double_crlf_pos + 4, this->request_data.end()))
 							{
+#ifdef WITH_LOG
+								lg<< " 400 Bad Request Failed to check chunked response " << this->request_data.substr(double_crlf_pos + 4) << std::endl;
+#endif
 								this->report_error("400", "Bad Request", "Failed to check chunked response");
 								return;
 							}
@@ -770,12 +885,18 @@ namespace azure_proxy
 						}
 						else
 						{
+#ifdef WITH_LOG
+							lg << " 400 Bad Request Unsupported Transfer-Encoding" << *transfer_encoding_value << std::endl;
+#endif
 							this->report_error("400", "Bad Request", "Unsupported Transfer-Encoding");
 							return;
 						}
 					}
 					else
 					{
+#ifdef WITH_LOG
+						lg << " 411 Length Required"<<std::endl;
+#endif
 						this->report_error("411", "Length Required", std::string());
 						return;
 					}
@@ -825,6 +946,9 @@ namespace azure_proxy
 				}
 				else
 				{
+#ifdef WITH_LOG
+					lg<< " 502 Bad Gateway Response header too long "<< this->response_data.size() << std::endl;
+#endif
 					this->report_error("502", "Bad Gateway", "Response header too long");
 				}
 				return;
@@ -833,16 +957,25 @@ namespace azure_proxy
 			this->response_header = http_header_parser::parse_response_header(this->response_data.begin(), this->response_data.begin() + double_crlf_pos + 4);
 			if (!this->response_header)
 			{
+#ifdef WITH_LOG
+				lg << " 502 Bad Gateway Fail to parse response header" << response_data.substr(0, double_crlf_pos + 4) << std::endl;
+#endif
 				this->report_error("502", "Bad Gateway", "Failed to parse response header");
 				return;
 			}
 			if (this->response_header->http_version() != "1.1" && this->response_header->http_version() != "1.0")
 			{
+#ifdef WITH_LOG
+				lg<< " 502 Bad Gateway HTTP version not supported" << response_header->http_version() << std::endl;
+#endif
 				this->report_error("502", "Bad Gateway", "HTTP version not supported");
 				return;
 			}
 			if (this->response_header->status_code() < 100 || this->response_header->status_code() > 700)
 			{
+#ifdef WITH_LOG
+				lg<< " 502 Bad Gateway Unexpected status code" << response_header->status_code() << std::endl;
+#endif
 				this->report_error("502", "Bad Gateway", "Unexpected status code");
 				return;
 			}
@@ -881,6 +1014,9 @@ namespace azure_proxy
 				}
 				else
 				{
+#ifdef WITH_LOG
+					lg<< " 502 Bad Gateway Unexpected connection value" << *connection_value << std::endl;
+#endif
 					this->report_error("502", "Bad Gateway", std::string());
 					return;
 				}
@@ -908,6 +1044,9 @@ namespace azure_proxy
 					}
 					catch (const std::exception&)
 					{
+#ifdef WITH_LOG
+						lg << " 502 Bad Gateway Invalid Content-Length in response" << *content_length_value << std::endl;
+#endif
 						this->report_error("502", "Bad Gateway", "Invalid Content-Length in response");
 						return;
 					}
@@ -921,18 +1060,27 @@ namespace azure_proxy
 						//this->read_response_context.chunk_checker = nullptr;
 						if (!this->read_response_context.chunk_checker.check(this->response_data.begin() + double_crlf_pos + 4, this->response_data.end()))
 						{
+#ifdef WITH_LOG
+							lg<< " 502 Bad Gateway  Failed to check chunked response" << response_data.substr(double_crlf_pos + 4) << std::endl;
+#endif
 							this->report_error("502", "Bad Gateway", "Failed to check chunked response");
 							return;
 						}
 					}
 					else
 					{
+#ifdef WITH_LOG
+						lg<< " 502 Bad Gateway  Unsupported Transfer-Encoding" << *transfer_encoding_value << std::endl;
+#endif
 						this->report_error("502", "Bad Gateway", "Unsupported Transfer-Encoding");
 						return;
 					}
 				}
 				else if (this->read_response_context.is_origin_server_keep_alive)
 				{
+#ifdef WITH_LOG
+					lg<< " 502 Bad Gateway  Miss response length info "<<std::endl;
+#endif
 					this->report_error("502", "Bad Gateway", "Miss response length info");
 					return;
 				}
@@ -1069,10 +1217,16 @@ namespace azure_proxy
 	{
 		if (this->connection_context.connection_state == proxy_connection_state::resolve_origin_server_address)
 		{
+#ifdef WITH_LOG
+			lg<< " 502 Bad Gateway  Failed to resolve the hostname "<<std::endl;
+#endif
 			this->report_error("504", "Gateway Timeout", "Failed to resolve the hostname");
 		}
 		else if (this->connection_context.connection_state == proxy_connection_state::connect_to_origin_server)
 		{
+#ifdef WITH_LOG
+			lg<< " 502 Bad Gateway  Failed to connect to origin server "<<std::endl;
+#endif
 			this->report_error("502", "Bad Gateway", "Failed to connect to origin server");
 		}
 		else if (this->connection_context.connection_state == proxy_connection_state::write_http_request_header && this->connection_context.reconnect_on_error)

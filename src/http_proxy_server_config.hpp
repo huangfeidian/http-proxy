@@ -13,20 +13,20 @@
 #include <stdexcept>
 #include <string>
 
-#include <json.hpp>
+
 
 namespace azure_proxy {
-	using json = nlohmann::json;
+
 class http_proxy_server_config {
-    std::map<std::string,int> config_map_int;
+	std::map<std::string,int> config_map_int;
 	std::map<std::string, std::string> config_map_str;
 private:
-    template<typename T>
+	template<typename T>
 	T get_config_value(const std::string& key) const;
 	template<typename T>
 	void set_config_value(const std::string& key, T value);
-    http_proxy_server_config();
-    
+	http_proxy_server_config();
+	
 public:
 	bool load_config(const std::string& config_filename);
 	std::string get_bind_address() const;
@@ -34,9 +34,9 @@ public:
 	std::string get_rsa_private_key() const;
 	int get_timeout() const;
 	int get_workers() const;
-    bool enable_auth() const;
+	bool enable_auth() const;
 
-    static http_proxy_server_config& get_instance();
+	static http_proxy_server_config& get_instance();
 };
 
 } // namespace azure_proxy

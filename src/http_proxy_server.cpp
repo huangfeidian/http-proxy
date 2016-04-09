@@ -15,50 +15,60 @@
 #include "http_proxy_server_connection.hpp"
 
 namespace azure_proxy {
-
-http_proxy_server::http_proxy_server(asio::io_service& io_service) :
-    io_service(io_service),
-    acceptor(io_service)
+#ifdef WITH_LOG
+http_proxy_server::http_proxy_server(asio::io_service& io_service, std::ofstream& in_lg) :
+	io_service(io_service),
+	acceptor(io_service),
+	lg(in_lg)
 {
 }
-
+#else
+http_proxy_server::http_proxy_server(asio::io_service& io_service) :
+	io_service(io_service),
+	acceptor(io_service)
+{}
+#endif
 void http_proxy_server::run()
 {
-    const auto& config = http_proxy_server_config::get_instance();
-    asio::ip::tcp::endpoint endpoint(asio::ip::address::from_string(config.get_bind_address()), config.get_listen_port());
-    this->acceptor.open(endpoint.protocol());
-    this->acceptor.bind(endpoint);
-    this->acceptor.listen(asio::socket_base::max_connections);
-    this->start_accept();
+	const auto& config = http_proxy_server_config::get_instance();
+	asio::ip::tcp::endpoint endpoint(asio::ip::address::from_string(config.get_bind_address()), config.get_listen_port());
+	this->acceptor.open(endpoint.protocol());
+	this->acceptor.bind(endpoint);
+	this->acceptor.listen(asio::socket_base::max_connections);
+	this->start_accept();
 
-    std::vector<std::thread> td_vec;
+	std::vector<std::thread> td_vec;
 
-    for (auto i = 0; i < config.get_workers(); ++i) {
-        td_vec.emplace_back([this]() {
-            try {
-                this->io_service.run();
-            }
-            catch (const std::exception& e) {
-                std::cerr << e.what() << std::endl;
-            }
-        });
-    }
+	for (auto i = 0; i < config.get_workers(); ++i) {
+		td_vec.emplace_back([this]() {
+			try {
+				this->io_service.run();
+			}
+			catch (const std::exception& e) {
+				std::cerr << e.what() << std::endl;
+			}
+		});
+	}
 
-    for (auto& td : td_vec) {
-        td.join();
-    }
+	for (auto& td : td_vec) {
+		td.join();
+	}
 }
 
 void http_proxy_server::start_accept()
 {
-    auto socket = std::make_shared<asio::ip::tcp::socket>(this->acceptor.get_io_service());
-    this->acceptor.async_accept(*socket, [socket, this](const error_code& error) {
-        if (!error) {
-            auto connection = http_proxy_server_connection::create(std::move(*socket));
-            connection->start();
-            this->start_accept();
-        }
-    });
+	auto socket = std::make_shared<asio::ip::tcp::socket>(this->acceptor.get_io_service());
+	this->acceptor.async_accept(*socket, [socket, this](const error_code& error) {
+		if (!error) {
+#ifdef WITH_LOG
+			auto connection = http_proxy_server_connection::create(std::move(*socket),lg);
+#else
+			auto connection = http_proxy_server_connection::create(std::move(*socket));
+#endif
+			connection->start();
+			this->start_accept();
+		}
+	});
 }
 
 } //namespace azure_proxy
