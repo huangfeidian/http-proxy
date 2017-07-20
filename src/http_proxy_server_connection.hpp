@@ -49,8 +49,8 @@ class http_proxy_server_connection : public std::enable_shared_from_this<http_pr
 	std::string modified_request_data;
 	std::string response_data;
 	std::string modified_response_data;
-	std::unique_ptr<http_request_header> request_header;
-	std::unique_ptr<http_response_header> response_header;
+	std::optional<http_request_header> request_header;
+	std::optional<http_response_header> response_header;
 	http_proxy_server_connection_context connection_context;
 	http_proxy_server_connection_read_request_context read_request_context;
 	http_proxy_server_connection_read_response_context read_response_context;

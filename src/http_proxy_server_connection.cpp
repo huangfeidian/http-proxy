@@ -416,7 +416,7 @@ namespace azure_proxy
 				this->origin_server_socket.close(ec);
 			}
 		}
-		this->connection_context.origin_server_endpoint = std::make_unique<asio::ip::tcp::endpoint>(endpoint_iterator->endpoint());
+		this->connection_context.origin_server_endpoint = std::make_optional<asio::ip::tcp::endpoint>(endpoint_iterator->endpoint());
 		auto self(this->shared_from_this());
 		this->connection_context.connection_state = proxy_connection_state::connect_to_origin_server;
 		this->set_timer();
@@ -601,7 +601,7 @@ namespace azure_proxy
 				this->encryptor = std::unique_ptr<stream_encryptor>(new aes_ctr128_encryptor(&decrypted_cipher_info[23], key_bits, ivec.data()));
 				this->decryptor = std::unique_ptr<stream_decryptor>(new aes_ctr128_decryptor(&decrypted_cipher_info[23], key_bits, ivec.data()));
 			}
-			if (this->encryptor == nullptr || this->decryptor == nullptr)
+			if (!(this->encryptor) || !(this->decryptor))
 			{
 				return;
 			}
@@ -609,7 +609,7 @@ namespace azure_proxy
 			this->async_read_data_from_proxy_client();
 			return;
 		}
-		assert(this->encryptor != nullptr && this->decryptor != nullptr);
+		assert(this->encryptor&& this->decryptor);
 		this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->upgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->upgoing_buffer_write[0]), bytes_transferred);
 		if (this->connection_context.connection_state == proxy_connection_state::read_http_request_header)
 		{
@@ -739,13 +739,13 @@ namespace azure_proxy
 					}
 				}
 
-				this->read_request_context.content_length = nullptr;
+				this->read_request_context.content_length = std::nullopt;
 				this->read_request_context.content_length_has_read = 0;
-				this->read_request_context.chunk_checker = nullptr;
+				this->read_request_context.chunk_checker = std::nullopt;
 
 				if (this->request_header->method() == "GET" || this->request_header->method() == "HEAD" || this->request_header->method() == "DELETE")
 				{
-					this->read_request_context.content_length = std::make_unique<uint64_t>(0);
+					this->read_request_context.content_length = std::make_optional<uint64_t>(0);
 				}
 				else if (this->request_header->method() == "POST" || this->request_header->method() == "PUT")
 				{
@@ -755,7 +755,7 @@ namespace azure_proxy
 					{
 						try
 						{
-							this->read_request_context.content_length =std::make_unique<uint64_t>( std::stoull(*content_length_value));
+							this->read_request_context.content_length =std::make_optional<uint64_t>( std::stoull(*content_length_value));
 						}
 						catch (const std::exception&)
 						{
@@ -854,10 +854,10 @@ namespace azure_proxy
 				this->report_error("502", "Bad Gateway", "Unexpected status code");
 				return;
 			}
-			this->read_response_context.content_length = nullptr;
+			this->read_response_context.content_length = std::nullopt;
 			this->read_response_context.content_length_has_read = 0;
 			this->read_response_context.is_origin_server_keep_alive = false;
-			this->read_response_context.chunk_checker = nullptr;
+			this->read_response_context.chunk_checker = std::nullopt;
 
 			auto connection_value = this->response_header->get_header_value("Connection");
 
@@ -896,13 +896,13 @@ namespace azure_proxy
 
 			if (this->request_header->method() == "HEAD")
 			{
-				this->read_response_context.content_length = std::make_unique<std::uint64_t>(0);
+				this->read_response_context.content_length = std::make_optional<std::uint64_t>(0);
 			}
 			else if (this->response_header->status_code() == 204 || this->response_header->status_code() == 304)
 			{
 				// 204 No Content
 				// 304 Not Modified
-				this->read_response_context.content_length = std::make_unique<std::uint64_t>(0);
+				this->read_response_context.content_length = std::make_optional<std::uint64_t>(0);
 			}
 			else
 			{
@@ -912,7 +912,7 @@ namespace azure_proxy
 				{
 					try
 					{
-						this->read_response_context.content_length = std::make_unique<std::uint64_t>(std::stoull(*content_length_value));
+						this->read_response_context.content_length = std::make_optional<std::uint64_t>(std::stoull(*content_length_value));
 					}
 					catch (const std::exception&)
 					{
@@ -926,7 +926,7 @@ namespace azure_proxy
 					string_to_lower_case(*transfer_encoding_value);
 					if (*transfer_encoding_value == "chunked")
 					{
-						this->read_response_context.chunk_checker = std::make_unique<http_chunk_checker>();
+						this->read_response_context.chunk_checker = std::make_optional<http_chunk_checker>(http_chunk_checker());
 						if (!this->read_response_context.chunk_checker->check(this->response_data.begin() + double_crlf_pos + 4, this->response_data.end()))
 						{
 							this->report_error("502", "Bad Gateway", "Failed to check chunked response");
@@ -993,12 +993,12 @@ namespace azure_proxy
 				{
 					this->request_data.clear();
 					this->response_data.clear();
-					this->request_header = nullptr;
-					this->response_header = nullptr;
-					this->read_request_context.content_length = nullptr;
-					this->read_request_context.chunk_checker = nullptr;
-					this->read_response_context.content_length = nullptr;
-					this->read_response_context.chunk_checker = nullptr;
+					this->request_header = std::nullopt;
+					this->response_header = std::nullopt;
+					this->read_request_context.content_length = std::nullopt;
+					this->read_request_context.chunk_checker = std::nullopt;
+					this->read_response_context.content_length = std::nullopt;
+					this->read_response_context.chunk_checker = std::nullopt;
 					this->connection_context.connection_state = proxy_connection_state::read_http_request_header;
 					this->async_read_data_from_proxy_client();
 				}

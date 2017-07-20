@@ -12,6 +12,7 @@
 #include <cctype>
 #include <map>
 #include <string>
+#include <optional>
 
 namespace azure_proxy
 {
@@ -46,7 +47,7 @@ namespace azure_proxy
 		unsigned short port() const;
 		const std::string& path_and_query() const;
 		const std::string& http_version() const;
-		std::unique_ptr<std::string> get_header_value(const std::string& name) const;
+		std::optional<std::string> get_header_value(const std::string& name) const;
 		std::size_t erase_header(const std::string& name);
 		const http_headers_container& get_headers_map() const;
 	};
@@ -63,7 +64,7 @@ namespace azure_proxy
 		const std::string& http_version() const;
 		unsigned int status_code() const;
 		const std::string& status_description() const;
-		std::unique_ptr<std::string> get_header_value(const std::string& name) const;
+		std::optional<std::string> get_header_value(const std::string& name) const;
 		std::size_t erase_header(const std::string& name);
 		const http_headers_container& get_headers_map() const;
 	};
@@ -72,8 +73,8 @@ namespace azure_proxy
 	{
 		static http_headers_container parse_headers(std::string::const_iterator begin, std::string::const_iterator end);
 	public:
-		static std::unique_ptr<http_request_header> parse_request_header(std::string::const_iterator begin, std::string::const_iterator end);
-		static std::unique_ptr<http_response_header> parse_response_header(std::string::const_iterator begin, std::string::const_iterator end);
+		static std::optional<http_request_header> parse_request_header(std::string::const_iterator begin, std::string::const_iterator end);
+		static std::optional<http_response_header> parse_response_header(std::string::const_iterator begin, std::string::const_iterator end);
 	};
 
 }; // namespace azure_proxy

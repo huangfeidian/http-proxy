@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "optional": "cpp",
+        "variant": "cpp",
+        "any": "cpp",
+        "string_view": "cpp",
+        "array": "cpp",
+        "memory": "cpp"
+    }
+}

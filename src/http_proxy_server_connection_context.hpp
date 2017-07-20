@@ -9,6 +9,7 @@
 #define AZURE_HTTP_PROXY_SERVER_CONNECTION_CONTEXT_HPP
 
 #include <cstdint>
+#include <optional>
 
 #ifdef ASIO_STANDALONE
 #include <asio.hpp>
@@ -46,21 +47,21 @@ struct http_proxy_server_connection_context {
 	bool reconnect_on_error;
 	std::string origin_server_name;
 	unsigned short origin_server_port;
-	std::unique_ptr<asio::ip::tcp::endpoint> origin_server_endpoint;
+	std::optional<asio::ip::tcp::endpoint> origin_server_endpoint;
 };
 
 struct http_proxy_server_connection_read_request_context {
 	bool is_proxy_client_keep_alive;
-	std::unique_ptr<std::uint64_t> content_length;
+	std::optional<std::uint64_t> content_length;
 	std::uint64_t content_length_has_read;
-	std::unique_ptr<http_chunk_checker> chunk_checker;
+	std::optional<http_chunk_checker> chunk_checker;
 };
 
 struct http_proxy_server_connection_read_response_context {
 	bool is_origin_server_keep_alive;
-	std::unique_ptr<std::uint64_t> content_length;
+	std::optional<std::uint64_t> content_length;
 	std::uint64_t content_length_has_read;
-	std::unique_ptr<http_chunk_checker> chunk_checker;
+	std::optional<http_chunk_checker> chunk_checker;
 };
 
 } // namespace azure_proxy

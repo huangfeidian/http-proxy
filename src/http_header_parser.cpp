@@ -48,14 +48,14 @@ namespace azure_proxy
 		return this->_http_version;
 	}
 
-	std::unique_ptr<std::string> http_request_header::get_header_value(const std::string& name) const
+	std::optional<std::string> http_request_header::get_header_value(const std::string& name) const
 	{
 		auto iter = this->_headers_map.find(name);
 		if (iter == this->_headers_map.end())
 		{
-			return nullptr;
+			return std::nullopt;
 		}
-		return std::make_unique<std::string>(iter->second);
+		return std::make_optional<std::string>(iter->second);
 	}
 
 	std::size_t http_request_header::erase_header(const std::string& name)
@@ -87,14 +87,14 @@ namespace azure_proxy
 		return this->_status_description;
 	}
 
-	std::unique_ptr<std::string> http_response_header::get_header_value(const std::string& name) const
+	std::optional<std::string> http_response_header::get_header_value(const std::string& name) const
 	{
 		auto iter = this->_headers_map.find(name);
 		if (iter == this->_headers_map.end())
 		{
-			return nullptr;
+			return std::nullopt;
 		}
-		return std::make_unique<std::string>(iter->second);
+		return std::make_optional<std::string>(iter->second);
 	}
 
 	std::size_t http_response_header::erase_header(const std::string& name)
@@ -148,8 +148,8 @@ namespace azure_proxy
 		parse_header_state state = parse_header_state::header_field_name_start;
 		std::string header_field_name;
 		std::string header_field_value;
-		//¹þ¹þÒ»¸ö×´Ì¬»ú£¬²»¹ýÄ£ÄâµÄ²»³¹µ×°¡£¬»°ËµÕâÎ»Í¬Ñ§ÎªÊ²Ã´ÕâÃ´Ï²»¶×Ö½ÚÁ÷µÄ×´Ì¬»úÄØ 
-		//Ó¦¸ÃÊÇÍøÂçÁ÷²¢²»ÊÇÒ»´Î´«ÊäÍê³ÉµÄ Ö»ÓÐ×Ö½ÚÁ÷µÄ±ß½çÊÇÇåÎúµÄ
+		//ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½Ä²ï¿½ï¿½ï¿½ï¿½×°ï¿½ï¿½ï¿½ï¿½ï¿½Ëµï¿½ï¿½Î»Í¬Ñ§ÎªÊ²Ã´ï¿½ï¿½Ã´Ï²ï¿½ï¿½ï¿½Ö½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½ï¿½ 
+		//Ó¦ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½Î´ï¿½ï¿½ï¿½ï¿½ï¿½Éµï¿½ Ö»ï¿½ï¿½ï¿½Ö½ï¿½ï¿½ï¿½ï¿½Ä±ß½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		for (std::string::const_iterator iter = begin; iter != end && state != parse_header_state::header_compelete && state != parse_header_state::header_parse_failed; ++iter)
 		{
 			switch (state)
@@ -235,7 +235,7 @@ namespace azure_proxy
 				}
 				else
 				{
-					//ÕâÊÇÔÚ¸ÉÂï
+					//ï¿½ï¿½ï¿½ï¿½ï¿½Ú¸ï¿½ï¿½ï¿½
 					while (!header_field_value.empty() && (header_field_value[header_field_value.size() - 1] == ' ' || (header_field_value[header_field_value.size() - 1] == '\t')))
 					{
 						header_field_value.resize(header_field_value.size() - 1);
@@ -276,7 +276,7 @@ namespace azure_proxy
 		return headers;
 	}
 
-	std::unique_ptr<http_request_header> http_header_parser::parse_request_header(std::string::const_iterator begin, std::string::const_iterator end)
+	std::optional<http_request_header> http_header_parser::parse_request_header(std::string::const_iterator begin, std::string::const_iterator end)
 	{
 		auto iter = begin;
 		auto tmp = iter;
@@ -286,7 +286,7 @@ namespace azure_proxy
 		}
 		if (iter == tmp || iter == end || *iter != ' ')
 		{
-			return nullptr;
+			return std::nullopt;
 		}
 		http_request_header header;
 		header._method = std::string(tmp, iter);
@@ -297,7 +297,7 @@ namespace azure_proxy
 		}
 		if (iter == tmp || iter == end || *iter != ' ')
 		{
-			return nullptr;
+			return std::nullopt;
 		}
 		auto request_uri = std::string(tmp, iter);
 		if (header.method() == "CONNECT")
@@ -306,7 +306,7 @@ namespace azure_proxy
 			std::match_results<std::string::iterator> match_results;
 			if (!std::regex_match(request_uri.begin(), request_uri.end(), match_results, regex))
 			{
-				return nullptr;
+				return std::nullopt;
 			}
 			header._host = match_results[1];
 			try
@@ -315,7 +315,7 @@ namespace azure_proxy
 			}
 			catch (const std::exception&)
 			{
-				return nullptr;
+				return std::nullopt;
 			}
 		}
 		else
@@ -324,7 +324,7 @@ namespace azure_proxy
 			std::match_results<std::string::iterator> match_results;
 			if (!std::regex_match(request_uri.begin(), request_uri.end(), match_results, regex))
 			{
-				return nullptr;
+				return std::nullopt;
 			}
 			header._scheme = match_results[1];
 			header._host = match_results[2];
@@ -336,7 +336,7 @@ namespace azure_proxy
 				}
 				catch (const std::exception&)
 				{
-					return nullptr;
+					return std::nullopt;
 				}
 			}
 			header._path_and_query = match_results[5];
@@ -350,7 +350,7 @@ namespace azure_proxy
 		// HTTP/x.y
 		if (iter == end || std::distance(tmp, iter) < 6 || !std::equal(tmp, tmp + 5, "HTTP/"))
 		{
-			return nullptr;
+			return std::nullopt;
 		}
 
 		header._http_version = std::string(tmp + 5, iter);
@@ -358,7 +358,7 @@ namespace azure_proxy
 		++iter;
 		if (iter == end || *iter != '\n')
 		{
-			return nullptr;
+			return std::nullopt;
 		}
 
 		++iter;
@@ -368,13 +368,13 @@ namespace azure_proxy
 		}
 		catch (const std::exception&)
 		{
-			return nullptr;
+			return std::nullopt;
 		}
 
-		return std::make_unique<http_request_header>(header);
+		return std::make_optional<http_request_header>(header);
 	}
 
-	std::unique_ptr<http_response_header> http_header_parser::parse_response_header(std::string::const_iterator begin, std::string::const_iterator end)
+	std::optional<http_response_header> http_header_parser::parse_response_header(std::string::const_iterator begin, std::string::const_iterator end)
 	{
 		auto iter = begin;
 		auto tmp = iter;
@@ -382,7 +382,7 @@ namespace azure_proxy
 		{
 			// to the end of line
 		}
-		if (std::distance(tmp, iter) < 6 || iter == end || *iter != ' ' || !std::equal(tmp, tmp + 5, "HTTP/")) return nullptr;
+		if (std::distance(tmp, iter) < 6 || iter == end || *iter != ' ' || !std::equal(tmp, tmp + 5, "HTTP/")) return std::nullopt;
 		http_response_header header;
 		header._http_version = std::string(tmp + 5, iter);
 		tmp = ++iter;
@@ -392,7 +392,7 @@ namespace azure_proxy
 		}
 		if (tmp == iter || iter == end)
 		{
-			return nullptr;
+			return std::nullopt;
 		}
 		try
 		{
@@ -400,7 +400,7 @@ namespace azure_proxy
 		}
 		catch (const std::exception&)
 		{
-			return nullptr;
+			return std::nullopt;
 		}
 
 		if (*iter == ' ')
@@ -412,19 +412,19 @@ namespace azure_proxy
 			}
 			if (iter == end || *iter != '\r')
 			{
-				return nullptr;
+				return std::nullopt;
 			}
 			header._status_description = std::string(tmp, iter);
 		}
 
 		if (*iter != '\r')
 		{
-			return nullptr;
+			return std::nullopt;
 		}
 
 		if (iter == end || *(++iter) != '\n')
 		{
-			return nullptr;
+			return std::nullopt;
 		}
 
 		++iter;
@@ -434,10 +434,10 @@ namespace azure_proxy
 		}
 		catch (const std::exception&)
 		{
-			return nullptr;
+			return std::nullopt;
 		}
 
-		return std::make_unique<http_response_header>(header);
+		return std::make_optional<http_response_header>(header);
 	}
 
 }; // namespace azure_proxy
