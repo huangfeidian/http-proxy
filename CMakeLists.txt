@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 2.6)
 project(azure-http-proxy)
 
-include_directories(./src/json/src)
+include_directories("E:\\Github\\json\\src")
 
+set(OPENSSL_ROOT "E:/Unix/openssl-win64")
 find_package(OpenSSL REQUIRED)
 include_directories(${OPENSSL_INCLUDE_DIR})
 link_directories(${OPENSSL_LIBRARY_DIR})
@@ -13,7 +14,7 @@ OPTION(ASIO_STANDALONE "use asio without boost" ON)
 
 
 if(ASIO_STANDALONE)
-set(ASIO_DIR "D:\\Github\\asio\\asio\\include")
+set(ASIO_DIR "E:\\Github\\asio-1.10.6\\include")
 include_directories(${ASIO_DIR})
 add_definitions(-DASIO_STANDALONE)
 add_definitions(-DASIO_HAS_STD_ARRAY )
