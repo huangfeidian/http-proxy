@@ -10,13 +10,14 @@
 #include <fstream>
 #include <memory>
 #include <streambuf>
+#include <iostream>
 #include "encrypt.hpp"
 #include "http_proxy_client_config.hpp"
 
 
 namespace azure_proxy
 {
-
+	using std::cerr;
 	http_proxy_client_config::http_proxy_client_config()
 	{
 	}

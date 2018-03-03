@@ -14,7 +14,7 @@
 
 int main(int argc, char** argv)
 {
-
+	using std::cerr;
 	std::string default_config_filename = "server.json";
 	std::string config_filename;
 	if (argc == 1)
