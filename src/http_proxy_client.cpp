@@ -18,7 +18,7 @@
 
 namespace azure_proxy
 {
-
+	using std::cerr;
 	http_proxy_client::http_proxy_client(asio::io_service& io_service) :
 		io_service(io_service),
 		acceptor(io_service)

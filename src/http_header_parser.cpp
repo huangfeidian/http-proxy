@@ -107,7 +107,7 @@ namespace azure_proxy
 		return this->_headers_map;
 	}
 
-	http_headers_container http_header_parser::parse_headers(std::string::const_iterator begin, std::string::const_iterator end)
+	http_headers_container http_header_parser::parse_headers(std::string_view char_range)
 	{
 		http_headers_container headers;
 		//lambdas are inlined  don't worry be happy
@@ -150,7 +150,9 @@ namespace azure_proxy
 		std::string header_field_value;
 		//����һ��״̬��������ģ��Ĳ����װ�����˵��λͬѧΪʲô��ôϲ���ֽ�����״̬���� 
 		//Ӧ����������������һ�δ�����ɵ� ֻ���ֽ����ı߽���������
-		for (std::string::const_iterator iter = begin; iter != end && state != parse_header_state::header_compelete && state != parse_header_state::header_parse_failed; ++iter)
+		auto begin = char_range.begin();
+		auto end = char_range.end();
+		for (auto iter = begin; iter != end && state != parse_header_state::header_compelete && state != parse_header_state::header_parse_failed; ++iter)
 		{
 			switch (state)
 			{
@@ -276,9 +278,10 @@ namespace azure_proxy
 		return headers;
 	}
 
-	std::optional<http_request_header> http_header_parser::parse_request_header(std::string::const_iterator begin, std::string::const_iterator end)
+	std::optional<http_request_header> http_header_parser::parse_request_header(std::string_view char_range)
 	{
-		auto iter = begin;
+		auto iter = char_range.begin();
+		auto end = char_range.end();
 		auto tmp = iter;
 		for (; iter != end && *iter != ' ' && *iter != '\r'; ++iter)
 		{
@@ -364,7 +367,7 @@ namespace azure_proxy
 		++iter;
 		try
 		{
-			header._headers_map = parse_headers(iter, end);
+			header._headers_map = parse_headers(char_range.substr(std::distance(char_range.begin(), iter)));
 		}
 		catch (const std::exception&)
 		{
@@ -374,8 +377,10 @@ namespace azure_proxy
 		return std::make_optional<http_request_header>(header);
 	}
 
-	std::optional<http_response_header> http_header_parser::parse_response_header(std::string::const_iterator begin, std::string::const_iterator end)
+	std::optional<http_response_header> http_header_parser::parse_response_header(std::string_view char_range)
 	{
+		auto begin = char_range.begin();
+		auto end = char_range.end();
 		auto iter = begin;
 		auto tmp = iter;
 		for (; iter != end && *iter != ' ' && *iter != '\r'; ++iter)
@@ -430,7 +435,7 @@ namespace azure_proxy
 		++iter;
 		try
 		{
-			header._headers_map = parse_headers(iter, end);
+			header._headers_map = parse_headers(char_range.substr(std::distance(begin, iter)));
 		}
 		catch (const std::exception&)
 		{

@@ -24,7 +24,7 @@ using error_code = boost::system::error_code;
 
 int main(int argc, char** argv)
 {
-
+	using std::cerr;
 	std::string default_config_filename = "client.json";
 	std::string config_filename;
 	if (argc == 1)

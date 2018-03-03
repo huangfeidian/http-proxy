@@ -23,6 +23,7 @@ http_proxy_server::http_proxy_server(asio::io_service& io_service) :
 
 void http_proxy_server::run()
 {
+	using std::cerr;
 	const auto& config = http_proxy_server_config::get_instance();
 	asio::ip::tcp::endpoint endpoint(asio::ip::address::from_string(config.get_bind_address()), config.get_listen_port());
 	this->acceptor.open(endpoint.protocol());

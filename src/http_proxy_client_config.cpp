@@ -12,7 +12,9 @@
 #include <streambuf>
 #include "encrypt.hpp"
 #include "http_proxy_client_config.hpp"
+#include <iostream>
 
+using std::cerr;
 
 namespace azure_proxy
 {

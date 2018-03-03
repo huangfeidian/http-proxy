@@ -13,6 +13,7 @@
 #include <map>
 #include <string>
 #include <optional>
+#include <string_view>
 
 namespace azure_proxy
 {
@@ -71,10 +72,10 @@ namespace azure_proxy
 
 	class http_header_parser
 	{
-		static http_headers_container parse_headers(std::string::const_iterator begin, std::string::const_iterator end);
+		static http_headers_container parse_headers(std::string_view char_range);
 	public:
-		static std::optional<http_request_header> parse_request_header(std::string::const_iterator begin, std::string::const_iterator end);
-		static std::optional<http_response_header> parse_response_header(std::string::const_iterator begin, std::string::const_iterator end);
+		static std::optional<http_request_header> parse_request_header(std::string_view char_range);
+		static std::optional<http_response_header> parse_response_header(std::string_view char_range);
 	};
 
 }; // namespace azure_proxy

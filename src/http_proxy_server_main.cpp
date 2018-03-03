@@ -39,6 +39,7 @@ int main(int argc, char** argv)
 
 	}
 	using namespace azure_proxy;
+	using std::cerr;
 	try {
 		auto& config = http_proxy_server_config::get_instance();
 		if (config.load_config(config_filename)) {
