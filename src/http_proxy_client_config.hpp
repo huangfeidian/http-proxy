@@ -12,7 +12,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 namespace azure_proxy
 {
