@@ -169,29 +169,29 @@ namespace azure_proxy
 				this->encryptor = std::unique_ptr<stream_encryptor>(new aes_ofb128_encryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
 				this->decryptor = std::unique_ptr<stream_decryptor>(new aes_ofb128_decryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
 			}
-			else if (std::strcmp(cipher_name.c_str() + 8, "ctr") == 0)
-			{
-				// aes-xxx-ctr
-				if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "128"))
-				{
-					cipher_code = 0x04;
-					key_vec.resize(128 / 8);
-				}
-				else if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "192"))
-				{
-					cipher_code = 0x09;
-					key_vec.resize(192 / 8);
-				}
-				else
-				{
-					cipher_code = 0x0E;
-					key_vec.resize(256 / 8);
-				}
-				std::fill(ivec.begin(), ivec.end(), 0);
-				key_generator::get_instance().generate(key_vec.data(), key_vec.size());
-				this->encryptor = std::unique_ptr<stream_encryptor>(new aes_ctr128_encryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
-				this->decryptor = std::unique_ptr<stream_decryptor>(new aes_ctr128_decryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
-			}
+			// else if (std::strcmp(cipher_name.c_str() + 8, "ctr") == 0)
+			// {
+			// 	// aes-xxx-ctr
+			// 	if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "128"))
+			// 	{
+			// 		cipher_code = 0x04;
+			// 		key_vec.resize(128 / 8);
+			// 	}
+			// 	else if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "192"))
+			// 	{
+			// 		cipher_code = 0x09;
+			// 		key_vec.resize(192 / 8);
+			// 	}
+			// 	else
+			// 	{
+			// 		cipher_code = 0x0E;
+			// 		key_vec.resize(256 / 8);
+			// 	}
+			// 	std::fill(ivec.begin(), ivec.end(), 0);
+			// 	key_generator::get_instance().generate(key_vec.data(), key_vec.size());
+			// 	this->encryptor = std::unique_ptr<stream_encryptor>(new aes_ctr128_encryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
+			// 	this->decryptor = std::unique_ptr<stream_decryptor>(new aes_ctr128_decryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
+			// }
 			// 7 ~ 22 ivec
 			// 23 ~ key
 			std::copy(ivec.cbegin(), ivec.cend(), cipher_info_raw.begin() + 7);

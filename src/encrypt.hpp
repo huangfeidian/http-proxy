@@ -286,63 +286,63 @@ namespace azure_proxy
 		}
 	};
 
-	class aes_ctr128_encryptor : public stream_encryptor
-	{
-		AES_KEY aes_ctx;
-		unsigned int num;
-		unsigned char key[32];
-		unsigned char ivec[16];
-		unsigned char ecount_buf[16];
-	public:
-		aes_ctr128_encryptor(const unsigned char* key, std::size_t key_bits, unsigned char* ivec) : num(0)
-		{
-			assert(key && ivec);
-			assert(key_bits == 128 || key_bits == 192 || key_bits == 256);
-			std::memcpy(this->key, key, key_bits / 8);
-			std::memcpy(this->ivec, ivec, sizeof(this->ivec));
-			std::memset(this->ecount_buf, 0, sizeof(this->ecount_buf));
-			AES_set_encrypt_key(this->key, key_bits, &this->aes_ctx);
-		}
+	// class aes_ctr128_encryptor : public stream_encryptor
+	// {
+	// 	AES_KEY aes_ctx;
+	// 	unsigned int num;
+	// 	unsigned char key[32];
+	// 	unsigned char ivec[16];
+	// 	unsigned char ecount_buf[16];
+	// public:
+	// 	aes_ctr128_encryptor(const unsigned char* key, std::size_t key_bits, unsigned char* ivec) : num(0)
+	// 	{
+	// 		assert(key && ivec);
+	// 		assert(key_bits == 128 || key_bits == 192 || key_bits == 256);
+	// 		std::memcpy(this->key, key, key_bits / 8);
+	// 		std::memcpy(this->ivec, ivec, sizeof(this->ivec));
+	// 		std::memset(this->ecount_buf, 0, sizeof(this->ecount_buf));
+	// 		AES_set_encrypt_key(this->key, key_bits, &this->aes_ctx);
+	// 	}
 
-		virtual void encrypt(const unsigned char* in, unsigned char* out, std::size_t length)
-		{
-			assert(in && out);
-			AES_ctr128_encrypt(in, out, length, &aes_ctx, this->ivec, this->ecount_buf, &this->num);
-		}
+	// 	virtual void encrypt(const unsigned char* in, unsigned char* out, std::size_t length)
+	// 	{
+	// 		assert(in && out);
+	// 		AES_ctr128_encrypt(in, out, length, &aes_ctx, this->ivec, this->ecount_buf, &this->num);
+	// 	}
 
-		virtual ~aes_ctr128_encryptor()
-		{
-		}
-	};
+	// 	virtual ~aes_ctr128_encryptor()
+	// 	{
+	// 	}
+	// };
 
-	class aes_ctr128_decryptor : public stream_decryptor
-	{
-		AES_KEY aes_ctx;
-		unsigned int num;
-		unsigned char key[32];
-		unsigned char ivec[16];
-		unsigned char ecount_buf[16];
-	public:
-		aes_ctr128_decryptor(const unsigned char* key, std::size_t key_bits, unsigned char* ivec) : num(0)
-		{
-			assert(key && ivec);
-			assert(key_bits == 128 || key_bits == 192 || key_bits == 256);
-			std::memcpy(this->key, key, key_bits / 8);
-			std::memcpy(this->ivec, ivec, sizeof(this->ivec));
-			std::memset(this->ecount_buf, 0, sizeof(this->ecount_buf));
-			AES_set_encrypt_key(this->key, key_bits, &this->aes_ctx);
-		}
+	// class aes_ctr128_decryptor : public stream_decryptor
+	// {
+	// 	AES_KEY aes_ctx;
+	// 	unsigned int num;
+	// 	unsigned char key[32];
+	// 	unsigned char ivec[16];
+	// 	unsigned char ecount_buf[16];
+	// public:
+	// 	aes_ctr128_decryptor(const unsigned char* key, std::size_t key_bits, unsigned char* ivec) : num(0)
+	// 	{
+	// 		assert(key && ivec);
+	// 		assert(key_bits == 128 || key_bits == 192 || key_bits == 256);
+	// 		std::memcpy(this->key, key, key_bits / 8);
+	// 		std::memcpy(this->ivec, ivec, sizeof(this->ivec));
+	// 		std::memset(this->ecount_buf, 0, sizeof(this->ecount_buf));
+	// 		AES_set_encrypt_key(this->key, key_bits, &this->aes_ctx);
+	// 	}
 
-		virtual void decrypt(const unsigned char* in, unsigned char* out, std::size_t length)
-		{
-			assert(in && out);
-			AES_ctr128_encrypt(in, out, length, &aes_ctx, this->ivec, this->ecount_buf, &this->num);
-		}
+	// 	virtual void decrypt(const unsigned char* in, unsigned char* out, std::size_t length)
+	// 	{
+	// 		assert(in && out);
+	// 		AES_ctr128_encrypt(in, out, length, &aes_ctx, this->ivec, this->ecount_buf, &this->num);
+	// 	}
 
-		virtual ~aes_ctr128_decryptor()
-		{
-		}
-	};
+	// 	virtual ~aes_ctr128_decryptor()
+	// 	{
+	// 	}
+	// };
 
 	enum class rsa_padding
 	{

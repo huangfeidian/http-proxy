@@ -582,25 +582,25 @@ namespace azure_proxy
 				this->encryptor = std::unique_ptr<stream_encryptor>(new aes_ofb128_encryptor(&decrypted_cipher_info[23], key_bits, &decrypted_cipher_info[7]));
 				this->decryptor = std::unique_ptr<stream_decryptor>(new aes_ofb128_decryptor(&decrypted_cipher_info[23], key_bits, &decrypted_cipher_info[7]));
 			}
-			else if (cipher_code == '\x04' || cipher_code == '\x09' || cipher_code == '\x0E')
-			{
-				// ase-xxx-ctr
-				std::size_t ivec_size = 16;
-				std::size_t key_bits = 256; // aes-256-ctr
-				if (cipher_code == '\x04')
-				{
-					// aes-128-ctr
-					key_bits = 128;
-				}
-				else if (cipher_code == '\x09')
-				{
-					// aes-192-ctr
-					key_bits = 192;
-				}
-				std::vector<unsigned char> ivec(ivec_size, 0);
-				this->encryptor = std::unique_ptr<stream_encryptor>(new aes_ctr128_encryptor(&decrypted_cipher_info[23], key_bits, ivec.data()));
-				this->decryptor = std::unique_ptr<stream_decryptor>(new aes_ctr128_decryptor(&decrypted_cipher_info[23], key_bits, ivec.data()));
-			}
+			// else if (cipher_code == '\x04' || cipher_code == '\x09' || cipher_code == '\x0E')
+			// {
+			// 	// ase-xxx-ctr
+			// 	std::size_t ivec_size = 16;
+			// 	std::size_t key_bits = 256; // aes-256-ctr
+			// 	if (cipher_code == '\x04')
+			// 	{
+			// 		// aes-128-ctr
+			// 		key_bits = 128;
+			// 	}
+			// 	else if (cipher_code == '\x09')
+			// 	{
+			// 		// aes-192-ctr
+			// 		key_bits = 192;
+			// 	}
+			// 	std::vector<unsigned char> ivec(ivec_size, 0);
+			// 	this->encryptor = std::unique_ptr<stream_encryptor>(new aes_ctr128_encryptor(&decrypted_cipher_info[23], key_bits, ivec.data()));
+			// 	this->decryptor = std::unique_ptr<stream_decryptor>(new aes_ctr128_decryptor(&decrypted_cipher_info[23], key_bits, ivec.data()));
+			// }
 			if (this->encryptor == nullptr || this->decryptor == nullptr)
 			{
 				return;
