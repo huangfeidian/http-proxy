@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <string>
 #include <nlohmann/json.hpp>
+#include <spdlog/spdlog.h>
 
 namespace azure_proxy
 {
@@ -22,11 +23,12 @@ namespace azure_proxy
 	private:
 		std::map<std::string, int> config_map_int;
 		std::map<std::string, std::string> config_map_str;
+
 	private:
 		template<typename T>
 		T get_config_value(const std::string& key) const;
 		template<typename T>
-		void set_config_value(const std::string& key, T value);
+		void set_config_value(const std::string& key, const T& value);
 		http_proxy_client_config();
 	public:
 		bool load_config(const std::string& config_filename);
@@ -38,7 +40,7 @@ namespace azure_proxy
 		std::string get_cipher() const;
 		int get_timeout() const;
 		int get_workers() const;
-
+		spdlog::level::level_enum get_log_level() const;
 		static http_proxy_client_config& get_instance();
 	};
 

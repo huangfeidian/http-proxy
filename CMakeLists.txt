@@ -1,21 +1,22 @@
 cmake_minimum_required(VERSION 2.6)
 project(azure-http-proxy)
 
-include_directories("D:\\Github\\json\\src")
 
-set(OPENSSL_ROOT "C:/Program Files/openssl-win64")
+
+# set(OPENSSL_ROOT "C:/Program Files/openssl-win64")
 find_package(OpenSSL REQUIRED)
 include_directories(${OPENSSL_INCLUDE_DIR})
 link_directories(${OPENSSL_LIBRARY_DIR})
-set(JSON_DIR "D:\\Github\\json\\include")
-include_directories(${JSON_DIR})
+
+find_package(nlohmann_json CONFIG REQUIRED)
 
 OPTION(ASIO_STANDALONE "use asio without boost" ON)
 
-
+find_package(spdlog CONFIG REQUIRED)
+INCLUDE_DIRECTORIES(${spdlog_include_dirs})
 
 if(ASIO_STANDALONE)
-set(ASIO_DIR "D:\\Github\\asio-1.10.6\\include")
+set(ASIO_DIR "C:\\Users\\hhln4510\\Documents\\Github\\asio\\asio\\include")
 include_directories(${ASIO_DIR})
 add_definitions(-DASIO_STANDALONE)
 add_definitions(-DASIO_HAS_STD_ARRAY )
@@ -46,7 +47,6 @@ elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 endif()
 
 
-
 add_executable(ahpc src/http_proxy_client_main.cpp src/http_proxy_client.cpp src/http_proxy_client_stat.cpp src/http_proxy_client_config.cpp src/http_proxy_client_connection.cpp )
 
 if(ASIO_STANDALONE)
@@ -63,7 +63,8 @@ else()
 target_link_libraries(ahps  ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${OPENSSL_LIBRARIES})
 endif()
 
-
+target_link_libraries(ahps PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(ahpc PRIVATE nlohmann_json::nlohmann_json)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_link_libraries(ahpc atomic)

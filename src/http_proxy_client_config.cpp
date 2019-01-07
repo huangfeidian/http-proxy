@@ -18,19 +18,21 @@
 namespace azure_proxy
 {
 	using std::cerr;
+	using namespace std;
 	http_proxy_client_config::http_proxy_client_config()
 	{
 	}
 	template<>
-	void http_proxy_client_config::set_config_value<int>(const std::string& key, int value)
+	void http_proxy_client_config::set_config_value<int>(const std::string& key, const int& value)
 	{
 		config_map_int[key] = value;
 	}
 	template<>
-	void http_proxy_client_config::set_config_value<std::string>(const std::string& key, std::string value)
+	void http_proxy_client_config::set_config_value<std::string>(const std::string& key, const std::string& value)
 	{
 		config_map_str[key] = value;
 	}
+
 	template<>
 	int http_proxy_client_config::get_config_value<int>(const std::string& key)const
 	{
@@ -57,6 +59,7 @@ namespace azure_proxy
 			return iter->second;
 		}
 	}
+
 	bool http_proxy_client_config::load_config(const std::string& config_filename)
 	{
 		std::ifstream the_file(config_filename);
@@ -193,7 +196,14 @@ namespace azure_proxy
 		{
 			set_config_value("workers",2);
 		}
-
+		if (json_obj.find("log_level") != json_obj.end())
+		{
+			set_config_value("log_level", int(spdlog::level::from_str(json_obj["log_level"])));
+		}
+		else
+		{
+			set_config_value("log_level", int(spdlog::level::level_enum::off));
+		}
 		rollback = false;
 		return true;
 	}
@@ -242,5 +252,8 @@ namespace azure_proxy
 		static http_proxy_client_config instance;
 		return instance;
 	}
-
+	spdlog::level::level_enum http_proxy_client_config::get_log_level() const
+	{
+		return spdlog::level::level_enum(this->get_config_value<int>("log_level"));
+	}
 } // namespace azure_proxy
