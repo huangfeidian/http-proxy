@@ -1,4 +1,4 @@
-/*
+﻿/*
  *    http_proxy_server_config.cpp:
  *
  *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
@@ -21,12 +21,12 @@ http_proxy_server_config::http_proxy_server_config()
 {
 }
 template<>
-void http_proxy_server_config::set_config_value<int>(const std::string& key, int value)
+void http_proxy_server_config::set_config_value<int>(const std::string& key, const int& value)
 {
 	config_map_int[key] = value;
 }
 template<>
-void http_proxy_server_config::set_config_value<std::string>(const std::string& key, std::string value)
+void http_proxy_server_config::set_config_value<std::string>(const std::string& key, const std::string& value)
 {
 	config_map_str[key] = value;
 }

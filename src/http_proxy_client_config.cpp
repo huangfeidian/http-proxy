@@ -1,4 +1,4 @@
-/*
+﻿/*
  *    http_proxy_client_config.cpp:
  *
  *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
@@ -203,6 +203,14 @@ namespace azure_proxy
 		else
 		{
 			set_config_value("log_level", int(spdlog::level::level_enum::off));
+		}
+		if (json_obj.find("log_file") != json_obj.end())
+		{
+			set_config_value("log_file", static_cast<std::string>(json_obj["log_level"]));
+		}
+		else
+		{
+			set_config_value("log_file", "ahpc_log.txt");
 		}
 		rollback = false;
 		return true;

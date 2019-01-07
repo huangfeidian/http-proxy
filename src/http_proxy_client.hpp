@@ -18,6 +18,8 @@ namespace asio = boost::asio;
 using error_code = boost::system::error_code;
 #endif
 
+#include <spdlog/spdlog.h>
+
 namespace azure_proxy
 {
 
@@ -25,7 +27,7 @@ namespace azure_proxy
 	{
 		asio::io_service& io_service;
 		asio::ip::tcp::acceptor acceptor;
-
+		std::shared_ptr<spdlog::logger> logger;
 	public:
 
 		http_proxy_client(asio::io_service& io_service);

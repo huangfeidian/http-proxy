@@ -17,16 +17,18 @@
 namespace azure_proxy
 {
 
-	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket) :
+	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> in_logger) :
 		strand(ua_socket.get_io_service()),
 		user_agent_socket(std::move(ua_socket)),
 		proxy_server_socket(this->user_agent_socket.get_io_service()),
 		resolver(this->user_agent_socket.get_io_service()),
 		connection_state(proxy_connection_state::ready),
 		timer(this->user_agent_socket.get_io_service()),
-		timeout(std::chrono::seconds(http_proxy_client_config::get_instance().get_timeout()))
+		timeout(std::chrono::seconds(http_proxy_client_config::get_instance().get_timeout())),
+		logger(in_logger)
 	{
 		http_proxy_client_stat::get_instance().increase_current_connections();
+		logger->info("new connection come! total connection count {}", http_proxy_client_stat::get_instance().get_current_connections());
 	}
 
 	http_proxy_client_connection::~http_proxy_client_connection()
@@ -34,9 +36,9 @@ namespace azure_proxy
 		http_proxy_client_stat::get_instance().decrease_current_connections();
 	}
 
-	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(asio::ip::tcp::socket&& ua_socket)
+	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> in_logger)
 	{
-		return std::shared_ptr<http_proxy_client_connection>(new http_proxy_client_connection(std::move(ua_socket)));
+		return std::shared_ptr<http_proxy_client_connection>(new http_proxy_client_connection(std::move(ua_socket), in_logger));
 	}
 
 	void http_proxy_client_connection::start()

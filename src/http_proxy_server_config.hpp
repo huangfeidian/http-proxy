@@ -1,4 +1,4 @@
-/*
+﻿/*
  *    http_proxy_server_config.hpp:
  *
  *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
@@ -12,7 +12,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
-
+#include <spdlog/spdlog.h>
 
 
 namespace azure_proxy {
@@ -24,7 +24,7 @@ private:
 	template<typename T>
 	T get_config_value(const std::string& key) const;
 	template<typename T>
-	void set_config_value(const std::string& key, T value);
+	void set_config_value(const std::string& key, const T& value);
 	http_proxy_server_config();
 	
 public:

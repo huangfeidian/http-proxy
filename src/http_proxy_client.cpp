@@ -19,10 +19,11 @@
 namespace azure_proxy
 {
 	using std::cerr;
-
+	using namespace std;
 	http_proxy_client::http_proxy_client(asio::io_service& io_service) :
 		io_service(io_service),
 		acceptor(io_service)
+
 
 	{
 	}
@@ -35,7 +36,9 @@ namespace azure_proxy
 		this->acceptor.bind(endpoint);
 		this->acceptor.listen(asio::socket_base::max_connections);
 		this->start_accept();
-
+		this->logger = spdlog::basic_logger_mt("basic_logger", config.get_log_file_name());
+		this->logger->set_level(config.get_log_level());
+		this->logger->info("http_proxy_client runs with {} threads", config.get_workers());
 		std::vector<std::thread> td_vec;
 		for (auto i = 0; i < config.get_workers(); ++i)
 		{

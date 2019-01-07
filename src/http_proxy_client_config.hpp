@@ -1,4 +1,4 @@
-/*
+﻿/*
  *    http_proxy_client_config.hpp:
  *
  *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
@@ -41,6 +41,7 @@ namespace azure_proxy
 		int get_timeout() const;
 		int get_workers() const;
 		spdlog::level::level_enum get_log_level() const;
+		std::string get_log_file_name() const;
 		static http_proxy_client_config& get_instance();
 	};
 
