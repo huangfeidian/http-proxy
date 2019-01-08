@@ -14,6 +14,9 @@
 #include "http_proxy_client_stat.hpp"
 #include "key_generator.hpp"
 
+static const std::size_t MAX_REQUEST_HEADER_LENGTH = 10240;
+static const std::size_t MAX_RESPONSE_HEADER_LENGTH = 10240;
+
 namespace azure_proxy
 {
 
@@ -25,7 +28,9 @@ namespace azure_proxy
 		connection_state(proxy_connection_state::ready),
 		timer(this->user_agent_socket.get_io_service()),
 		timeout(std::chrono::seconds(http_proxy_client_config::get_instance().get_timeout())),
-		logger(in_logger)
+		logger(in_logger),
+		ua_up_connection_state(proxy_connection_state::read_http_request_header),
+		proxy_down_connection_state(proxy_connection_state::read_http_response_header)
 	{
 		http_proxy_client_stat::get_instance().increase_current_connections();
 		logger->info("new connection come! total connection count {}", http_proxy_client_stat::get_instance().get_current_connections());
@@ -257,54 +262,104 @@ namespace azure_proxy
 		});
 	}
 
-	void http_proxy_client_connection::async_read_data_from_user_agent()
+	void http_proxy_client_connection::async_read_data_from_user_agent(std::size_t at_least_size =1, std::size_t at_most_size = BUFFER_LENGTH)
 	{
 		auto self(this->shared_from_this());
 		this->set_timer();
-		this->user_agent_socket.async_read_some(asio::buffer(this->upgoing_buffer_read.data(), this->upgoing_buffer_read.size()), this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
+		if (this->logger->level == spdlog::level::level_enum::off)
 		{
-			if (this->cancel_timer())
+			this->user_agent_socket.async_read_some(asio::buffer(this->upgoing_buffer_read.data(), this->upgoing_buffer_read.size()), this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
 			{
-				if (!error)
+				if (this->cancel_timer())
 				{
-			http_proxy_client_stat::get_instance().on_upgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-					this->encryptor->encrypt(reinterpret_cast<const unsigned char*>(&this->upgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->upgoing_buffer_write[0]), bytes_transferred);
-					this->async_write_data_to_proxy_server(this->upgoing_buffer_write.data(), 0, bytes_transferred);
+					if (!error)
+					{
+						http_proxy_client_stat::get_instance().on_upgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
+						this->encryptor->encrypt(reinterpret_cast<const unsigned char*>(&this->upgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->upgoing_buffer_write[0]), bytes_transferred);
+						this->async_write_data_to_proxy_server(this->upgoing_buffer_write.data(), 0, bytes_transferred);
 
+					}
+					else
+					{
+						this->on_error(error);
+					}
 				}
-				else
+			}));
+		}
+		else
+		{
+			asio::async_read(this->user_agent_socket,
+				asio::buffer(&this->upgoing_buffer_read[0], at_most_size),
+				asio::transfer_at_least(at_least_size),
+				this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
+			{
+				if (this->cancel_timer())
 				{
-					this->on_error(error);
+					if (!error)
+					{
+						this->on_user_agent_data_arrived(bytes_transferred);
+					}
+					else
+					{
+						this->on_error(error);
+					}
 				}
-			}
-		}));
+			})
+			);
+		}
+		
 	}
 
-	void http_proxy_client_connection::async_read_data_from_proxy_server(bool set_timer)
+	void http_proxy_client_connection::async_read_data_from_proxy_server(bool set_timer, std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH)
 	{
 		auto self(this->shared_from_this());
 		if (set_timer)
 		{
 			this->set_timer();
 		}
-		this->proxy_server_socket.async_read_some(asio::buffer(this->downgoing_buffer_read.data(), this->downgoing_buffer_read.size()), this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
+		if (logger->level == spdlog::level::off)
 		{
-			if (this->cancel_timer())
+			this->proxy_server_socket.async_read_some(asio::buffer(this->downgoing_buffer_read.data(), this->downgoing_buffer_read.size()), this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
 			{
-				if (!error)
+				if (this->cancel_timer())
 				{
-					http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-					this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
+					if (!error)
+					{
+						http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
+						this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
 
-					this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, bytes_transferred);
+						this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, bytes_transferred);
 
+					}
+					else
+					{
+						this->on_error(error);
+					}
 				}
-				else
+			}));
+		}
+		else
+		{
+			asio::async_read(this->proxy_server_socket,
+				asio::buffer(&this->downgoing_buffer_read[0], at_most_size),
+				asio::transfer_at_least(at_least_size),
+				this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
+			{
+				if (this->cancel_timer())
 				{
-					this->on_error(error);
+					if (!error)
+					{
+						this->on_proxy_server_data_arrived(bytes_transferred);
+					}
+					else
+					{
+						this->on_error(error);
+					}
 				}
-			}
-		}));
+			})
+			);
+		}
+		
 	}
 
 	void http_proxy_client_connection::async_write_data_to_user_agent(const char* write_buffer, std::size_t offset, std::size_t size)
@@ -354,7 +409,7 @@ namespace azure_proxy
 					}
 					else
 					{
-						this->async_read_data_from_user_agent();
+						this->on_ua_up_data_written();
 					}
 				}
 				else
@@ -433,5 +488,164 @@ namespace azure_proxy
 			}
 		}
 	}
+	void http_proxy_client_connection::on_proxy_server_data_arrived(std::size_t bytes_transferred)
+	{
 
+	}
+	void http_proxy_client_connection::on_user_agent_data_arrived(std::size_t bytes_transferred)
+	{
+		static uint32_t header_counter = 0;
+		if (ua_up_connection_state == proxy_connection_state::read_http_request_header)
+		{
+			const auto& decripted_data_buffer = this->upgoing_buffer_write;
+			this->request_data.append(decripted_data_buffer.begin(), decripted_data_buffer.begin() + bytes_transferred);
+			auto double_crlf_pos = this->request_data.find("\r\n\r\n");
+			if (double_crlf_pos == std::string::npos)
+			{
+				if (this->request_data.size() < MAX_REQUEST_HEADER_LENGTH)
+				{
+					this->async_read_data_from_user_agent();
+				}
+				else
+				{
+					this->report_error("400", "Bad Request", "Request header too long");
+				}
+				return;
+			}
+			ua_up_connection_state = proxy_connection_state::write_http_request_header;
+			this->request_header = http_header_parser::parse_request_header(this->request_data.begin(), this->request_data.begin() + double_crlf_pos + 4);
+			if (!this->request_header)
+			{
+				this->report_error("400", "Bad Request", "Failed to parse the http request header");
+				return;
+			}
+
+			if (this->request_header->method() != "GET"
+				// && this->request_header->method() != "OPTIONS"
+				&& this->request_header->method() != "HEAD"
+				&& this->request_header->method() != "POST"
+				&& this->request_header->method() != "PUT"
+				&& this->request_header->method() != "DELETE"
+				// && this->request_header->method() != "TRACE"
+				&& this->request_header->method() != "CONNECT")
+			{
+				this->report_error("405", "Method Not Allowed", std::string());
+				return;
+			}
+			if (this->request_header->http_version() != "1.1"
+				&& this->request_header->http_version() != "1.0")
+			{
+				this->report_error("505", "HTTP Version Not Supported", std::string());
+				return;
+			}
+			this->request_header->set_header_counter(std::to_string(header_counter++));
+			logger->info("begin {0} to server {1} path {2} header_counter {3}", this->request_header->scheme(), this->request_header->host(), this->request_header->path_and_query(), this->request_header->get_header_counter());
+			this->read_request_context.content_length = nullptr;
+			this->read_request_context.content_length_has_read = 0;
+			this->read_request_context.chunk_checker = nullptr;
+
+			if (this->request_header->method() == "GET" || this->request_header->method() == "HEAD" || this->request_header->method() == "DELETE")
+			{
+				this->read_request_context.content_length = std::make_unique<uint64_t>(0);
+			}
+			else if (this->request_header->method() == "POST" || this->request_header->method() == "PUT")
+			{
+				auto content_length_value = this->request_header->get_header_value("Content-Length");
+				auto transfer_encoding_value = this->request_header->get_header_value("Transfer-Encoding");
+				if (content_length_value)
+				{
+					try
+					{
+						this->read_request_context.content_length = std::make_unique<uint64_t>(std::stoull(*content_length_value));
+					}
+					catch (const std::exception&)
+					{
+						this->report_error("400", "Bad Request", "Invalid Content-Length in request");
+						return;
+					}
+					this->read_request_context.content_length_has_read = this->request_data.size() - (double_crlf_pos + 4);
+				}
+				else if (transfer_encoding_value)
+				{
+					string_to_lower_case(*transfer_encoding_value);
+					if (*transfer_encoding_value == "chunked")
+					{
+						if (!this->read_request_context.chunk_checker->check(this->request_data.begin() + double_crlf_pos + 4, this->request_data.end()))
+						{
+							this->report_error("400", "Bad Request", "Failed to check chunked response");
+							return;
+						}
+						return;
+					}
+					else
+					{
+						this->report_error("400", "Bad Request", "Unsupported Transfer-Encoding");
+						return;
+					}
+				}
+				else
+				{
+					this->report_error("411", "Length Required", std::string());
+					return;
+				}
+			}
+			else
+			{
+				assert(false);
+				return;
+			}
+			//TODO 修正数据的发送问题
+			async_write_data_to_proxy_server(&request_data[0], 0, request_data.size());
+		}
+		else if (ua_up_connection_state == proxy_connection_state::read_http_request_content)
+		{
+			if (this->read_request_context.content_length)
+			{
+				this->read_request_context.content_length_has_read += bytes_transferred;
+			}
+			else
+			{
+				assert(this->read_request_context.chunk_checker);
+				if (!this->read_request_context.chunk_checker->check(this->upgoing_buffer_write.begin(), this->upgoing_buffer_write.begin() + bytes_transferred))
+				{
+					return;
+				}
+			}
+			this->ua_up_connection_state = proxy_connection_state::write_http_request_content;
+			this->async_write_data_to_proxy_server(this->upgoing_buffer_write.data(), 0, bytes_transferred);
+		}
+	}
+
+	void http_proxy_client_connection::on_ua_up_data_written()
+	{
+		if (this->ua_up_connection_state == proxy_connection_state::tunnel_transfer)
+		{
+			this->async_read_data_from_user_agent();
+		}
+		else if (this->ua_up_connection_state == proxy_connection_state::write_http_request_header
+			|| this->ua_up_connection_state == proxy_connection_state::write_http_request_content)
+		{
+			if (this->read_request_context.content_length)
+			{
+				if (this->read_request_context.content_length_has_read < *this->read_request_context.content_length)
+				{
+					this->ua_up_connection_state = proxy_connection_state::read_http_request_content;
+				}
+			}
+			else
+			{
+				assert(this->read_request_context.chunk_checker);
+				if (!this->read_request_context.chunk_checker->is_complete())
+				{
+					this->ua_up_connection_state = proxy_connection_state::read_http_request_content;
+				}
+				
+			}
+			this->async_read_data_from_user_agent();
+		}
+	}
+	void http_proxy_client_connection::on_proxy_down_data_written()
+	{
+		this->async_read_data_from_proxy_server();
+	}
 } // namespace azure_proxy

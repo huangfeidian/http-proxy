@@ -1,4 +1,4 @@
-/*
+ï»¿/*
  *    http_header_parser.cpp:
  *
  *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
@@ -45,6 +45,13 @@ namespace azure_proxy
 		}
 		return input.substr(0, idx);
 	}
+	void string_to_lower_case(std::string& str)
+	{
+		for (auto iter = str.begin(); iter != str.end(); ++iter)
+		{
+			*iter = std::tolower(static_cast<unsigned char>(*iter));
+		}
+	}
 	http_request_header::http_request_header() : _port(80)
 	{
 	}
@@ -82,7 +89,10 @@ namespace azure_proxy
 	{
 		return header_counter;
 	}
-
+	void http_request_header::set_header_counter(const std::string& counter)
+	{
+		header_counter = counter;
+	}
 	std::unique_ptr<std::string> http_request_header::get_header_value(const std::string& name) const
 	{
 		auto iter = this->_headers_map.find(name);
@@ -176,8 +186,8 @@ namespace azure_proxy
 		parse_header_state state = parse_header_state::header_field_name_start;
 		std::string header_field_name;
 		std::string header_field_value;
-		//¹ş¹şÒ»¸ö×´Ì¬»ú£¬²»¹ıÄ£ÄâµÄ²»³¹µ×°¡£¬»°ËµÕâÎ»Í¬Ñ§ÎªÊ²Ã´ÕâÃ´Ï²»¶×Ö½ÚÁ÷µÄ×´Ì¬»úÄØ 
-		//Ó¦¸ÃÊÇÍøÂçÁ÷²¢²»ÊÇÒ»´Î´«ÊäÍê³ÉµÄ Ö»ÓĞ×Ö½ÚÁ÷µÄ±ß½çÊÇÇåÎúµÄ
+		//å“ˆå“ˆä¸€ä¸ªçŠ¶æ€æœºï¼Œä¸è¿‡æ¨¡æ‹Ÿçš„ä¸å½»åº•å•Šï¼Œè¯è¯´è¿™ä½åŒå­¦ä¸ºä»€ä¹ˆè¿™ä¹ˆå–œæ¬¢å­—èŠ‚æµçš„çŠ¶æ€æœºå‘¢ 
+		//åº”è¯¥æ˜¯ç½‘ç»œæµå¹¶ä¸æ˜¯ä¸€æ¬¡ä¼ è¾“å®Œæˆçš„ åªæœ‰å­—èŠ‚æµçš„è¾¹ç•Œæ˜¯æ¸…æ™°çš„
 		for (std::string::const_iterator iter = begin; iter != end && state != parse_header_state::header_compelete && state != parse_header_state::header_parse_failed; ++iter)
 		{
 			switch (state)
@@ -263,7 +273,7 @@ namespace azure_proxy
 				}
 				else
 				{
-					//É¾µôÄ©Î²µÄ¿Õ°××Ö·û
+					//åˆ æ‰æœ«å°¾çš„ç©ºç™½å­—ç¬¦
 					headers.insert(std::make_pair(std::move(header_field_name), std::move(remove_trail_blank(header_field_value))));
 					if (*iter == '\r')
 					{

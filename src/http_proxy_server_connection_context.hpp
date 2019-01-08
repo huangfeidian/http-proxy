@@ -1,4 +1,4 @@
-/*
+﻿/*
  *    http_proxy_server_connection_context.hpp:
  *
  *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
@@ -38,7 +38,10 @@ enum class proxy_connection_state {
 	read_http_response_content,
 	write_http_response_content,
 	report_connection_established,
-	report_error
+	report_error,
+	ready,
+	resolve_proxy_server_address,
+	connecte_to_proxy_server
 };
 
 struct http_proxy_server_connection_context {

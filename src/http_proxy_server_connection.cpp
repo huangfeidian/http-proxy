@@ -1,4 +1,4 @@
-/*
+﻿/*
 *    http_proxy_server_connection.cpp:
 *
 *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
@@ -678,7 +678,7 @@ namespace azure_proxy
 					return;
 				}
 			}
-			logger->info("begin {0} to server {1} path {2} header_counter 3}", this->request_header->scheme(), this->request_header->host(), this->request_header->path_and_query(), this->request_header->get_header_counter());
+			logger->info("begin {0} to server {1} path {2} header_counter {3}", this->request_header->scheme(), this->request_header->host(), this->request_header->path_and_query(), this->request_header->get_header_counter());
 			if (this->request_header->method() == "CONNECT")
 			{
 				this->async_connect_to_origin_server();
@@ -693,13 +693,6 @@ namespace azure_proxy
 				}
 				auto proxy_connection_value = this->request_header->get_header_value("Proxy-Connection");
 				auto connection_value = this->request_header->get_header_value("Connection");
-				auto string_to_lower_case = [](std::string& str)
-				{
-					for (auto iter = str.begin(); iter != str.end(); ++iter)
-					{
-						*iter = std::tolower(static_cast<unsigned char>(*iter));
-					}
-				};
 				if (proxy_connection_value)
 				{
 					string_to_lower_case(*proxy_connection_value);

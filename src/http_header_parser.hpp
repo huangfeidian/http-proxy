@@ -1,4 +1,4 @@
-/*
+ï»¿/*
  *    http_header_parser.hpp:
  *
  *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
@@ -30,7 +30,7 @@ namespace azure_proxy
 	// https://stackoverflow.com/questions/4371328/are-duplicate-http-response-headersacceptable
 	//Cache-Control: no-cache
 	//Cache-Control: no - store
-	// ÒòÎªhttpÍ·ÀïÃæ»áÓĞÖØ¸´µÄkey ËùÒÔÕâÀïÖ»ÄÜÓÃmultimap
+	// å› ä¸ºhttpå¤´é‡Œé¢ä¼šæœ‰é‡å¤çš„key æ‰€ä»¥è¿™é‡Œåªèƒ½ç”¨multimap
 	typedef std::multimap<const std::string, std::string, default_filed_name_compare> http_headers_container;
 
 	class http_request_header
@@ -56,6 +56,7 @@ namespace azure_proxy
 		std::size_t erase_header(const std::string& name);
 		const http_headers_container& get_headers_map() const;
 		std::string get_header_counter() const;
+		void set_header_counter(const std::string& counter);
 	};
 
 	class http_response_header
@@ -84,6 +85,8 @@ namespace azure_proxy
 		static std::unique_ptr<http_request_header> parse_request_header(std::string::const_iterator begin, std::string::const_iterator end);
 		static std::unique_ptr<http_response_header> parse_response_header(std::string::const_iterator begin, std::string::const_iterator end);
 	};
+	void string_to_lower_case(std::string& str);
+	std::string remove_trail_blank(const std::string& input);
 
 }; // namespace azure_proxy
 
