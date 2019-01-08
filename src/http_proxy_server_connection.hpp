@@ -54,16 +54,16 @@ class http_proxy_server_connection : public std::enable_shared_from_this<http_pr
 	http_proxy_server_connection_context connection_context;
 	http_proxy_server_connection_read_request_context read_request_context;
 	http_proxy_server_connection_read_response_context read_response_context;
-
+	std::shared_ptr<spdlog::logger> logger;
 private:
 
-	http_proxy_server_connection(asio::ip::tcp::socket&& proxy_client_socket);
+	http_proxy_server_connection(asio::ip::tcp::socket&& proxy_client_socket, std::shared_ptr<spdlog::logger> in_logger);
 
 	
 public:
 	~http_proxy_server_connection();
 
-	static std::shared_ptr<http_proxy_server_connection> create(asio::ip::tcp::socket&& client_socket);
+	static std::shared_ptr<http_proxy_server_connection> create(asio::ip::tcp::socket&& client_socket, std::shared_ptr<spdlog::logger> in_logger);
 
 	void start();
 private:

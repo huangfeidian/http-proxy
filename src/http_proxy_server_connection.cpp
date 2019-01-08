@@ -29,13 +29,14 @@ static const std::size_t MAX_RESPONSE_HEADER_LENGTH = 10240;
 namespace azure_proxy
 {
 
-	http_proxy_server_connection::http_proxy_server_connection(asio::ip::tcp::socket&& proxy_client_socket) :
+	http_proxy_server_connection::http_proxy_server_connection(asio::ip::tcp::socket&& proxy_client_socket, std::shared_ptr<spdlog::logger> in_logger) :
 		strand(proxy_client_socket.get_io_service()),
 		proxy_client_socket(std::move(proxy_client_socket)),
 		origin_server_socket(this->proxy_client_socket.get_io_service()),
 		resolver(this->proxy_client_socket.get_io_service()),
 		timer(this->proxy_client_socket.get_io_service()),
-		rsa_pri(http_proxy_server_config::get_instance().get_rsa_private_key())
+		rsa_pri(http_proxy_server_config::get_instance().get_rsa_private_key()),
+		logger(in_logger)
 	{
 		this->connection_context.connection_state = proxy_connection_state::read_cipher_data;
 	}
@@ -43,15 +44,16 @@ namespace azure_proxy
 	http_proxy_server_connection::~http_proxy_server_connection()
 	{}
 
-	std::shared_ptr<http_proxy_server_connection> http_proxy_server_connection::create(asio::ip::tcp::socket&& client_socket)
+	std::shared_ptr<http_proxy_server_connection> http_proxy_server_connection::create(asio::ip::tcp::socket&& client_socket, std::shared_ptr<spdlog::logger> in_logger)
 	{
-		return std::shared_ptr<http_proxy_server_connection>(new http_proxy_server_connection(std::move(client_socket)));
+		return std::shared_ptr<http_proxy_server_connection>(new http_proxy_server_connection(std::move(client_socket), in_logger));
 	}
 
 	void http_proxy_server_connection::start()
 	{
 		this->connection_context.connection_state = proxy_connection_state::read_cipher_data;
 		this->async_read_data_from_proxy_client(1, std::min<std::size_t>(this->rsa_pri.modulus_size(), BUFFER_LENGTH));
+		logger->info("new connection start");
 	}
 
 	void http_proxy_server_connection::async_read_data_from_proxy_client(std::size_t at_least_size, std::size_t at_most_size)
@@ -134,6 +136,7 @@ namespace azure_proxy
 			auto self(this->shared_from_this());
 			this->connection_context.connection_state = proxy_connection_state::resolve_origin_server_address;
 			this->set_timer();
+			logger->info("connect to {0}:{1}", this->request_header->host(), this->request_header->port());
 			this->resolver.async_resolve(query,
 										 this->strand.wrap([this, self](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
 			{
@@ -155,6 +158,7 @@ namespace azure_proxy
 
 	void http_proxy_server_connection::async_write_request_header_to_origin_server()
 	{
+		logger->info("send request to origin server method {0} resource {1} header_counter {2}", this->request_header->method(), this->request_header->path_and_query(), this->request_header->get_header_counter());
 		auto request_content_begin = this->request_data.begin() + this->request_data.find("\r\n\r\n") + 4;
 		this->modified_request_data = this->request_header->method();
 		this->modified_request_data.push_back(' ');
@@ -181,6 +185,7 @@ namespace azure_proxy
 
 	void http_proxy_server_connection::async_write_response_header_to_proxy_client()
 	{
+		logger->info("write response to client with header_counter {}", request_header->get_header_counter());
 		auto response_content_begin = this->response_data.begin() + this->response_data.find("\r\n\r\n") + 4;
 
 		this->modified_response_data = "HTTP/";
@@ -449,6 +454,7 @@ namespace azure_proxy
 
 	void http_proxy_server_connection::on_connect()
 	{
+		logger->info("connect to server {} suc", this->request_header->host());
 		if (this->request_header->method() == "CONNECT")
 		{
 			const unsigned char response_message[] = "HTTP/1.1 200 Connection Established\r\nConnection: Close\r\n\r\n";
@@ -672,7 +678,7 @@ namespace azure_proxy
 					return;
 				}
 			}
-
+			logger->info("begin {0} to server {1} path {2} header_counter 3}", this->request_header->scheme(), this->request_header->host(), this->request_header->path_and_query(), this->request_header->get_header_counter());
 			if (this->request_header->method() == "CONNECT")
 			{
 				this->async_connect_to_origin_server();

@@ -24,7 +24,7 @@ namespace azure_proxy {
 	class http_proxy_server {
 		asio::io_service& io_service;
 		asio::ip::tcp::acceptor acceptor;
-
+		std::shared_ptr<spdlog::logger> logger;
 	public:
 
 		http_proxy_server(asio::io_service& io_service);

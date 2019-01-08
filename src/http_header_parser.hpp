@@ -26,6 +26,11 @@ namespace azure_proxy
 			});
 		}
 	};
+
+	// https://stackoverflow.com/questions/4371328/are-duplicate-http-response-headersacceptable
+	//Cache-Control: no-cache
+	//Cache-Control: no - store
+	// 因为http头里面会有重复的key 所以这里只能用multimap
 	typedef std::multimap<const std::string, std::string, default_filed_name_compare> http_headers_container;
 
 	class http_request_header
@@ -37,6 +42,7 @@ namespace azure_proxy
 		unsigned short _port;
 		std::string _path_and_query;
 		std::string _http_version;
+		std::string header_counter;
 		http_headers_container _headers_map;
 		http_request_header();
 	public:
@@ -49,6 +55,7 @@ namespace azure_proxy
 		std::unique_ptr<std::string> get_header_value(const std::string& name) const;
 		std::size_t erase_header(const std::string& name);
 		const http_headers_container& get_headers_map() const;
+		std::string get_header_counter() const;
 	};
 
 	class http_response_header
@@ -58,6 +65,7 @@ namespace azure_proxy
 		unsigned int _status_code;
 		std::string _status_description;
 		http_headers_container _headers_map;
+		std::string header_counter;
 		http_response_header();
 	public:
 		const std::string& http_version() const;
@@ -66,6 +74,7 @@ namespace azure_proxy
 		std::unique_ptr<std::string> get_header_value(const std::string& name) const;
 		std::size_t erase_header(const std::string& name);
 		const http_headers_container& get_headers_map() const;
+		std::string get_header_counter() const;
 	};
 
 	class http_header_parser

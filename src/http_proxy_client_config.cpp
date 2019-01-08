@@ -264,4 +264,16 @@ namespace azure_proxy
 	{
 		return spdlog::level::level_enum(this->get_config_value<int>("log_level"));
 	}
+	std::string http_proxy_client_config::get_log_file_name() const
+	{
+		auto file_iter = config_map_str.find("log_file");
+		if (file_iter == config_map_str.end())
+		{
+			return "ahpc_log.txt";
+		}
+		else
+		{
+			return file_iter->second;
+		}
+	}
 } // namespace azure_proxy

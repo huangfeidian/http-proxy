@@ -13,7 +13,38 @@
 
 namespace azure_proxy
 {
+	const int tokens[128] = {
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+		0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
+	};
+	std::string remove_trail_blank(const std::string& input)
+	{
+		size_t idx = input.size();
+		for (; idx > 0; idx++)
+		{
+			if (input[idx - 1] == ' ' || input[idx - 1] ==
+				'\t')
 
+			{
+				continue;
+			}
+			else
+			{
+				break;
+			}
+		}
+		if (idx == 0)
+		{
+			return std::string();
+		}
+		return input.substr(0, idx);
+	}
 	http_request_header::http_request_header() : _port(80)
 	{
 	}
@@ -46,6 +77,10 @@ namespace azure_proxy
 	const std::string& http_request_header::http_version() const
 	{
 		return this->_http_version;
+	}
+	std::string http_request_header::get_header_counter() const
+	{
+		return header_counter;
 	}
 
 	std::unique_ptr<std::string> http_request_header::get_header_value(const std::string& name) const
@@ -106,30 +141,23 @@ namespace azure_proxy
 	{
 		return this->_headers_map;
 	}
+	std::string http_response_header::get_header_counter() const
+	{
+		return header_counter;
+	}
 
 	http_headers_container http_header_parser::parse_headers(std::string::const_iterator begin, std::string::const_iterator end)
 	{
 		http_headers_container headers;
+		static uint32_t header_counter = 0;
 		//lambdas are inlined  don't worry be happy
-		auto is_digit = [](char ch) -> bool
+		auto is_token_char = [](char ch) -> bool
 		{
-			return '0' <= ch && ch <= '9';
-		};
-		auto is_alpha = [](char ch) -> bool
-		{
-			return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z');
-		};
-		auto is_token_char = [&is_alpha, &is_digit](char ch) -> bool
-		{
-			return is_alpha(ch) || is_digit(ch) || (
-				ch == '!' || ch == '#' ||
-				ch == '$' || ch == '%' ||
-				ch == '&' || ch == '\'' ||
-				ch == '`' || ch == '*' ||
-				ch == '+' || ch == '-' ||
-				ch == '.' || ch == '^' ||
-				ch == '_' || ch == '|' ||
-				ch == '~');
+			if (ch >= 128)
+			{
+				return false;
+			}
+			return tokens[ch];
 		};
 
 		enum class parse_header_state
@@ -235,12 +263,8 @@ namespace azure_proxy
 				}
 				else
 				{
-					//ÕâÊÇÔÚ¸ÉÂï
-					while (!header_field_value.empty() && (header_field_value[header_field_value.size() - 1] == ' ' || (header_field_value[header_field_value.size() - 1] == '\t')))
-					{
-						header_field_value.resize(header_field_value.size() - 1);
-					}
-					headers.insert(std::make_pair(std::move(header_field_name), std::move(header_field_value)));
+					//É¾µôÄ©Î²µÄ¿Õ°××Ö·û
+					headers.insert(std::make_pair(std::move(header_field_name), std::move(remove_trail_blank(header_field_value))));
 					if (*iter == '\r')
 					{
 						state = parse_header_state::header_field_crlfcr;
@@ -273,6 +297,7 @@ namespace azure_proxy
 		{
 			throw std::runtime_error("failed to parse");
 		}
+		headers.insert(std::make_pair("header_counter", std::to_string(header_counter++)));
 		return headers;
 	}
 
@@ -302,7 +327,7 @@ namespace azure_proxy
 		auto request_uri = std::string(tmp, iter);
 		if (header.method() == "CONNECT")
 		{
-			std::regex regex("(.+?):(\\d+)");
+			std::regex regex("(.+?):(\\d+)"); //host:port
 			std::match_results<std::string::iterator> match_results;
 			if (!std::regex_match(request_uri.begin(), request_uri.end(), match_results, regex))
 			{
@@ -320,7 +345,7 @@ namespace azure_proxy
 		}
 		else
 		{
-			std::regex regex("(.+?)://(.+?)(:(\\d+))?(/.*)");
+			std::regex regex("(.+?)://(.+?)(:(\\d+))?(/.*)"); //GET http://download.microtool.de:80/somedata.exe
 			std::match_results<std::string::iterator> match_results;
 			if (!std::regex_match(request_uri.begin(), request_uri.end(), match_results, regex))
 			{
@@ -365,6 +390,12 @@ namespace azure_proxy
 		try
 		{
 			header._headers_map = parse_headers(iter, end);
+			auto counter_iter = header._headers_map.find("header_counter");
+			if (counter_iter != header._headers_map.end())
+			{
+				header.header_counter = counter_iter->second;
+				header._headers_map.erase("header_counter");
+			}
 		}
 		catch (const std::exception&)
 		{
@@ -431,6 +462,12 @@ namespace azure_proxy
 		try
 		{
 			header._headers_map = parse_headers(iter, end);
+			auto counter_iter = header._headers_map.find("header_counter");
+			if (counter_iter != header._headers_map.end())
+			{
+				header.header_counter = counter_iter->second;
+				header._headers_map.erase("header_counter");
+			}
 		}
 		catch (const std::exception&)
 		{
