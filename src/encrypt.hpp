@@ -26,6 +26,21 @@ namespace azure_proxy
 	{
 	public:
 		virtual void encrypt(const unsigned char* in, unsigned char* out, std::size_t length) = 0;
+		void transform(unsigned char* data, std::size_t length, std::size_t block_size)
+		{
+			std::vector<unsigned char> temp_buffer(block_size, 0);
+			for (std::size_t i = 0; i * block_size < length; i++)
+			{
+				std::size_t cur_block_size = block_size;
+				if (length - i * block_size < block_size)
+				{
+					cur_block_size = length % block_size;
+				}
+				encrypt(data + i * block_size, &temp_buffer[0], cur_block_size);
+				std::copy(&temp_buffer[0], &temp_buffer[0] + cur_block_size, data + i * block_size);
+			}
+
+		}
 		virtual ~stream_encryptor()
 		{
 		}

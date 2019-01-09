@@ -43,6 +43,8 @@ namespace azure_proxy
 		std::string _path_and_query;
 		std::string _http_version;
 		std::string header_counter;
+		std::string _proxy_connection;
+		std::string _proxy_authorization;
 		http_headers_container _headers_map;
 		http_request_header();
 	public:
@@ -55,8 +57,13 @@ namespace azure_proxy
 		std::unique_ptr<std::string> get_header_value(const std::string& name) const;
 		std::size_t erase_header(const std::string& name);
 		const http_headers_container& get_headers_map() const;
-		std::string get_header_counter() const;
+		const std::string& get_header_counter() const;
 		void set_header_counter(const std::string& counter);
+		bool valid_method() const;
+		bool valid_version() const;
+		std::string encode_to_data() const;
+		const std::string& proxy_authorization() const;
+		const std::string& proxy_connection() const;
 	};
 
 	class http_response_header
@@ -75,7 +82,10 @@ namespace azure_proxy
 		std::unique_ptr<std::string> get_header_value(const std::string& name) const;
 		std::size_t erase_header(const std::string& name);
 		const http_headers_container& get_headers_map() const;
-		std::string get_header_counter() const;
+		const std::string& get_header_counter() const;
+		bool valid_status() const;
+		bool valid_version() const;
+		std::string encode_to_data() const;
 	};
 
 	class http_header_parser

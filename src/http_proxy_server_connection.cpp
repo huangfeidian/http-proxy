@@ -160,24 +160,7 @@ namespace azure_proxy
 	{
 		logger->info("send request to origin server method {0} resource {1} header_counter {2}", this->request_header->method(), this->request_header->path_and_query(), this->request_header->get_header_counter());
 		auto request_content_begin = this->request_data.begin() + this->request_data.find("\r\n\r\n") + 4;
-		this->modified_request_data = this->request_header->method();
-		this->modified_request_data.push_back(' ');
-		this->modified_request_data += this->request_header->path_and_query();
-		this->modified_request_data += " HTTP/";
-		this->modified_request_data += this->request_header->http_version();
-		this->modified_request_data += "\r\n";
-
-		this->request_header->erase_header("Proxy-Connection");
-		this->request_header->erase_header("Proxy-Authorization");
-
-		for (const auto& header : this->request_header->get_headers_map())
-		{
-			this->modified_request_data += std::get<0>(header);
-			this->modified_request_data += ": ";
-			this->modified_request_data += std::get<1>(header);
-			this->modified_request_data += "\r\n";
-		}
-		this->modified_request_data += "\r\n";
+		this->modified_request_data = this->request_header->encode_to_data();
 		this->modified_request_data.append(request_content_begin, this->request_data.end());
 		this->connection_context.connection_state = proxy_connection_state::write_http_request_header;
 		this->async_write_data_to_origin_server(this->modified_request_data.data(), 0, this->modified_request_data.size());
@@ -188,42 +171,9 @@ namespace azure_proxy
 		logger->info("write response to client with header_counter {}", request_header->get_header_counter());
 		auto response_content_begin = this->response_data.begin() + this->response_data.find("\r\n\r\n") + 4;
 
-		this->modified_response_data = "HTTP/";
-		this->modified_response_data += this->response_header->http_version();
-		this->modified_response_data.push_back(' ');
-		this->modified_response_data += std::to_string(this->response_header->status_code());
-		if (!this->response_header->status_description().empty())
-		{
-			this->modified_response_data.push_back(' ');
-			this->modified_response_data += this->response_header->status_description();
-		}
-		this->modified_response_data += "\r\n";
-
-		for (const auto& header : this->response_header->get_headers_map())
-		{
-			this->modified_response_data += std::get<0>(header);
-			this->modified_response_data += ": ";
-			this->modified_response_data += std::get<1>(header);
-			this->modified_response_data += "\r\n";
-		}
-		this->modified_response_data += "\r\n";
+		this->modified_response_data = this->response_header->encode_to_data();
 		this->modified_response_data.append(response_content_begin, this->response_data.end());
-		unsigned char temp_buffer[256];
-		std::size_t blocks = this->modified_response_data.size() / 256;
-		if (this->modified_response_data.size() % 256 != 0)
-		{
-			blocks += 1;
-		}
-		for (std::size_t i = 0; i < blocks; ++i)
-		{
-			std::size_t block_length = 256;
-			if ((i + 1) * 256 > this->modified_response_data.size())
-			{
-				block_length = this->modified_response_data.size() % 256;
-			}
-			std::copy(reinterpret_cast<const unsigned char*>(&this->modified_response_data[i * 256]), reinterpret_cast<const unsigned char*>(&this->modified_response_data[i * 256 + block_length]), temp_buffer);
-			this->encryptor->encrypt(temp_buffer, reinterpret_cast<unsigned char*>(&this->modified_response_data[i * 256]), block_length);
-		}
+		this->encryptor->transform(reinterpret_cast<unsigned char*>(&modified_response_data[0]), modified_response_data.size(), 256);
 		this->connection_context.connection_state = proxy_connection_state::write_http_response_header;
 		this->async_write_data_to_proxy_client(this->modified_response_data.data(), 0, this->modified_response_data.size());
 	}
@@ -336,18 +286,7 @@ namespace azure_proxy
 		{
 			this->modified_response_data += response_content;
 		}
-
-		unsigned char temp_buffer[16];
-		for (std::size_t i = 0; i * 16 < this->modified_response_data.size(); ++i)
-		{
-			std::size_t block_length = 16;
-			if (this->modified_response_data.size() - i * 16 < 16)
-			{
-				block_length = this->modified_response_data.size() % 16;
-			}
-			this->encryptor->encrypt(reinterpret_cast<const unsigned char*>(&this->modified_response_data[i * 16]), temp_buffer, block_length);
-			std::copy(temp_buffer, temp_buffer + block_length, reinterpret_cast<unsigned char*>(&this->modified_response_data[i * 16]));
-		}
+		this->encryptor->transform(reinterpret_cast<unsigned char*>(&modified_response_data[0]), modified_response_data.size(), 16);
 		this->connection_context.connection_state = proxy_connection_state::report_error;
 		auto self(this->shared_from_this());
 		this->async_write_data_to_proxy_client(this->modified_response_data.data(), 0, this->modified_response_data.size());
@@ -366,17 +305,7 @@ namespace azure_proxy
 		this->modified_response_data += std::to_string(content.size());
 		this->modified_response_data += "\r\n\r\n";
 		this->modified_response_data += content;
-		unsigned char temp_buffer[16];
-		for (std::size_t i = 0; i * 16 < this->modified_response_data.size(); ++i)
-		{
-			std::size_t block_length = 16;
-			if (this->modified_response_data.size() - i * 16 < 16)
-			{
-				block_length = this->modified_response_data.size() % 16;
-			}
-			this->encryptor->encrypt(reinterpret_cast<const unsigned char*>(&this->modified_response_data[i * 16]), temp_buffer, block_length);
-			std::copy(temp_buffer, temp_buffer + block_length, reinterpret_cast<unsigned char*>(&this->modified_response_data[i * 16]));
-		}
+		this->encryptor->transform(reinterpret_cast<unsigned char*>(&modified_response_data[0]), modified_response_data.size(), 16);
 		this->connection_context.connection_state = proxy_connection_state::report_error;
 		this->async_write_data_to_proxy_client(this->modified_response_data.data(), 0, this->modified_response_data.size());
 	}
@@ -642,20 +571,12 @@ namespace azure_proxy
 				return;
 			}
 
-			if (this->request_header->method() != "GET"
-				// && this->request_header->method() != "OPTIONS"
-				&& this->request_header->method() != "HEAD"
-				&& this->request_header->method() != "POST"
-				&& this->request_header->method() != "PUT"
-				&& this->request_header->method() != "DELETE"
-				// && this->request_header->method() != "TRACE"
-				&& this->request_header->method() != "CONNECT")
+			if (!this->request_header->valid_method())
 			{
 				this->report_error("405", "Method Not Allowed", std::string());
 				return;
 			}
-			if (this->request_header->http_version() != "1.1"
-				&& this->request_header->http_version() != "1.0")
+			if (!this->request_header->valid_version())
 			{
 				this->report_error("505", "HTTP Version Not Supported", std::string());
 				return;
@@ -663,11 +584,11 @@ namespace azure_proxy
 
 			if (http_proxy_server_config::get_instance().enable_auth())
 			{
-				auto proxy_authorization_value = this->request_header->get_header_value("Proxy-Authorization");
+				const auto& proxy_authorization_value = this->request_header->proxy_authorization();
 				bool auth_success = false;
-				if (proxy_authorization_value)
+				if (!proxy_authorization_value.empty())
 				{
-					if (authentication::get_instance().auth(*proxy_authorization_value) == auth_result::ok)
+					if (authentication::get_instance().auth(proxy_authorization_value) == auth_result::ok)
 					{
 						auth_success = true;
 					}
@@ -691,15 +612,15 @@ namespace azure_proxy
 					this->report_error("400", "Bad Request", "Unsupported scheme");
 					return;
 				}
-				auto proxy_connection_value = this->request_header->get_header_value("Proxy-Connection");
+				auto proxy_connection_value = this->request_header->proxy_connection();
 				auto connection_value = this->request_header->get_header_value("Connection");
-				if (proxy_connection_value)
+				if (!proxy_connection_value.empty())
 				{
-					string_to_lower_case(*proxy_connection_value);
+					string_to_lower_case(proxy_connection_value);
 					if (this->request_header->http_version() == "1.1")
 					{
 						this->read_request_context.is_proxy_client_keep_alive = true;
-						if (*proxy_connection_value == "close")
+						if (proxy_connection_value == "close")
 						{
 							this->read_request_context.is_proxy_client_keep_alive = false;
 						}
@@ -708,7 +629,7 @@ namespace azure_proxy
 					{
 						assert(this->request_header->http_version() == "1.0");
 						this->read_request_context.is_proxy_client_keep_alive = false;
-						if (*proxy_connection_value == "keep-alive")
+						if (proxy_connection_value == "keep-alive")
 						{
 							this->read_request_context.is_proxy_client_keep_alive = true;
 						}
@@ -843,12 +764,12 @@ namespace azure_proxy
 				this->report_error("502", "Bad Gateway", "Failed to parse response header");
 				return;
 			}
-			if (this->response_header->http_version() != "1.1" && this->response_header->http_version() != "1.0")
+			if (!this->response_header->valid_version())
 			{
 				this->report_error("502", "Bad Gateway", "HTTP version not supported");
 				return;
 			}
-			if (this->response_header->status_code() < 100 || this->response_header->status_code() > 700)
+			if (!this->response_header->valid_status())
 			{
 				this->report_error("502", "Bad Gateway", "Unexpected status code");
 				return;

@@ -9,6 +9,7 @@
 #include <regex>
 #include <memory>
 #include <assert.h>
+#include <unordered_set>
 #include "http_header_parser.hpp"
 
 namespace azure_proxy
@@ -23,6 +24,8 @@ namespace azure_proxy
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
 	};
+	std::unordered_set<std::string> valid_request_method = { "GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT" };
+
 	std::string remove_trail_blank(const std::string& input)
 	{
 		size_t idx = input.size();
@@ -85,13 +88,58 @@ namespace azure_proxy
 	{
 		return this->_http_version;
 	}
-	std::string http_request_header::get_header_counter() const
+	const std::string& http_request_header::get_header_counter() const
 	{
 		return header_counter;
+	}
+	const std::string& http_request_header::proxy_authorization() const
+	{
+		return _proxy_authorization;
+	}
+	const std::string& http_request_header::proxy_connection() const
+	{
+		return _proxy_connection;
 	}
 	void http_request_header::set_header_counter(const std::string& counter)
 	{
 		header_counter = counter;
+	}
+	bool http_request_header::valid_method() const
+	{
+		if (valid_request_method.find(_method) == valid_request_method.end())
+		{
+			return false;
+		}
+		else
+		{
+			return true;
+		}
+
+	}
+	bool http_request_header::valid_version() const
+	{
+		return _http_version == "1.1" || _http_version == "1.0";
+	}
+	std::string http_request_header::encode_to_data() const
+	{
+		std::string result;
+		result.reserve(500);
+		result += _method;
+		result += " ";
+		result += _path_and_query;
+		result += " HTTP/";
+		result += _http_version;
+		result += "\r\n";
+		for (const auto& header : _headers_map)
+		{
+			result += std::get<0>(header);
+			result += ": ";
+			result += std::get<1>(header);
+			result += "\r\n";
+		}
+		result += "\r\n";
+		return result;
+
 	}
 	std::unique_ptr<std::string> http_request_header::get_header_value(const std::string& name) const
 	{
@@ -151,10 +199,51 @@ namespace azure_proxy
 	{
 		return this->_headers_map;
 	}
-	std::string http_response_header::get_header_counter() const
+	const std::string& http_response_header::get_header_counter() const
 	{
 		return header_counter;
 	}
+	bool http_response_header::valid_status() const
+	{
+		return _status_code >= 100 && _status_code <= 700;
+	}
+	bool http_response_header::valid_version() const
+	{
+		if (_http_version != "1.0" && _http_version != "1.1")
+		{
+			return false;
+		}
+		else
+		{
+			return true;
+		}
+	}
+	std::string http_response_header::encode_to_data() const
+	{
+		std::string result;
+		result.reserve(500);
+		result += "HTTP/";
+		result += _http_version;
+		result.push_back(' ');
+		result += std::to_string(_status_code);
+		if (!_status_description.empty())
+		{
+			result.push_back(' ');
+			result += _status_description;
+		}
+		result += "\r\n";
+
+		for (const auto& header : _headers_map)
+		{
+			result += std::get<0>(header);
+			result += ": ";
+			result += std::get<1>(header);
+			result += "\r\n";
+		}
+		result += "\r\n";
+		return result;
+	}
+
 
 	http_headers_container http_header_parser::parse_headers(std::string::const_iterator begin, std::string::const_iterator end)
 	{
@@ -400,11 +489,23 @@ namespace azure_proxy
 		try
 		{
 			header._headers_map = parse_headers(iter, end);
-			auto counter_iter = header._headers_map.find("header_counter");
-			if (counter_iter != header._headers_map.end())
+			auto temp_iter = header._headers_map.find("header_counter");
+			if (temp_iter != header._headers_map.end())
 			{
-				header.header_counter = counter_iter->second;
+				header.header_counter = temp_iter->second;
 				header._headers_map.erase("header_counter");
+			}
+			temp_iter = header._headers_map.find("Proxy-Connection");
+			if (temp_iter != header._headers_map.end())
+			{
+				header._proxy_connection = temp_iter->second;
+				header._headers_map.erase("Proxy-Connection");
+			}
+			temp_iter = header._headers_map.find("Proxy-Authorization");
+			if (temp_iter != header._headers_map.end())
+			{
+				header._proxy_authorization = temp_iter->second;
+				header._headers_map.erase("Proxy-Authorization");
 			}
 		}
 		catch (const std::exception&)

@@ -89,6 +89,8 @@ namespace azure_proxy
 		// for trace use
 		void on_user_agent_data_arrived(std::size_t bytes_transfered);
 		void on_proxy_server_data_arrived(std::size_t bytes_transfered);
+		void async_write_header_to_proxy();
+		void async_write_header_to_ua();
 		void on_ua_up_data_written();
 		void on_proxy_down_data_written();
 		void report_error(const std::string& status_code, const std::string& status_description, const std::string& error_message);

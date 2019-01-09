@@ -49,7 +49,10 @@ namespace azure_proxy
 		{
 			return this->state == http_chunk_check_state::chunk_check_failed;
 		}
-
+		std::uint32_t chunk_size() const
+		{
+			return current_chunk_size;
+		}
 		template <typename ForwardIterator>
 		bool check(ForwardIterator begin, ForwardIterator end)
 		{
