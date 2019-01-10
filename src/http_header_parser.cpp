@@ -55,6 +55,19 @@ namespace azure_proxy
 			*iter = std::tolower(static_cast<unsigned char>(*iter));
 		}
 	}
+	void http_request_header::reset()
+	{
+		_method.clear();
+		_scheme.clear();
+		_host.clear();
+		_path_and_query.clear();
+		_port = 0;
+		_http_version.clear();
+		header_counter.clear();
+		_proxy_authorization.clear();
+		_proxy_connection.clear();
+		_headers_map.clear();
+	}
 	http_request_header::http_request_header() : _port(80)
 	{
 	}
@@ -164,6 +177,15 @@ namespace azure_proxy
 	http_response_header::http_response_header()
 	{
 	}
+	void http_response_header::reset()
+	{
+		_http_version.clear();
+		_status_code = 0;
+		_status_description.clear();
+		_headers_map.clear();
+		header_counter.clear();
+
+	}
 
 	const std::string& http_response_header::http_version() const
 	{
@@ -248,6 +270,16 @@ namespace azure_proxy
 	http_headers_container http_header_parser::parse_headers(std::string::const_iterator begin, std::string::const_iterator end)
 	{
 		http_headers_container headers;
+		auto result = parse_headers(static_cast<const unsigned char*>(begin), static_cast<const unsigned char*>(end), headers);
+		if (result.first != http_parser_result::read_one_header)
+		{
+			headers.clear();
+			return headers;
+		}
+		return headers;
+	}
+	std::pair<http_parser_result, std::uint32_t> parse_headers(const unsigned char* begin, const unsigned char* end, http_headers_container& headers)
+	{
 		static uint32_t header_counter = 0;
 		//lambdas are inlined  don't worry be happy
 		auto is_token_char = [](char ch) -> bool
@@ -277,7 +309,8 @@ namespace azure_proxy
 		std::string header_field_value;
 		//哈哈一个状态机，不过模拟的不彻底啊，话说这位同学为什么这么喜欢字节流的状态机呢 
 		//应该是网络流并不是一次传输完成的 只有字节流的边界是清晰的
-		for (std::string::const_iterator iter = begin; iter != end && state != parse_header_state::header_compelete && state != parse_header_state::header_parse_failed; ++iter)
+		auto iter = begin;
+		for (; iter != end && state != parse_header_state::header_compelete && state != parse_header_state::header_parse_failed; ++iter)
 		{
 			switch (state)
 			{
@@ -394,12 +427,11 @@ namespace azure_proxy
 		}
 		if (state != parse_header_state::header_compelete)
 		{
-			throw std::runtime_error("failed to parse");
+			return std::make_pair(http_parser_result::buffer_overflow, 0);
 		}
 		headers.insert(std::make_pair("header_counter", std::to_string(header_counter++)));
-		return headers;
+		return std::make_pair(http_parser_result::read_one_header, iter - begin);
 	}
-
 	std::unique_ptr<http_request_header> http_header_parser::parse_request_header(std::string::const_iterator begin, std::string::const_iterator end)
 	{
 		auto iter = begin;
@@ -586,6 +618,155 @@ namespace azure_proxy
 		}
 
 		return std::make_unique<http_response_header>(header);
+	}
+	http_parser_result http_header_parser::parse_request_header(const unsigned char* begin, const unsigned char* end, http_request_header& header)
+	{
+
+		auto iter = begin;
+		auto tmp = iter;
+		for (; iter != end && *iter != ' ' && *iter != '\r'; ++iter)
+		{
+			//get the method
+		}
+		if (iter == tmp || iter == end || *iter != ' ')
+		{
+			return http_parser_result::buffer_overflow;
+		}
+		http_request_header header;
+		header._method = std::string(tmp, iter);
+		tmp = ++iter;
+		for (; iter != end && *iter != ' ' && *iter != '\r'; ++iter)
+		{
+			//get  the url
+		}
+		if (iter == tmp || iter == end || *iter != ' ')
+		{
+			return http_parser_result::buffer_overflow;
+		}
+		auto request_uri = std::string(tmp, iter);
+		if (header.method() == "CONNECT")
+		{
+			std::regex regex("(.+?):(\\d+)"); //host:port
+			std::match_results<std::string::iterator> match_results;
+			if (!std::regex_match(request_uri.begin(), request_uri.end(), match_results, regex))
+			{
+				return http_parser_result::buffer_overflow;
+			}
+			header._host = match_results[1];
+			try
+			{
+				header._port = static_cast<unsigned short>(std::stoul(std::string(match_results[2])));
+			}
+			catch (const std::exception&)
+			{
+				return http_parser_result::buffer_overflow;
+			}
+		}
+		else
+		{
+			std::regex regex("(.+?)://(.+?)(:(\\d+))?(/.*)"); //GET http://download.microtool.de:80/somedata.exe
+			std::match_results<std::string::iterator> match_results;
+			if (!std::regex_match(request_uri.begin(), request_uri.end(), match_results, regex))
+			{
+				return http_parser_result::buffer_overflow;
+			}
+			header._scheme = match_results[1];
+			header._host = match_results[2];
+			if (match_results[4].matched)
+			{
+				try
+				{
+					header._port = static_cast<unsigned short>(std::stoul(std::string(match_results[4])));
+				}
+				catch (const std::exception&)
+				{
+					return http_parser_result::buffer_overflow;
+				}
+			}
+			header._path_and_query = match_results[5];
+		}
+
+		tmp = ++iter;
+		for (; iter != end && *iter != '\r'; ++iter)
+		{
+			//to the end of line 
+		}
+		// HTTP/x.y
+		if (iter == end || std::distance(tmp, iter) < 6 || !std::equal(tmp, tmp + 5, "HTTP/"))
+		{
+			return http_parser_result::buffer_overflow;
+		}
+
+		header._http_version = std::string(tmp + 5, iter);
+
+		++iter;
+		if (iter == end || *iter != '\n')
+		{
+			return http_parser_result::buffer_overflow;
+		}
+
+		++iter;
+		try
+		{
+			header._headers_map = parse_headers(iter, end);
+			auto temp_iter = header._headers_map.find("header_counter");
+			if (temp_iter != header._headers_map.end())
+			{
+				header.header_counter = temp_iter->second;
+				header._headers_map.erase("header_counter");
+			}
+			temp_iter = header._headers_map.find("Proxy-Connection");
+			if (temp_iter != header._headers_map.end())
+			{
+				header._proxy_connection = temp_iter->second;
+				header._headers_map.erase("Proxy-Connection");
+			}
+			temp_iter = header._headers_map.find("Proxy-Authorization");
+			if (temp_iter != header._headers_map.end())
+			{
+				header._proxy_authorization = temp_iter->second;
+				header._headers_map.erase("Proxy-Authorization");
+			}
+		}
+		catch (const std::exception&)
+		{
+			return http_parser_result::buffer_overflow;
+		}
+
+		return http_parser_result::read_one_header;
+	}
+
+	http_request_parser::http_request_parser()
+	{
+		buffer_size = 0;
+		parser_idx = 0;
+		_status = http_parser_status::read_header;
+	}
+	http_parser_result http_request_parser:: parse(const unsigned char* in_bytes, std::size_t length)
+	{
+		if (length + buffer_size >= MAX_REQUEST_HEADER_LENGTH)
+		{
+			return http_parser_result::buffer_overflow;
+		}
+		std::copy(in_bytes, in_bytes + length, buffer + buffer_size);
+		buffer_size = buffer_size + length;
+		std::uint32_t double_crlf_pos = buffer_size;
+		if (_status == http_parser_status::read_header)
+		{
+			for (int i = 0; i < buffer_size - 4; i++)
+			{
+				if (buffer[i] == '\r' && buffer[i + 1] == '\n' && buffer[i + 2] == '\r' && buffer[i + 3] == '\n')
+				{
+					double_crlf_pos = i;
+					break;
+				}
+			}
+			if (double_crlf_pos == buffer_size)
+			{
+				return http_parser_result::reading_header;
+			}
+
+		}
 	}
 
 }; // namespace azure_proxy

@@ -12,10 +12,27 @@
 #include <cctype>
 #include <map>
 #include <string>
+#include "config.hpp"
 
 namespace azure_proxy
 {
+	enum http_parser_status: uint16_t
+	{
+		read_header,
+		read_content,
+		read_chunked
 
+	};
+	enum http_parser_result
+	{
+		reading_header,
+		read_one_header,
+		reading_content,
+		reading_chunk,
+		reading_error,
+		buffer_overflow,
+
+	};
 	struct default_filed_name_compare
 	{
 		bool operator() (const std::string& str1, const std::string& str2) const
@@ -36,6 +53,7 @@ namespace azure_proxy
 	class http_request_header
 	{
 		friend class http_header_parser;
+		friend class http_parser;
 		std::string _method;
 		std::string _scheme;
 		std::string _host;
@@ -46,8 +64,10 @@ namespace azure_proxy
 		std::string _proxy_connection;
 		std::string _proxy_authorization;
 		http_headers_container _headers_map;
-		http_request_header();
+		
+		void reset();
 	public:
+		http_request_header();
 		const std::string& method() const;
 		const std::string& scheme() const;
 		const std::string& host() const;
@@ -64,18 +84,22 @@ namespace azure_proxy
 		std::string encode_to_data() const;
 		const std::string& proxy_authorization() const;
 		const std::string& proxy_connection() const;
+
 	};
 
 	class http_response_header
 	{
 		friend class http_header_parser;
+		friend class http_parser;
 		std::string _http_version;
 		unsigned int _status_code;
 		std::string _status_description;
 		http_headers_container _headers_map;
 		std::string header_counter;
-		http_response_header();
+		
+		void reset();
 	public:
+		http_response_header();
 		const std::string& http_version() const;
 		unsigned int status_code() const;
 		const std::string& status_description() const;
@@ -91,13 +115,29 @@ namespace azure_proxy
 	class http_header_parser
 	{
 		static http_headers_container parse_headers(std::string::const_iterator begin, std::string::const_iterator end);
+
+		static std::pair<http_parser_result, std::uint32_t> parse_headers(const unsigned char* begin, const unsigned char* end, http_headers_container& headers);
 	public:
 		static std::unique_ptr<http_request_header> parse_request_header(std::string::const_iterator begin, std::string::const_iterator end);
 		static std::unique_ptr<http_response_header> parse_response_header(std::string::const_iterator begin, std::string::const_iterator end);
+		static http_parser_result parse_request_header(const unsigned char* begin, const unsigned char* end, http_request_header& header);
+		static http_parser_result parse_request_header(const unsigned char* begin, const unsigned char* end, http_request_header& header);
 	};
 	void string_to_lower_case(std::string& str);
 	std::string remove_trail_blank(const std::string& input);
 
+	class http_request_parser
+	{
+	private:
+		unsigned char buffer[MAX_REQUEST_HEADER_LENGTH];
+		std::uint32_t buffer_size;
+		std::uint32_t parser_idx;
+	public:
+		http_request_header _header;
+		http_parser_status _status;
+		http_parser_result parse(const unsigned char* in_bytes, std::size_t length);
+		http_request_parser();
+	};
 }; // namespace azure_proxy
 
 #endif

@@ -31,7 +31,6 @@ using error_code = boost::system::error_code;
 #include <fstream>
 
 #endif
-const std::size_t BUFFER_LENGTH = 2048;
 
 namespace azure_proxy
 {
