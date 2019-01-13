@@ -45,10 +45,10 @@ namespace azure_proxy
 		proxy_connection_state connection_state;
 		asio::basic_waitable_timer<std::chrono::steady_clock> timer;
 		std::vector<unsigned char> encrypted_cipher_info;
-		std::array<char, BUFFER_LENGTH> upgoing_buffer_read;
-		std::array<char, BUFFER_LENGTH> upgoing_buffer_write;
-		std::array<char, BUFFER_LENGTH> downgoing_buffer_read;
-		std::array<char, BUFFER_LENGTH> downgoing_buffer_write;
+		std::array<char, MAX_HTTP_BUFFER_LENGTH> upgoing_buffer_read;
+		std::array<char, MAX_HTTP_BUFFER_LENGTH> upgoing_buffer_write;
+		std::array<char, MAX_HTTP_BUFFER_LENGTH> downgoing_buffer_read;
+		std::array<char, MAX_HTTP_BUFFER_LENGTH> downgoing_buffer_write;
 		std::unique_ptr<stream_encryptor> encryptor;
 		std::unique_ptr<stream_decryptor> decryptor;
 		std::chrono::seconds timeout;
@@ -57,17 +57,10 @@ namespace azure_proxy
 
 		http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> logger);
 	private:
-		// for trace use
-		std::string request_data;
-		std::string modified_request_data;
-		std::string response_data;
-		std::string modified_response_data;
-		std::unique_ptr<http_request_header> request_header;
-		std::unique_ptr<http_response_header> response_header;
-		proxy_connection_state ua_up_connection_state;
-		proxy_connection_state proxy_down_connection_state;
-		http_proxy_server_connection_read_request_context read_request_context;
-		http_proxy_server_connection_read_response_context read_response_context;
+
+		// trace header
+		http_request_parser _http_request_parser;
+		http_response_parser _http_response_parser;
 	public:
 		~http_proxy_client_connection();
 		static std::shared_ptr<http_proxy_client_connection> create(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> logger);
@@ -85,14 +78,11 @@ namespace azure_proxy
 		void on_error(const error_code& error);
 		void on_timeout();
 	private:
-		// for trace use
+		// trace header
 		void on_user_agent_data_arrived(std::size_t bytes_transfered);
 		void on_proxy_server_data_arrived(std::size_t bytes_transfered);
-		void async_write_header_to_proxy();
-		void async_write_header_to_ua();
-		void on_ua_up_data_written();
-		void on_proxy_down_data_written();
 		void report_error(const std::string& status_code, const std::string& status_description, const std::string& error_message);
+		void report_error(http_parser_result _status);
 	};
 
 } // namespace azure_proxy

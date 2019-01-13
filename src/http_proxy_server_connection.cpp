@@ -170,7 +170,7 @@ namespace azure_proxy
 
 		this->modified_response_data = this->response_header->encode_to_data();
 		this->modified_response_data.append(response_content_begin, this->response_data.end());
-		this->encryptor->transform(reinterpret_cast<unsigned char*>(&modified_response_data[0]), modified_response_data.size(), 256);
+		this->encryptor->transform(reinterpret_cast<char*>(&modified_response_data[0]), modified_response_data.size(), 256);
 		this->connection_context.connection_state = proxy_connection_state::write_http_response_header;
 		this->async_write_data_to_proxy_client(this->modified_response_data.data(), 0, this->modified_response_data.size());
 	}
@@ -283,7 +283,7 @@ namespace azure_proxy
 		{
 			this->modified_response_data += response_content;
 		}
-		this->encryptor->transform(reinterpret_cast<unsigned char*>(&modified_response_data[0]), modified_response_data.size(), 16);
+		this->encryptor->transform(reinterpret_cast<char*>(&modified_response_data[0]), modified_response_data.size(), 16);
 		this->connection_context.connection_state = proxy_connection_state::report_error;
 		auto self(this->shared_from_this());
 		this->async_write_data_to_proxy_client(this->modified_response_data.data(), 0, this->modified_response_data.size());
@@ -302,7 +302,7 @@ namespace azure_proxy
 		this->modified_response_data += std::to_string(content.size());
 		this->modified_response_data += "\r\n\r\n";
 		this->modified_response_data += content;
-		this->encryptor->transform(reinterpret_cast<unsigned char*>(&modified_response_data[0]), modified_response_data.size(), 16);
+		this->encryptor->transform(reinterpret_cast<char*>(&modified_response_data[0]), modified_response_data.size(), 16);
 		this->connection_context.connection_state = proxy_connection_state::report_error;
 		this->async_write_data_to_proxy_client(this->modified_response_data.data(), 0, this->modified_response_data.size());
 	}
@@ -383,9 +383,9 @@ namespace azure_proxy
 		logger->info("connect to server {} suc", this->request_header->host());
 		if (this->request_header->method() == "CONNECT")
 		{
-			const unsigned char response_message[] = "HTTP/1.1 200 Connection Established\r\nConnection: Close\r\n\r\n";
+			const char response_message[] = "HTTP/1.1 200 Connection Established\r\nConnection: Close\r\n\r\n";
 			this->modified_response_data.resize(sizeof(response_message) - 1);
-			this->encryptor->encrypt(response_message, const_cast<unsigned char*>(reinterpret_cast<const unsigned char*>(&this->modified_response_data[0])), this->modified_response_data.size());
+			this->encryptor->encrypt(response_message, const_cast<char*>(reinterpret_cast<const char*>(&this->modified_response_data[0])), this->modified_response_data.size());
 			this->connection_context.connection_state = proxy_connection_state::report_connection_established;
 			this->async_write_data_to_proxy_client(&this->modified_response_data[0], 0, this->modified_response_data.size());
 		}
@@ -406,7 +406,7 @@ namespace azure_proxy
 				return;
 			}
 			assert(this->encrypted_cipher_info.size() == this->rsa_pri.modulus_size());
-			std::vector<unsigned char> decrypted_cipher_info(this->rsa_pri.modulus_size());
+			std::vector<char> decrypted_cipher_info(this->rsa_pri.modulus_size());
 
 			if (86 != this->rsa_pri.decrypt(this->rsa_pri.modulus_size(), this->encrypted_cipher_info.data(), decrypted_cipher_info.data(), rsa_padding::pkcs1_oaep_padding))
 			{
@@ -441,7 +441,7 @@ namespace azure_proxy
 			// 0x0C aes-256-cfb1
 			// 0x0D aes-256-ofb
 			// 0x0E aes-256-ctr
-			unsigned char cipher_code = decrypted_cipher_info[5];
+			char cipher_code = decrypted_cipher_info[5];
 			if (cipher_code == '\x00' || cipher_code == '\x05' || cipher_code == '\x0A')
 			{
 				// aes-xxx-cfb
@@ -529,7 +529,7 @@ namespace azure_proxy
 			// 		// aes-192-ctr
 			// 		key_bits = 192;
 			// 	}
-			// 	std::vector<unsigned char> ivec(ivec_size, 0);
+			// 	std::vector<char> ivec(ivec_size, 0);
 			// 	this->encryptor = std::unique_ptr<stream_encryptor>(new aes_ctr128_encryptor(&decrypted_cipher_info[23], key_bits, ivec.data()));
 			// 	this->decryptor = std::unique_ptr<stream_decryptor>(new aes_ctr128_decryptor(&decrypted_cipher_info[23], key_bits, ivec.data()));
 			// }
@@ -542,7 +542,7 @@ namespace azure_proxy
 			return;
 		}
 		assert(this->encryptor != nullptr && this->decryptor != nullptr);
-		this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->upgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->upgoing_buffer_write[0]), bytes_transferred);
+		this->decryptor->decrypt(reinterpret_cast<const char*>(&this->upgoing_buffer_read[0]), reinterpret_cast<char*>(&this->upgoing_buffer_write[0]), bytes_transferred);
 		if (this->connection_context.connection_state == proxy_connection_state::read_http_request_header)
 		{
 			const auto& decripted_data_buffer = this->upgoing_buffer_write;
@@ -790,7 +790,7 @@ namespace azure_proxy
 			{
 				for (auto iter = str.begin(); iter != str.end(); ++iter)
 				{
-					*iter = std::tolower(static_cast<unsigned char>(*iter));
+					*iter = std::tolower(static_cast<char>(*iter));
 				}
 			};
 			if (connection_value)
@@ -878,12 +878,12 @@ namespace azure_proxy
 				}
 			}
 			this->connection_context.connection_state = proxy_connection_state::write_http_response_content;
-			this->encryptor->encrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
+			this->encryptor->encrypt(reinterpret_cast<const char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
 			this->async_write_data_to_proxy_client(this->downgoing_buffer_write.data(), 0, bytes_transferred);
 		}
 		else if (this->connection_context.connection_state == proxy_connection_state::tunnel_transfer)
 		{
-			this->encryptor->encrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
+			this->encryptor->encrypt(reinterpret_cast<const char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
 			this->async_write_data_to_proxy_client(this->downgoing_buffer_write.data(), 0, bytes_transferred);
 		}
 	}

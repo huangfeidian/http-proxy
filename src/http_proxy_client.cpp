@@ -15,7 +15,7 @@
 #include "http_proxy_client_connection.hpp"
 #include "http_proxy_client_config.hpp"
 
-#include "spdlog/sinks/basic_file_sink.h"
+#include <spdlog/sinks/file_sinks.h>
 
 namespace azure_proxy
 {

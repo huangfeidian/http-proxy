@@ -11,6 +11,9 @@
 #include <assert.h>
 #include <unordered_set>
 #include "http_header_parser.hpp"
+#include <optional>
+#include <charconv>
+
 
 namespace azure_proxy
 {
@@ -52,8 +55,19 @@ namespace azure_proxy
 	{
 		for (auto iter = str.begin(); iter != str.end(); ++iter)
 		{
-			*iter = std::tolower(static_cast<unsigned char>(*iter));
+			*iter = std::tolower(static_cast<char>(*iter));
 		}
+	}
+	template<typename T>
+	std::optional<T> try_prase_unsigned_int(const std::string& _text)
+	{
+		T result;
+		if (auto[p, ec] = std::from_chars(_text.c_str(), _text.c_str() + _text.size(), result); ec == std::errc())
+		{
+			return result;
+		}
+		return std::nullopt;
+
 	}
 	void http_request_header::reset()
 	{
@@ -154,14 +168,14 @@ namespace azure_proxy
 		return result;
 
 	}
-	std::unique_ptr<std::string> http_request_header::get_header_value(const std::string& name) const
+	std::optional<std::string> http_request_header::get_header_value(const std::string& name) const
 	{
 		auto iter = this->_headers_map.find(name);
 		if (iter == this->_headers_map.end())
 		{
-			return nullptr;
+			return std::nullopt;
 		}
-		return std::make_unique<std::string>(iter->second);
+		return iter->second;
 	}
 
 	std::size_t http_request_header::erase_header(const std::string& name)
@@ -202,14 +216,14 @@ namespace azure_proxy
 		return this->_status_description;
 	}
 
-	std::unique_ptr<std::string> http_response_header::get_header_value(const std::string& name) const
+	std::optional<std::string> http_response_header::get_header_value(const std::string& name) const
 	{
 		auto iter = this->_headers_map.find(name);
 		if (iter == this->_headers_map.end())
 		{
-			return nullptr;
+			return std::nullopt;
 		}
-		return std::make_unique<std::string>(iter->second);
+		return iter->second;
 	}
 
 	std::size_t http_response_header::erase_header(const std::string& name)
@@ -270,7 +284,7 @@ namespace azure_proxy
 	http_headers_container http_header_parser::parse_headers(std::string::const_iterator begin, std::string::const_iterator end)
 	{
 		http_headers_container headers;
-		auto result = parse_headers(static_cast<const unsigned char*>(begin), static_cast<const unsigned char*>(end), headers);
+		auto result = parse_headers(reinterpret_cast<const unsigned char*>(&(*begin)), reinterpret_cast<const unsigned char*>(&(*end)), headers);
 		if (result.first != http_parser_result::read_one_header)
 		{
 			headers.clear();
@@ -465,14 +479,16 @@ namespace azure_proxy
 				return nullptr;
 			}
 			header._host = match_results[1];
-			try
-			{
-				header._port = static_cast<unsigned short>(std::stoul(std::string(match_results[2])));
-			}
-			catch (const std::exception&)
+			auto port_result = try_prase_unsigned_int<std::uint32_t>(std::string(match_results[2]));
+			if (!port_result)
 			{
 				return nullptr;
 			}
+			if (port_result.value() >= std::numeric_limits<std::uint16_t>::max())
+			{
+				return nullptr;
+			}
+			header._port = port_result.value();
 		}
 		else
 		{
@@ -486,14 +502,16 @@ namespace azure_proxy
 			header._host = match_results[2];
 			if (match_results[4].matched)
 			{
-				try
-				{
-					header._port = static_cast<unsigned short>(std::stoul(std::string(match_results[4])));
-				}
-				catch (const std::exception&)
+				auto port_result = try_prase_unsigned_int<std::uint32_t>(std::string(match_results[4]));
+				if (!port_result)
 				{
 					return nullptr;
 				}
+				if (port_result.value() >= std::numeric_limits<std::uint16_t>::max())
+				{
+					return nullptr;
+				}
+				header._port = port_result.value();
 			}
 			header._path_and_query = match_results[5];
 		}
@@ -518,31 +536,28 @@ namespace azure_proxy
 		}
 
 		++iter;
-		try
-		{
-			header._headers_map = parse_headers(iter, end);
-			auto temp_iter = header._headers_map.find("header_counter");
-			if (temp_iter != header._headers_map.end())
-			{
-				header.header_counter = temp_iter->second;
-				header._headers_map.erase("header_counter");
-			}
-			temp_iter = header._headers_map.find("Proxy-Connection");
-			if (temp_iter != header._headers_map.end())
-			{
-				header._proxy_connection = temp_iter->second;
-				header._headers_map.erase("Proxy-Connection");
-			}
-			temp_iter = header._headers_map.find("Proxy-Authorization");
-			if (temp_iter != header._headers_map.end())
-			{
-				header._proxy_authorization = temp_iter->second;
-				header._headers_map.erase("Proxy-Authorization");
-			}
-		}
-		catch (const std::exception&)
+		auto parse_header_result = parse_headers(reinterpret_cast<const unsigned char*>(&(*iter)), reinterpret_cast<const unsigned char*>(&(*end)), header._headers_map);
+		if (parse_header_result.first == http_parser_result::parse_error)
 		{
 			return nullptr;
+		}
+		auto temp_iter = header._headers_map.find("header_counter");
+		if (temp_iter != header._headers_map.end())
+		{
+			header.header_counter = temp_iter->second;
+			header._headers_map.erase("header_counter");
+		}
+		temp_iter = header._headers_map.find("Proxy-Connection");
+		if (temp_iter != header._headers_map.end())
+		{
+			header._proxy_connection = temp_iter->second;
+			header._headers_map.erase("Proxy-Connection");
+		}
+		temp_iter = header._headers_map.find("Proxy-Authorization");
+		if (temp_iter != header._headers_map.end())
+		{
+			header._proxy_authorization = temp_iter->second;
+			header._headers_map.erase("Proxy-Authorization");
 		}
 
 		return std::make_unique<http_request_header>(header);
@@ -568,14 +583,17 @@ namespace azure_proxy
 		{
 			return nullptr;
 		}
-		try
-		{
-			header._status_code = std::stoul(std::string(tmp, iter));
-		}
-		catch (const std::exception&)
+
+		auto status_result = try_prase_unsigned_int<std::uint32_t>(std::string(std::string(tmp, iter)));
+		if (!status_result)
 		{
 			return nullptr;
 		}
+		if (status_result.value() >= std::numeric_limits<std::uint16_t>::max())
+		{
+			return nullptr;
+		}
+		header._status_code = status_result.value();
 
 		if (*iter == ' ')
 		{
@@ -602,20 +620,19 @@ namespace azure_proxy
 		}
 
 		++iter;
-		try
-		{
-			header._headers_map = parse_headers(iter, end);
-			auto counter_iter = header._headers_map.find("header_counter");
-			if (counter_iter != header._headers_map.end())
-			{
-				header.header_counter = counter_iter->second;
-				header._headers_map.erase("header_counter");
-			}
-		}
-		catch (const std::exception&)
+
+		auto parse_header_result = parse_headers(reinterpret_cast<const unsigned char*>(&(*iter)), reinterpret_cast<const unsigned char*>(&(*end)), header._headers_map);
+		if (parse_header_result.first == http_parser_result::parse_error)
 		{
 			return nullptr;
 		}
+		auto counter_iter = header._headers_map.find("header_counter");
+		if (counter_iter != header._headers_map.end())
+		{
+			header.header_counter = counter_iter->second;
+			header._headers_map.erase("header_counter");
+		}
+
 
 		return std::make_unique<http_response_header>(header);
 	}
@@ -653,14 +670,16 @@ namespace azure_proxy
 				return http_parser_result::buffer_overflow;
 			}
 			header._host = match_results[1];
-			try
-			{
-				header._port = static_cast<unsigned short>(std::stoul(std::string(match_results[2])));
-			}
-			catch (const std::exception&)
+			auto port_result = try_prase_unsigned_int<std::uint32_t>(std::string(match_results[2]));
+			if (!port_result)
 			{
 				return http_parser_result::buffer_overflow;
 			}
+			if (port_result.value() >= std::numeric_limits<std::uint16_t>::max())
+			{
+				return http_parser_result::buffer_overflow;
+			}
+			header._port = port_result.value();
 		}
 		else
 		{
@@ -674,14 +693,16 @@ namespace azure_proxy
 			header._host = match_results[2];
 			if (match_results[4].matched)
 			{
-				try
-				{
-					header._port = static_cast<unsigned short>(std::stoul(std::string(match_results[4])));
-				}
-				catch (const std::exception&)
+				auto port_result = try_prase_unsigned_int<std::uint32_t>(std::string(match_results[2]));
+				if (!port_result)
 				{
 					return http_parser_result::buffer_overflow;
 				}
+				if (port_result.value() >= std::numeric_limits<std::uint16_t>::max())
+				{
+					return http_parser_result::buffer_overflow;
+				}
+				header._port = port_result.value();
 			}
 			header._path_and_query = match_results[5];
 		}
@@ -706,31 +727,28 @@ namespace azure_proxy
 		}
 
 		++iter;
-		try
+		auto parse_header_result = parse_headers(reinterpret_cast<const unsigned char*>(&(*iter)), reinterpret_cast<const unsigned char*>(&(*end)), header._headers_map);
+		if (parse_header_result.first == http_parser_result::parse_error)
 		{
-			header._headers_map = parse_headers(iter, end);
-			auto temp_iter = header._headers_map.find("header_counter");
-			if (temp_iter != header._headers_map.end())
-			{
-				header.header_counter = temp_iter->second;
-				header._headers_map.erase("header_counter");
-			}
-			temp_iter = header._headers_map.find("Proxy-Connection");
-			if (temp_iter != header._headers_map.end())
-			{
-				header._proxy_connection = temp_iter->second;
-				header._headers_map.erase("Proxy-Connection");
-			}
-			temp_iter = header._headers_map.find("Proxy-Authorization");
-			if (temp_iter != header._headers_map.end())
-			{
-				header._proxy_authorization = temp_iter->second;
-				header._headers_map.erase("Proxy-Authorization");
-			}
+			return http_parser_result::parse_error;
 		}
-		catch (const std::exception&)
+		auto temp_iter = header._headers_map.find("header_counter");
+		if (temp_iter != header._headers_map.end())
 		{
-			return http_parser_result::buffer_overflow;
+			header.header_counter = temp_iter->second;
+			header._headers_map.erase("header_counter");
+		}
+		temp_iter = header._headers_map.find("Proxy-Connection");
+		if (temp_iter != header._headers_map.end())
+		{
+			header._proxy_connection = temp_iter->second;
+			header._headers_map.erase("Proxy-Connection");
+		}
+		temp_iter = header._headers_map.find("Proxy-Authorization");
+		if (temp_iter != header._headers_map.end())
+		{
+			header._proxy_authorization = temp_iter->second;
+			header._headers_map.erase("Proxy-Authorization");
 		}
 
 		return http_parser_result::read_one_header;
@@ -742,18 +760,34 @@ namespace azure_proxy
 		parser_idx = 0;
 		_status = http_parser_status::read_header;
 	}
-	http_parser_result http_request_parser:: parse(const unsigned char* in_bytes, std::size_t length)
+	bool http_request_parser::append_input(const unsigned char* in_bytes, std::size_t length)
 	{
-		if (length + buffer_size >= MAX_REQUEST_HEADER_LENGTH)
+		if (parser_idx >= MAX_HTTP_BUFFER_LENGTH / 2)
 		{
-			return http_parser_result::buffer_overflow;
+			
+			std::copy(buffer + parser_idx, buffer + buffer_size, buffer);
+			buffer_size = buffer_size - parser_idx;
+			parser_idx = 0;
+		}
+	
+		if (length + buffer_size >= MAX_HTTP_BUFFER_LENGTH)
+		{
+			return false;
 		}
 		std::copy(in_bytes, in_bytes + length, buffer + buffer_size);
 		buffer_size = buffer_size + length;
+		return true;
+	}
+	std::pair<http_parser_result, std::string_view> http_request_parser:: parse()
+	{
 		std::uint32_t double_crlf_pos = buffer_size;
+		if (parser_idx == buffer_size)
+		{
+			return std::make_pair(http_parser_result::waiting_input, std::string_view());
+		}
 		if (_status == http_parser_status::read_header)
 		{
-			for (int i = 0; i < buffer_size - 4; i++)
+			for (int i = parser_idx; i < buffer_size - 4; i++)
 			{
 				if (buffer[i] == '\r' && buffer[i + 1] == '\n' && buffer[i + 2] == '\r' && buffer[i + 3] == '\n')
 				{
@@ -763,10 +797,243 @@ namespace azure_proxy
 			}
 			if (double_crlf_pos == buffer_size)
 			{
-				return http_parser_result::reading_header;
+				return std::make_pair(http_parser_result::reading_header, std::string_view());
 			}
-
+			parser_idx = double_crlf_pos + 4;
+			auto cur_parse_result = http_header_parser::parse_request_header(reinterpret_cast<const unsigned char*>(buffer), reinterpret_cast<const unsigned char*>(buffer) + double_crlf_pos, _header);
+			if (cur_parse_result != http_parser_result::read_one_header)
+			{
+				return std::make_pair(http_parser_result::bad_request, std::string_view());
+			}
+			if (!_header.valid_method())
+			{
+				return std::make_pair(http_parser_result::invalid_method, std::string_view());
+			}
+			if (!_header.valid_version())
+			{
+				return std::make_pair(http_parser_result::invalid_version, std::string_view());
+			}
+			total_content_length = 0;
+			read_content_length = 0;
+			_cur_chunk_checker.reset();
+			const auto& cur_method = _header.method();
+			if (cur_method == "GET" || cur_method == "HEAD" || cur_method == "DELETE")
+			{
+				_status = http_parser_status::read_header;
+			}
+			else if (cur_method == "POST" || cur_method == "PUT")
+			{
+				auto content_length_value = _header.get_header_value("Content-Length");
+				auto transfer_encoding_value = _header.get_header_value("Transfer-Encoding");
+				if (content_length_value)
+				{
+					auto length_opt = try_prase_unsigned_int<std::uint64_t>(content_length_value.value());
+					if (!length_opt)
+					{
+						return std::make_pair(http_parser_result::bad_request, std::string_view());
+					}
+					total_content_length = length_opt.value();
+					_status = http_parser_status::read_content;
+				}
+				else if (transfer_encoding_value)
+				{
+					string_to_lower_case(transfer_encoding_value.value());
+					if (transfer_encoding_value.value() == "chunked")
+					{
+						_cur_chunk_checker.reset();
+						_status = http_parser_status::read_chunked;
+					}
+					else
+					{
+						return std::make_pair(http_parser_result::invalid_transfer_encoding, std::string_view());
+					}
+				}
+				else
+				{
+					return std::make_pair(http_parser_result::parse_error, std::string_view());
+				}
+			}
+			else
+			{
+				return std::make_pair(http_parser_result::parse_error, std::string_view());
+			}
+			return std::make_pair(http_parser_result::read_one_header, std::string_view());
+		}
+		else if (_status == http_parser_status::read_content)
+		{
+			if ((buffer_size - parser_idx) >= (total_content_length - read_content_length))
+			{
+				_status = http_parser_status::read_header;
+				auto cur_result_buffer = std::string_view(buffer + parser_idx, total_content_length - read_content_length);
+				parser_idx += total_content_length - read_content_length;
+				return std::make_pair(http_parser_result::read_some_content, cur_result_buffer);
+			}
+			else
+			{
+				auto cur_result_buffer = std::string_view(buffer + parser_idx, buffer_size - parser_idx);
+				parser_idx = buffer_size;
+				return std::make_pair(http_parser_result::read_some_content, cur_result_buffer);
+			}
+		}
+		else if (_status == http_parser_status::read_chunked)
+		{
+			auto chunk_parse_result = _cur_chunk_checker.check(buffer + parser_idx, buffer + buffer_size);
+			if (!chunk_parse_result.first)
+			{
+				return std::make_pair(http_parser_result::parse_error, std::string_view());
+			}
+			auto cur_result_bufer = std::string_view(buffer + parser_idx, chunk_parse_result.second);
+			parser_idx += chunk_parse_result.second;
+			if (_cur_chunk_checker.is_complete())
+			{
+				_status = http_parser_status::read_header;
+				
+			}
+			return std::make_pair(http_parser_result::read_some_content, cur_result_bufer);
+		}
+		else
+		{
+			return std::make_pair(http_parser_result::parse_error, std::string_view());
 		}
 	}
 
+	http_response_parser::http_response_parser()
+	{
+		buffer_size = 0;
+		parser_idx = 0;
+		_status = http_parser_status::read_header;
+	}
+	bool http_response_parser::append_input(const unsigned char* in_bytes, std::size_t length)
+	{
+		if (parser_idx >= MAX_HTTP_BUFFER_LENGTH / 2)
+		{
+
+			std::copy(buffer + parser_idx, buffer + buffer_size, buffer);
+			buffer_size = buffer_size - parser_idx;
+			parser_idx = 0;
+		}
+
+		if (length + buffer_size >= MAX_HTTP_BUFFER_LENGTH)
+		{
+			return false;
+		}
+		std::copy(in_bytes, in_bytes + length, buffer + buffer_size);
+		buffer_size = buffer_size + length;
+		return true;
+	}
+	std::pair<http_parser_result, std::string_view> http_response_parser::parse()
+	{
+		std::uint32_t double_crlf_pos = buffer_size;
+		if (parser_idx == buffer_size)
+		{
+			return std::make_pair(http_parser_result::waiting_input, std::string_view());
+		}
+		if (_status == http_parser_status::read_header)
+		{
+			for (int i = parser_idx; i < buffer_size - 4; i++)
+			{
+				if (buffer[i] == '\r' && buffer[i + 1] == '\n' && buffer[i + 2] == '\r' && buffer[i + 3] == '\n')
+				{
+					double_crlf_pos = i;
+					break;
+				}
+			}
+			if (double_crlf_pos == buffer_size)
+			{
+				return std::make_pair(http_parser_result::reading_header, std::string_view());
+			}
+			parser_idx = double_crlf_pos + 4;
+			auto cur_parse_result = http_header_parser::parse_response_header(reinterpret_cast<const unsigned char*>(buffer), reinterpret_cast<const unsigned char*>(buffer) + double_crlf_pos, _header);
+			if (cur_parse_result != http_parser_result::read_one_header)
+			{
+				return std::make_pair(http_parser_result::bad_request, std::string_view());
+			}
+			if (!_header.valid_status())
+			{
+				return std::make_pair(http_parser_result::invalid_status, std::string_view());
+			}
+			if (!_header.valid_version())
+			{
+				return std::make_pair(http_parser_result::invalid_version, std::string_view());
+			}
+			total_content_length = 0;
+			read_content_length = 0;
+			_cur_chunk_checker.reset();
+
+			auto content_length_value = _header.get_header_value("Content-Length");
+			auto transfer_encoding_value = _header.get_header_value("Transfer-Encoding");
+			if (content_length_value)
+			{
+				auto length_opt = try_prase_unsigned_int<std::uint64_t>(content_length_value.value());
+				if (!length_opt)
+				{
+					return std::make_pair(http_parser_result::bad_request, std::string_view());
+				}
+				total_content_length = length_opt.value();
+				if (total_content_length > 0)
+				{
+					_status = http_parser_status::read_content;
+				}
+				else
+				{
+					_status = http_parser_status::read_header;
+				}
+				
+			}
+			else if (transfer_encoding_value)
+			{
+				string_to_lower_case(transfer_encoding_value.value());
+				if (transfer_encoding_value.value() == "chunked")
+				{
+					_cur_chunk_checker.reset();
+					_status = http_parser_status::read_chunked;
+				}
+				else
+				{
+					return std::make_pair(http_parser_result::invalid_transfer_encoding, std::string_view());
+				}
+			}
+			else
+			{
+				_status = http_parser_status::read_header;
+			}
+			return std::make_pair(http_parser_result::read_one_header, std::string_view());
+		}
+		else if (_status == http_parser_status::read_content)
+		{
+			if ((buffer_size - parser_idx) >= (total_content_length - read_content_length))
+			{
+				_status = http_parser_status::read_header;
+				auto cur_result_buffer = std::string_view(buffer + parser_idx, total_content_length - read_content_length);
+				parser_idx += total_content_length - read_content_length;
+				return std::make_pair(http_parser_result::read_some_content, cur_result_buffer);
+			}
+			else
+			{
+				auto cur_result_buffer = std::string_view(buffer + parser_idx, buffer_size - parser_idx);
+				parser_idx = buffer_size;
+				return std::make_pair(http_parser_result::read_some_content, cur_result_buffer);
+			}
+		}
+		else if (_status == http_parser_status::read_chunked)
+		{
+			auto chunk_parse_result = _cur_chunk_checker.check(buffer + parser_idx, buffer + buffer_size);
+			if (!chunk_parse_result.first)
+			{
+				return std::make_pair(http_parser_result::parse_error, std::string_view());
+			}
+			auto cur_result_bufer = std::string_view(buffer + parser_idx, chunk_parse_result.second);
+			parser_idx += chunk_parse_result.second;
+			if (_cur_chunk_checker.is_complete())
+			{
+				_status = http_parser_status::read_header;
+
+			}
+			return std::make_pair(http_parser_result::read_some_content, cur_result_bufer);
+		}
+		else
+		{
+			return std::make_pair(http_parser_result::parse_error, std::string_view());
+		}
+	}
 }; // namespace azure_proxy

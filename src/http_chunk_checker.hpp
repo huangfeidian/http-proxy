@@ -44,7 +44,12 @@ namespace azure_proxy
 		{
 			return this->state == http_chunk_check_state::chunk_complete;
 		}
-
+		void reset()
+		{
+			state = http_chunk_check_state::chunk_size_start;
+			current_chunk_size = 0;
+			current_chunk_size_has_read = 0;
+		}
 		bool is_fail() const
 		{
 			return this->state == http_chunk_check_state::chunk_check_failed;
@@ -53,31 +58,28 @@ namespace azure_proxy
 		{
 			return current_chunk_size;
 		}
-		template <typename ForwardIterator>
-		bool check(ForwardIterator begin, ForwardIterator end)
+		
+		std::pair<bool, std::size_t> check(const char* begin, const char* end)
 		{
-			static_assert(std::is_same<char, typename std::iterator_traits<ForwardIterator>::value_type>::value ||
-				std::is_same<signed char, typename std::iterator_traits<ForwardIterator>::value_type>::value ||
-				std::is_same<unsigned char, typename std::iterator_traits<ForwardIterator>::value_type>::value, "error");
 			assert(!this->is_fail());
-
-			for (auto iter = begin; iter != end; ++iter)
+			auto iter = begin;
+			for ( ;iter != end; ++iter)
 			{
 				switch (this->state)
 				{
 				case http_chunk_check_state::chunk_size_start:
-					if (std::isxdigit(static_cast<unsigned char>(*iter)))
+					if (std::isxdigit(static_cast<char>(*iter)))
 					{
-						this->current_chunk_size = (*iter) >= 'A' ? std::toupper(static_cast<unsigned char>(*iter)) - 'A' + 10 : *iter - '0';
+						this->current_chunk_size = (*iter) >= 'A' ? std::toupper(static_cast<char>(*iter)) - 'A' + 10 : *iter - '0';
 						this->current_chunk_size_has_read = 0;
 						this->state = http_chunk_check_state::chunk_size;
 						continue;
 					}
 					break;
 				case http_chunk_check_state::chunk_size:
-					if (std::isxdigit(static_cast<unsigned char>(*iter)))
+					if (std::isxdigit(static_cast<char>(*iter)))
 					{
-						this->current_chunk_size = this->current_chunk_size * 16 + ((*iter) >= 'A' ? std::toupper(static_cast<unsigned char>(*iter)) - 'A' + 10 : *iter - '0');
+						this->current_chunk_size = this->current_chunk_size * 16 + ((*iter) >= 'A' ? std::toupper(static_cast<char>(*iter)) - 'A' + 10 : *iter - '0');
 						continue;
 					}
 					else if (*iter == ';' || *iter == ' ')
@@ -155,9 +157,9 @@ namespace azure_proxy
 					break;
 				}
 				this->state = http_chunk_check_state::chunk_check_failed;
-				return false;
+				return std::make_pair(false, iter - begin);
 			}
-			return true;
+			return std::make_pair(false, iter - begin);
 		}
 	};
 
