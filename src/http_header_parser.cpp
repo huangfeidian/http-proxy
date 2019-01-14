@@ -147,6 +147,57 @@ namespace azure_proxy
 	{
 		return _http_version == "1.1" || _http_version == "1.0";
 	}
+	bool http_request_header::is_keep_alive() const
+	{
+		auto proxy_connection_value = proxy_connection();
+		auto connection_value = get_header_value("Connection");
+		bool is_proxy_client_keep_alive = true;
+		if (!proxy_connection_value.empty())
+		{
+			string_to_lower_case(proxy_connection_value);
+			if (_http_version == "1.1")
+			{
+				is_proxy_client_keep_alive = true;
+				if (proxy_connection_value == "close")
+				{
+					is_proxy_client_keep_alive = false;
+				}
+			}
+			else
+			{
+				assert(_http_version == "1.0");
+				is_proxy_client_keep_alive = false;
+				if (proxy_connection_value == "keep-alive")
+				{
+					is_proxy_client_keep_alive = true;
+				}
+			}
+		}
+		else
+		{
+			if (_http_version == "1.1")
+			{
+				is_proxy_client_keep_alive = true;
+			}
+			else
+			{
+				is_proxy_client_keep_alive = false;
+			}
+			if (connection_value)
+			{
+				string_to_lower_case(connection_value.value());
+				if (_http_version == "1.1" && connection_value.value() == "close")
+				{
+					is_proxy_client_keep_alive = false;
+				}
+				else if (_http_version == "1.0" && connection_value.value() == "keep-alive")
+				{
+					is_proxy_client_keep_alive = true;
+				}
+			}
+		}
+		return is_proxy_client_keep_alive;
+	}
 	std::string http_request_header::encode_to_data() const
 	{
 		std::string result;
@@ -976,6 +1027,7 @@ namespace azure_proxy
 				}
 				else
 				{
+					_header.reset();
 					_status = http_parser_status::read_header;
 				}
 				
@@ -1035,5 +1087,35 @@ namespace azure_proxy
 		{
 			return std::make_pair(http_parser_result::parse_error, std::string_view());
 		}
+	}
+	std::optional<bool> http_response_header::is_keep_alive() const
+	{
+		auto connection_value = get_header_value("Connection");
+		auto result = false;
+		if (_http_version == "1.1")
+		{
+			result = true;
+		}
+		else
+		{
+			result = false;
+		}
+		if (connection_value)
+		{
+			string_to_lower_case(connection_value.value());
+			if (connection_value.value() == "close")
+			{
+				result = false;
+			}
+			else if (connection_value.value() == "keep-alive")
+			{
+				result = true;
+			}
+			else
+			{
+				return std::nullopt;
+			}
+		}
+		return result;
 	}
 }; // namespace azure_proxy

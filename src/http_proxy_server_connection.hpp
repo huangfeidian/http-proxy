@@ -37,12 +37,12 @@ class http_proxy_server_connection : public std::enable_shared_from_this<http_pr
 	asio::ip::tcp::socket origin_server_socket;
 	asio::ip::tcp::resolver resolver;
 	asio::basic_waitable_timer<std::chrono::steady_clock> timer;
-	std::array<char, BUFFER_LENGTH> upgoing_buffer_read;
-	std::array<char, BUFFER_LENGTH> upgoing_buffer_write;
-	std::array<char, BUFFER_LENGTH> downgoing_buffer_read;
-	std::array<char, BUFFER_LENGTH> downgoing_buffer_write;
+	std::array<unsigned char, BUFFER_LENGTH> upgoing_buffer_read;
+	std::array<unsigned char, BUFFER_LENGTH> upgoing_buffer_write;
+	std::array<unsigned char, BUFFER_LENGTH> downgoing_buffer_read;
+	std::array<unsigned char, BUFFER_LENGTH> downgoing_buffer_write;
 	rsa rsa_pri;
-	std::vector<char> encrypted_cipher_info;
+	std::vector<unsigned char> encrypted_cipher_info;
 	std::unique_ptr<stream_encryptor> encryptor;
 	std::unique_ptr<stream_decryptor> decryptor;
 	std::string request_data;
@@ -55,6 +55,8 @@ class http_proxy_server_connection : public std::enable_shared_from_this<http_pr
 	http_proxy_server_connection_read_request_context read_request_context;
 	http_proxy_server_connection_read_response_context read_response_context;
 	std::shared_ptr<spdlog::logger> logger;
+	http_request_parser _request_parser;
+	http_response_parser _response_parser;
 private:
 
 	http_proxy_server_connection(asio::ip::tcp::socket&& proxy_client_socket, std::shared_ptr<spdlog::logger> in_logger);
@@ -89,6 +91,8 @@ private:
 	void on_origin_server_data_written();
 	void on_error(const error_code& error);
 	void on_timeout();
+	bool try_set_security_info();
+	void report_error(http_parser_result _status);
 };
 
 } // namespace azure_proxy

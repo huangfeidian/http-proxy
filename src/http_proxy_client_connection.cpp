@@ -501,6 +501,7 @@ namespace azure_proxy
 			if (cur_parse_result.first >= http_parser_result::parse_error)
 			{
 				report_error(cur_parse_result.first);
+				return;
 			}
 			else if (cur_parse_result.first == http_parser_result::read_one_header)
 			{

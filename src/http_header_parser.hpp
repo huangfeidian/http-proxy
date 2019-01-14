@@ -65,6 +65,7 @@ namespace azure_proxy
 	{
 		friend class http_header_parser;
 		friend class http_parser;
+		friend class http_request_parser;
 		std::string _method;
 		std::string _scheme;
 		std::string _host;
@@ -95,20 +96,22 @@ namespace azure_proxy
 		std::string encode_to_data() const;
 		const std::string& proxy_authorization() const;
 		const std::string& proxy_connection() const;
+		bool is_keep_alive() const;
 
 	};
 
 	class http_response_header
 	{
-		friend class http_header_parser;
+		friend class http_response_parser;
 		friend class http_parser;
+		friend class http_header_parser;
 		std::string _http_version;
 		unsigned int _status_code;
 		std::string _status_description;
 		http_headers_container _headers_map;
 		std::string header_counter;
-		
 		void reset();
+		
 	public:
 		http_response_header();
 		const std::string& http_version() const;
@@ -121,6 +124,8 @@ namespace azure_proxy
 		bool valid_status() const;
 		bool valid_version() const;
 		std::string encode_to_data() const;
+		std::optional<bool> is_keep_alive() const;
+		
 	};
 
 	class http_header_parser
