@@ -829,7 +829,7 @@ namespace azure_proxy
 		buffer_size = buffer_size + length;
 		return true;
 	}
-	std::pair<http_parser_result, std::string_view> http_request_parser:: parse()
+	std::pair<http_parser_result, std::string_view> http_request_parser::parse()
 	{
 		std::uint32_t double_crlf_pos = buffer_size;
 		if (parser_idx == buffer_size)
@@ -917,7 +917,7 @@ namespace azure_proxy
 				_status = http_parser_status::read_header;
 				auto cur_result_buffer = std::string_view(buffer + parser_idx, total_content_length - read_content_length);
 				parser_idx += total_content_length - read_content_length;
-				return std::make_pair(http_parser_result::read_some_content, cur_result_buffer);
+				return std::make_pair(http_parser_result::read_content_end, cur_result_buffer);
 			}
 			else
 			{
@@ -938,9 +938,13 @@ namespace azure_proxy
 			if (_cur_chunk_checker.is_complete())
 			{
 				_status = http_parser_status::read_header;
-				
+				return std::make_pair(http_parser_result::read_content_end, cur_result_bufer);
 			}
-			return std::make_pair(http_parser_result::read_some_content, cur_result_bufer);
+			else
+			{
+				return std::make_pair(http_parser_result::read_some_content, cur_result_bufer);
+			}
+			
 		}
 		else
 		{
@@ -1058,7 +1062,7 @@ namespace azure_proxy
 				_status = http_parser_status::read_header;
 				auto cur_result_buffer = std::string_view(buffer + parser_idx, total_content_length - read_content_length);
 				parser_idx += total_content_length - read_content_length;
-				return std::make_pair(http_parser_result::read_some_content, cur_result_buffer);
+				return std::make_pair(http_parser_result::read_content_end, cur_result_buffer);
 			}
 			else
 			{
@@ -1074,14 +1078,19 @@ namespace azure_proxy
 			{
 				return std::make_pair(http_parser_result::parse_error, std::string_view());
 			}
-			auto cur_result_bufer = std::string_view(buffer + parser_idx, chunk_parse_result.second);
+			auto cur_result_buferr = std::string_view(buffer + parser_idx, chunk_parse_result.second);
 			parser_idx += chunk_parse_result.second;
 			if (_cur_chunk_checker.is_complete())
 			{
 				_status = http_parser_status::read_header;
+				return std::make_pair(http_parser_result::read_content_end, cur_result_buferr);
 
 			}
-			return std::make_pair(http_parser_result::read_some_content, cur_result_bufer);
+			else
+			{
+				return std::make_pair(http_parser_result::read_some_content, cur_result_buferr);
+			}
+			
 		}
 		else
 		{
@@ -1117,5 +1126,21 @@ namespace azure_proxy
 			}
 		}
 		return result;
+	}
+	void http_response_parser::reset_header()
+	{
+		_header.reset();
+	}
+	void http_request_parser::reset_header()
+	{
+		_header.reset();
+	}
+	bool http_response_parser::buffer_consumed() const
+	{
+		return parser_idx == buffer_size;
+	}
+	bool http_request_parser::buffer_consumed() const
+	{
+		return parser_idx == buffer_size;
 	}
 }; // namespace azure_proxy

@@ -34,8 +34,10 @@ namespace azure_proxy
 		reading_content,
 		reading_chunk,
 		read_some_content,
+		read_content_end,
 		waiting_input,
 		parse_error,
+		pipeline_not_supported,
 		buffer_overflow,
 		bad_request,
 		invalid_method,
@@ -156,7 +158,9 @@ namespace azure_proxy
 		http_parser_status _status;
 		std::pair<http_parser_result, std::string_view> parse();
 		bool append_input(const unsigned char* in_bytes, std::size_t length);
+		void reset_header();
 		http_request_parser();
+		bool buffer_consumed() const;
 	};
 
 	class http_response_parser
@@ -173,7 +177,9 @@ namespace azure_proxy
 		http_parser_status _status;
 		std::pair<http_parser_result, std::string_view> parse();
 		bool append_input(const unsigned char* in_bytes, std::size_t length);
+		void reset_header();
 		http_response_parser();
+		bool buffer_consumed() const;
 	};
 }; // namespace azure_proxy
 

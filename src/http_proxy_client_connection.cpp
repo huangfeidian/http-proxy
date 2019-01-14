@@ -488,13 +488,19 @@ namespace azure_proxy
 	}
 	void http_proxy_client_connection::on_proxy_server_data_arrived(std::size_t bytes_transferred)
 	{
+		if (connection_state == proxy_connection_state::tunnel_transfer)
+		{
+			std::copy(downgoing_buffer_read.data(), downgoing_buffer_read.data() + bytes_transferred, downgoing_buffer_write.data());
+			this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, bytes_transferred);
+			return;
+		}
 		if (!_http_response_parser.append_input(reinterpret_cast<const unsigned char*>(downgoing_buffer_write.data()), bytes_transferred))
 		{
 			report_error("400", "Bad request", "buffer overflow");
 			return;
 		}
 		std::uint32_t send_buffer_size = 0;
-
+		bool pre_header_remain = !_http_response_parser._header.http_version().empty();
 		while (true)
 		{
 			auto cur_parse_result = _http_response_parser.parse();
@@ -505,14 +511,25 @@ namespace azure_proxy
 			}
 			else if (cur_parse_result.first == http_parser_result::read_one_header)
 			{
+				if (pre_header_remain)
+				{
+					report_error(http_parser_result::pipeline_not_supported);
+					return;
+				}
+				pre_header_remain = true;
 				auto cur_header_counter = _http_response_parser._header.get_header_value("header_counter");
 				if (cur_header_counter)
 				{
 					logger->info("request {0} back", cur_header_counter.value());
 				}
 				_http_response_parser._header.erase_header("header_counter");
-				
+				if (_http_request_parser._header.method() == "CONNECT" && _http_response_parser._header.status_code() == 200)
+				{
+					connection_state = proxy_connection_state::tunnel_transfer;
+				}
 				auto header_data = _http_response_parser._header.encode_to_data();
+				_http_request_parser.reset_header();
+				
 				std::copy(header_data.begin(), header_data.end(), downgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += header_data.size();
 			}
@@ -521,25 +538,59 @@ namespace azure_proxy
 				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), downgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += cur_parse_result.second.size();
 			}
+			else if(cur_parse_result.first == http_parser_result::read_content_end)
+			{
+				if (!_http_response_parser.buffer_consumed())
+				{
+					report_error(http_parser_result::pipeline_not_supported);
+					return;
+				}
+				_http_response_parser.reset_header();
+				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), downgoing_buffer_write.data() + send_buffer_size);
+				send_buffer_size += cur_parse_result.second.size();
+			}
+			else if(cur_parse_result.first == http_parser_result::reading_header)
+			{
+				if (pre_header_remain)
+				{
+					report_error(http_parser_result::pipeline_not_supported);
+					return;
+				}
+				break;
+			}
 			else
 			{
 				break;
 			}
 
 		}
+		if (send_buffer_size)
+		{
+			this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, send_buffer_size);
+		}
+		else
+		{
+			async_read_data_from_user_agent();
+		}
 		
-		this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, bytes_transferred);
 	}
 	void http_proxy_client_connection::on_user_agent_data_arrived(std::size_t bytes_transferred)
 	{
 		static std::atomic<uint32_t> header_counter = 0;
+		if (connection_state == proxy_connection_state::tunnel_transfer)
+		{
+			std::copy(upgoing_buffer_read.data(), upgoing_buffer_read.data() + bytes_transferred, upgoing_buffer_write.data());
+			async_write_data_to_proxy_server(upgoing_buffer_write.data(), bytes_transferred);
+			return;
+
+		}
 		if (!_http_request_parser.append_input(reinterpret_cast<const unsigned char*>(&upgoing_buffer_read[0]), bytes_transferred))
 		{
 			report_error("400", "Bad request", "buffer overflow");
 			return;
 		}
 		std::uint32_t send_buffer_size = 0;
-
+		bool pre_header_remain = !_http_request_parser._header.http_version().empty();
 		while (true)
 		{
 			auto cur_parse_result = _http_request_parser.parse();
@@ -549,6 +600,15 @@ namespace azure_proxy
 			}
 			else if (cur_parse_result.first == http_parser_result::read_one_header)
 			{
+				if (pre_header_remain)
+				{
+					report_error(http_parser_result::pipeline_not_supported);
+					return;
+				}
+				else
+				{
+					pre_header_remain = true;
+				}
 				_http_request_parser._header.set_header_counter(std::to_string(header_counter++));
 				auto header_data = _http_request_parser._header.encode_to_data();
 				std::copy(header_data.begin(), header_data.end(), upgoing_buffer_write.data() + send_buffer_size);
@@ -559,14 +619,41 @@ namespace azure_proxy
 				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), upgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += cur_parse_result.second.size();
 			}
+			else if(cur_parse_result.first == http_parser_result::read_content_end)
+			{
+				if (!_http_request_parser.buffer_consumed())
+				{
+					report_error(http_parser_result::pipeline_not_supported);
+					return;
+				}
+				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), upgoing_buffer_write.data() + send_buffer_size);
+				send_buffer_size += cur_parse_result.second.size();
+			}
+			else if (cur_parse_result.first == http_parser_result::reading_header)
+			{
+				if (pre_header_remain)
+				{
+					report_error(http_parser_result::pipeline_not_supported);
+					return;
+				}
+				break;
+			}
 			else
 			{
 				break;
 			}
 
 		}
-		encryptor->transform(reinterpret_cast<unsigned char*>(upgoing_buffer_write.data()), send_buffer_size, 256);
-		this->async_write_data_to_proxy_server(this->upgoing_buffer_write.data(), 0, bytes_transferred);
+		if (send_buffer_size)
+		{
+			encryptor->transform(reinterpret_cast<unsigned char*>(upgoing_buffer_write.data()), send_buffer_size, 256);
+			this->async_write_data_to_proxy_server(this->upgoing_buffer_write.data(), 0, send_buffer_size);
+		}
+		else
+		{
+			async_read_data_from_user_agent();
+		}
+		
 	}
 
 	void http_proxy_client_connection::report_error(http_parser_result _status)
