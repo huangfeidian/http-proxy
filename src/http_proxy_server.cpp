@@ -17,6 +17,7 @@
 #include "http_proxy_server_connection.hpp"
 
 #include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 namespace azure_proxy {
 
@@ -33,10 +34,16 @@ void http_proxy_server::run()
 	this->acceptor.open(endpoint.protocol());
 	this->acceptor.bind(endpoint);
 	this->acceptor.listen(asio::socket_base::max_connections);
-	this->start_accept();
-	this->logger = spdlog::basic_logger_mt("basic_logger", config.get_log_file_name());
+	
+	auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+	console_sink->set_level(spdlog::level::trace);
+	auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(config.get_log_file_name(), true);
+	file_sink->set_level(spdlog::level::trace);
+	this->logger = std::make_shared<spdlog::logger>(std::string("multi_sink"), spdlog::sinks_init_list{ console_sink, file_sink });
 	this->logger->set_level(config.get_log_level());
 	connection_count = 0;
+
+	this->start_accept();
 	std::vector<std::thread> td_vec;
 
 	for (auto i = 0; i < config.get_workers(); ++i) {

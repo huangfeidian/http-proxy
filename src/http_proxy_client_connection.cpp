@@ -261,11 +261,12 @@ namespace azure_proxy
 		});
 	}
 
-	void http_proxy_client_connection::async_read_data_from_user_agent(std::size_t at_least_size =1, std::size_t at_most_size = BUFFER_LENGTH)
+	void http_proxy_client_connection::async_read_data_from_user_agent(std::size_t at_least_size, std::size_t at_most_size)
 	{
+		logger->trace("{} async_read_data_from_user_agent begin", logger_prefix);
 		auto self(this->shared_from_this());
 		this->set_timer();
-		if (this->logger->level == spdlog::level::level_enum::off)
+		if (this->logger->level() == spdlog::level::level_enum::off)
 		{
 			this->user_agent_socket.async_read_some(asio::buffer(this->upgoing_buffer_read.data(), this->upgoing_buffer_read.size()), this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
 			{
@@ -309,14 +310,15 @@ namespace azure_proxy
 		
 	}
 
-	void http_proxy_client_connection::async_read_data_from_proxy_server(bool set_timer, std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH)
+	void http_proxy_client_connection::async_read_data_from_proxy_server(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
 	{
+		logger->trace("{} async_read_data_from_proxy_server begin", logger_prefix);
 		auto self(this->shared_from_this());
 		if (set_timer)
 		{
 			this->set_timer();
 		}
-		if (logger->level == spdlog::level::off)
+		if (logger->level() == spdlog::level::off)
 		{
 			this->proxy_server_socket.async_read_some(asio::buffer(this->downgoing_buffer_read.data(), this->downgoing_buffer_read.size()), this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
 			{
@@ -449,12 +451,13 @@ namespace azure_proxy
 	{
 		logger->info("{} connected to proxy server established", logger_prefix);
 		this->async_write_data_to_proxy_server(reinterpret_cast<const char*>(this->encrypted_cipher_info.data()), 0, this->encrypted_cipher_info.size());
+		logger->info("{} send cipher to server size {}", logger_prefix, this->encrypted_cipher_info.size());
 		this->async_read_data_from_proxy_server(false);
 	}
 
 	void http_proxy_client_connection::on_error(const error_code& error)
 	{
-		logger->warn("{} error shutdown connection", logger_prefix);
+		logger->warn("{} error shutdown connection {}", logger_prefix, error.message());
 		this->cancel_timer();
 		error_code ec;
 		if (this->proxy_server_socket.is_open())
@@ -528,6 +531,7 @@ namespace azure_proxy
 					connection_state = proxy_connection_state::tunnel_transfer;
 				}
 				auto header_data = _http_response_parser._header.encode_to_data();
+				logger->trace("{} read proxy response header data {}", logger_prefix, header_data);
 				_http_request_parser.reset_header();
 				
 				std::copy(header_data.begin(), header_data.end(), downgoing_buffer_write.data() + send_buffer_size);
@@ -563,6 +567,7 @@ namespace azure_proxy
 	void http_proxy_client_connection::on_user_agent_data_arrived(std::size_t bytes_transferred)
 	{
 		logger->trace("{} on_user_agent_data_arrived size {}", logger_prefix, bytes_transferred);
+		logger->trace("{} data is {}", logger_prefix, std::string(upgoing_buffer_read.data(), upgoing_buffer_read.data() + bytes_transferred));
 		static std::atomic<uint32_t> header_counter = 0;
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
@@ -588,6 +593,7 @@ namespace azure_proxy
 			{
 				_http_request_parser._header.set_header_counter(std::to_string(header_counter++));
 				auto header_data = _http_request_parser._header.encode_to_data();
+				logger->trace("{} read ua request header data {}", logger_prefix, header_data);
 				std::copy(header_data.begin(), header_data.end(), upgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += header_data.size();
 			}
@@ -618,9 +624,24 @@ namespace azure_proxy
 		}
 		
 	}
-
+	void http_proxy_client_connection::report_error(const std::string& status_code, const std::string& status_description, const std::string& error_message)
+	{
+		logger->warn("{} report error status_code {} status_description {} error_message {}", logger_prefix, status_code, status_description, error_message);
+		error_code ec;
+		if (this->proxy_server_socket.is_open())
+		{
+			this->proxy_server_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+			this->proxy_server_socket.close(ec);
+		}
+		if (this->user_agent_socket.is_open())
+		{
+			this->user_agent_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+			this->user_agent_socket.close(ec);
+		}
+	}
 	void http_proxy_client_connection::report_error(http_parser_result _status)
 	{
-
+		auto error_detail = from_praser_result_to_description(_status);
+		report_error(std::to_string(std::get<0>(error_detail)), std::get<1>(error_detail), std::get<2>(error_detail));
 	}
 } // namespace azure_proxy

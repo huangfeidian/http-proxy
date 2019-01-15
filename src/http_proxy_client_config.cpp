@@ -206,11 +206,11 @@ namespace azure_proxy
 		}
 		if (json_obj.find("log_file") != json_obj.end())
 		{
-			set_config_value("log_file", static_cast<std::string>(json_obj["log_level"]));
+			set_config_value("log_file", static_cast<std::string>(json_obj["log_file"]));
 		}
 		else
 		{
-			set_config_value("log_file", "ahpc_log.txt");
+			set_config_value("log_file", std::string("ahpc_log.txt"));
 		}
 		rollback = false;
 		return true;

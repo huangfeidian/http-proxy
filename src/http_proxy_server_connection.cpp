@@ -396,6 +396,7 @@ namespace azure_proxy
 				logger->warn("{} invalid security info connection fail", logger_prefix);
 
 			}
+			logger->info("{} security info set begin to chat", logger_prefix);
 			return;
 		}
 		assert(this->encryptor != nullptr && this->decryptor != nullptr);
@@ -447,6 +448,7 @@ namespace azure_proxy
 				}
 				header_readed = true;
 				auto header_data = _request_parser._header.encode_to_data();
+				logger->trace("{} read client request header {}", logger_prefix, header_data);
 				std::copy(header_data.begin(), header_data.end(), upgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += header_data.size();
 				this->read_request_context.is_proxy_client_keep_alive = _request_parser._header.is_keep_alive();
@@ -527,6 +529,7 @@ namespace azure_proxy
 				}
 				read_response_context.is_origin_server_keep_alive = is_keep_alive.value();
 				auto header_data = _response_parser._header.encode_to_data();
+				logger->trace("{} read server response header {}", logger_prefix, header_data);
 				std::copy(header_data.begin(), header_data.end(), downgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += header_data.size();
 				this->connection_context.connection_state = proxy_connection_state::write_http_response_header;
