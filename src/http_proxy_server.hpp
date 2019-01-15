@@ -7,7 +7,8 @@
 
 #ifndef AZURE_HTTP_PROXY_SERVER_HPP
 #define AZURE_HTTP_PROXY_SERVER_HPP
-
+#include <atomic>
+#include <spdlog/spdlog.h>
 #ifdef ASIO_STANDALONE
 #include <asio.hpp>
 using error_code = asio::error_code;
@@ -25,6 +26,7 @@ namespace azure_proxy {
 		asio::io_service& io_service;
 		asio::ip::tcp::acceptor acceptor;
 		std::shared_ptr<spdlog::logger> logger;
+		std::atomic<std::uint32_t> connection_count;
 	public:
 
 		http_proxy_server(asio::io_service& io_service);

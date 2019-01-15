@@ -21,6 +21,7 @@
 *.app
 
 /build/
+/build64/
 /.vs/
 /.vscode/
 

@@ -10,10 +10,13 @@
 #include <thread>
 #include <vector>
 
+
+
 #include "http_proxy_server.hpp"
 #include "http_proxy_server_config.hpp"
 #include "http_proxy_server_connection.hpp"
-#include "spdlog/sinks/basic_file_sink.h"
+
+#include <spdlog/sinks/basic_file_sink.h>
 
 namespace azure_proxy {
 
@@ -33,7 +36,7 @@ void http_proxy_server::run()
 	this->start_accept();
 	this->logger = spdlog::basic_logger_mt("basic_logger", config.get_log_file_name());
 	this->logger->set_level(config.get_log_level());
-
+	connection_count = 0;
 	std::vector<std::thread> td_vec;
 
 	for (auto i = 0; i < config.get_workers(); ++i) {
@@ -58,7 +61,7 @@ void http_proxy_server::start_accept()
 	this->acceptor.async_accept(*socket, [socket, this](const error_code& error) {
 		if (!error) {
 
-			auto connection = http_proxy_server_connection::create(std::move(*socket), logger);
+			auto connection = http_proxy_server_connection::create(std::move(*socket), logger, connection_count++);
 
 			connection->start();
 			this->start_accept();

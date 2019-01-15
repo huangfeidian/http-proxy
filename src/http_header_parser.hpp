@@ -46,6 +46,7 @@ namespace azure_proxy
 		invalid_transfer_encoding,
 
 	};
+	std::tuple<std::uint32_t, std::string, std::string> from_praser_result_to_description(http_parser_result cur_result);
 	struct default_filed_name_compare
 	{
 		bool operator() (const std::string& str1, const std::string& str2) const
@@ -132,12 +133,8 @@ namespace azure_proxy
 
 	class http_header_parser
 	{
-		static http_headers_container parse_headers(std::string::const_iterator begin, std::string::const_iterator end);
-
 		static std::pair<http_parser_result, std::uint32_t> parse_headers(const unsigned char* begin, const unsigned char* end, http_headers_container& headers);
 	public:
-		static std::unique_ptr<http_request_header> parse_request_header(std::string::const_iterator begin, std::string::const_iterator end);
-		static std::unique_ptr<http_response_header> parse_response_header(std::string::const_iterator begin, std::string::const_iterator end);
 		static http_parser_result parse_request_header(const unsigned char* begin, const unsigned char* end, http_request_header& header);
 		static http_parser_result parse_response_header(const unsigned char* begin, const unsigned char* end, http_response_header& header);
 	};
@@ -153,14 +150,16 @@ namespace azure_proxy
 		std::uint64_t total_content_length;
 		std::uint64_t read_content_length;
 		http_chunk_checker _cur_chunk_checker;
+		bool _pipeline_allowed;
+		http_parser_status _status;
 	public:
 		http_request_header _header;
-		http_parser_status _status;
+		
 		std::pair<http_parser_result, std::string_view> parse();
 		bool append_input(const unsigned char* in_bytes, std::size_t length);
 		void reset_header();
-		http_request_parser();
-		bool buffer_consumed() const;
+		http_request_parser(bool pipeline_allowed = false);
+		http_parser_status status() const;
 	};
 
 	class http_response_parser
@@ -172,14 +171,16 @@ namespace azure_proxy
 		std::uint64_t total_content_length;
 		std::uint64_t read_content_length;
 		http_chunk_checker _cur_chunk_checker;
+		bool _pipeline_allowed;
+		http_parser_status _status;
 	public:
 		http_response_header _header;
-		http_parser_status _status;
+		
 		std::pair<http_parser_result, std::string_view> parse();
 		bool append_input(const unsigned char* in_bytes, std::size_t length);
 		void reset_header();
-		http_response_parser();
-		bool buffer_consumed() const;
+		http_response_parser(bool pipeline_allowed = false);
+		http_parser_status status() const;
 	};
 }; // namespace azure_proxy
 

@@ -12,6 +12,7 @@
 #include <cstring>
 #include <memory>
 #include <stdexcept>
+#include <vector>
 
 extern "C" {
 #include <openssl/aes.h>
@@ -25,7 +26,7 @@ namespace azure_proxy
 	class stream_encryptor
 	{
 	public:
-		virtual void encrypt(const unsigned char* in, unsigned char* out, std::size_t length) = 0;
+		virtual void encrypt(const unsigned char* in, unsigned unsigned char* out, std::size_t length) = 0;
 		void transform(unsigned char* data, std::size_t length, std::size_t block_size)
 		{
 			std::vector<unsigned char> temp_buffer(block_size, 0);

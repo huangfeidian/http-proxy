@@ -15,7 +15,7 @@
 #include "http_proxy_client_connection.hpp"
 #include "http_proxy_client_config.hpp"
 
-#include <spdlog/sinks/file_sinks.h>
+#include <spdlog/sinks/basic_file_sink.h>
 
 namespace azure_proxy
 {
@@ -71,7 +71,7 @@ namespace azure_proxy
 			{
 				this->start_accept();
 
-				auto connection = http_proxy_client_connection::create(std::move(*socket), this->logger);
+				auto connection = http_proxy_client_connection::create(std::move(*socket), this->logger, connection_count++);
 
 				connection->start();
 			}

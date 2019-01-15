@@ -69,6 +69,28 @@ namespace azure_proxy
 		return std::nullopt;
 
 	}
+	std::tuple<std::uint32_t, std::string, std::string> from_parser_result_to_description(http_parser_result cur_result)
+	{
+		switch (cur_result)
+		{
+		case buffer_overflow:
+			return std::make_tuple(502, "Bad Gateway", "Response header too long");
+		case invalid_method:
+			return std::make_tuple(502, "Bad Gateway", "invalid method");
+		case invalid_version:
+			return std::make_tuple(502, "Bad Gateway", "HTTP version not supported");
+		case invalid_status:
+			return std::make_tuple(502, "Bad Gateway", "Unexpected status code");
+		case invalid_transfer_encoding:
+			return std::make_tuple(502, "Bad Gateway", "Failed to check chunked response");
+		case pipeline_not_supported:
+			return std::make_tuple(502, "Bad Gateway", "pipeline not supported");
+		case bad_request:
+			return std::make_tuple(502, "Bad Gateway", "Failed to parse response header");
+		default:
+			return std::make_tuple(502, "Bad Gateway", "unknown error " + std::to_string(cur_result));
+		}
+	}
 	void http_request_header::reset()
 	{
 		_method.clear();
@@ -331,18 +353,6 @@ namespace azure_proxy
 		return result;
 	}
 
-
-	http_headers_container http_header_parser::parse_headers(std::string::const_iterator begin, std::string::const_iterator end)
-	{
-		http_headers_container headers;
-		auto result = parse_headers(reinterpret_cast<const unsigned char*>(&(*begin)), reinterpret_cast<const unsigned char*>(&(*end)), headers);
-		if (result.first != http_parser_result::read_one_header)
-		{
-			headers.clear();
-			return headers;
-		}
-		return headers;
-	}
 	std::pair<http_parser_result, std::uint32_t> parse_headers(const unsigned char* begin, const unsigned char* end, http_headers_container& headers)
 	{
 		static uint32_t header_counter = 0;
@@ -497,196 +507,8 @@ namespace azure_proxy
 		headers.insert(std::make_pair("header_counter", std::to_string(header_counter++)));
 		return std::make_pair(http_parser_result::read_one_header, iter - begin);
 	}
-	std::unique_ptr<http_request_header> http_header_parser::parse_request_header(std::string::const_iterator begin, std::string::const_iterator end)
-	{
-		auto iter = begin;
-		auto tmp = iter;
-		for (; iter != end && *iter != ' ' && *iter != '\r'; ++iter)
-		{
-			//get the method
-		}
-		if (iter == tmp || iter == end || *iter != ' ')
-		{
-			return nullptr;
-		}
-		http_request_header header;
-		header._method = std::string(tmp, iter);
-		tmp = ++iter;
-		for (; iter != end && *iter != ' ' && *iter != '\r'; ++iter)
-		{
-			//get  the url
-		}
-		if (iter == tmp || iter == end || *iter != ' ')
-		{
-			return nullptr;
-		}
-		auto request_uri = std::string(tmp, iter);
-		if (header.method() == "CONNECT")
-		{
-			std::regex regex("(.+?):(\\d+)"); //host:port
-			std::match_results<std::string::iterator> match_results;
-			if (!std::regex_match(request_uri.begin(), request_uri.end(), match_results, regex))
-			{
-				return nullptr;
-			}
-			header._host = match_results[1];
-			auto port_result = try_prase_unsigned_int<std::uint32_t>(std::string(match_results[2]));
-			if (!port_result)
-			{
-				return nullptr;
-			}
-			if (port_result.value() >= std::numeric_limits<std::uint16_t>::max())
-			{
-				return nullptr;
-			}
-			header._port = port_result.value();
-		}
-		else
-		{
-			std::regex regex("(.+?)://(.+?)(:(\\d+))?(/.*)"); //GET http://download.microtool.de:80/somedata.exe
-			std::match_results<std::string::iterator> match_results;
-			if (!std::regex_match(request_uri.begin(), request_uri.end(), match_results, regex))
-			{
-				return nullptr;
-			}
-			header._scheme = match_results[1];
-			header._host = match_results[2];
-			if (match_results[4].matched)
-			{
-				auto port_result = try_prase_unsigned_int<std::uint32_t>(std::string(match_results[4]));
-				if (!port_result)
-				{
-					return nullptr;
-				}
-				if (port_result.value() >= std::numeric_limits<std::uint16_t>::max())
-				{
-					return nullptr;
-				}
-				header._port = port_result.value();
-			}
-			header._path_and_query = match_results[5];
-		}
 
-		tmp = ++iter;
-		for (; iter != end && *iter != '\r'; ++iter)
-		{
-			//to the end of line 
-		}
-		// HTTP/x.y
-		if (iter == end || std::distance(tmp, iter) < 6 || !std::equal(tmp, tmp + 5, "HTTP/"))
-		{
-			return nullptr;
-		}
-
-		header._http_version = std::string(tmp + 5, iter);
-
-		++iter;
-		if (iter == end || *iter != '\n')
-		{
-			return nullptr;
-		}
-
-		++iter;
-		auto parse_header_result = parse_headers(reinterpret_cast<const unsigned char*>(&(*iter)), reinterpret_cast<const unsigned char*>(&(*end)), header._headers_map);
-		if (parse_header_result.first == http_parser_result::parse_error)
-		{
-			return nullptr;
-		}
-		auto temp_iter = header._headers_map.find("header_counter");
-		if (temp_iter != header._headers_map.end())
-		{
-			header.header_counter = temp_iter->second;
-			header._headers_map.erase("header_counter");
-		}
-		temp_iter = header._headers_map.find("Proxy-Connection");
-		if (temp_iter != header._headers_map.end())
-		{
-			header._proxy_connection = temp_iter->second;
-			header._headers_map.erase("Proxy-Connection");
-		}
-		temp_iter = header._headers_map.find("Proxy-Authorization");
-		if (temp_iter != header._headers_map.end())
-		{
-			header._proxy_authorization = temp_iter->second;
-			header._headers_map.erase("Proxy-Authorization");
-		}
-
-		return std::make_unique<http_request_header>(header);
-	}
-
-	std::unique_ptr<http_response_header> http_header_parser::parse_response_header(std::string::const_iterator begin, std::string::const_iterator end)
-	{
-		auto iter = begin;
-		auto tmp = iter;
-		for (; iter != end && *iter != ' ' && *iter != '\r'; ++iter)
-		{
-			// to the end of line
-		}
-		if (std::distance(tmp, iter) < 6 || iter == end || *iter != ' ' || !std::equal(tmp, tmp + 5, "HTTP/")) return nullptr;
-		http_response_header header;
-		header._http_version = std::string(tmp + 5, iter);
-		tmp = ++iter;
-		for (; iter != end && *iter != ' ' && *iter != '\r'; ++iter)
-		{
-
-		}
-		if (tmp == iter || iter == end)
-		{
-			return nullptr;
-		}
-
-		auto status_result = try_prase_unsigned_int<std::uint32_t>(std::string(std::string(tmp, iter)));
-		if (!status_result)
-		{
-			return nullptr;
-		}
-		if (status_result.value() >= std::numeric_limits<std::uint16_t>::max())
-		{
-			return nullptr;
-		}
-		header._status_code = status_result.value();
-
-		if (*iter == ' ')
-		{
-			tmp = ++iter;
-			for (; iter != end && *iter != '\r'; ++iter)
-			{
-
-			}
-			if (iter == end || *iter != '\r')
-			{
-				return nullptr;
-			}
-			header._status_description = std::string(tmp, iter);
-		}
-
-		if (*iter != '\r')
-		{
-			return nullptr;
-		}
-
-		if (iter == end || *(++iter) != '\n')
-		{
-			return nullptr;
-		}
-
-		++iter;
-
-		auto parse_header_result = parse_headers(reinterpret_cast<const unsigned char*>(&(*iter)), reinterpret_cast<const unsigned char*>(&(*end)), header._headers_map);
-		if (parse_header_result.first == http_parser_result::parse_error)
-		{
-			return nullptr;
-		}
-		auto counter_iter = header._headers_map.find("header_counter");
-		if (counter_iter != header._headers_map.end())
-		{
-			header.header_counter = counter_iter->second;
-			header._headers_map.erase("header_counter");
-		}
-
-
-		return std::make_unique<http_response_header>(header);
-	}
+	
 	http_parser_result http_header_parser::parse_request_header(const unsigned char* begin, const unsigned char* end, http_request_header& header)
 	{
 
@@ -700,7 +522,6 @@ namespace azure_proxy
 		{
 			return http_parser_result::buffer_overflow;
 		}
-		http_request_header header;
 		header._method = std::string(tmp, iter);
 		tmp = ++iter;
 		for (; iter != end && *iter != ' ' && *iter != '\r'; ++iter)
@@ -805,7 +626,8 @@ namespace azure_proxy
 		return http_parser_result::read_one_header;
 	}
 
-	http_request_parser::http_request_parser()
+	http_request_parser::http_request_parser(bool pipeline_allowed):
+		_pipeline_allowed(pipeline_allowed)
 	{
 		buffer_size = 0;
 		parser_idx = 0;
@@ -952,7 +774,8 @@ namespace azure_proxy
 		}
 	}
 
-	http_response_parser::http_response_parser()
+	http_response_parser::http_response_parser(bool pipeline_allowed):
+		_pipeline_allowed(pipeline_allowed)
 	{
 		buffer_size = 0;
 		parser_idx = 0;
@@ -1031,8 +854,11 @@ namespace azure_proxy
 				}
 				else
 				{
-					_header.reset();
 					_status = http_parser_status::read_header;
+					if(parser_idx != buffer_size && !_pipeline_allowed)
+					{ 
+						return std::make_pair(http_parser_result::pipeline_not_supported, std::string_view());
+					}
 				}
 				
 			}
@@ -1052,6 +878,10 @@ namespace azure_proxy
 			else
 			{
 				_status = http_parser_status::read_header;
+				if (parser_idx != buffer_size && !_pipeline_allowed)
+				{
+					return std::make_pair(http_parser_result::pipeline_not_supported, std::string_view());
+				}
 			}
 			return std::make_pair(http_parser_result::read_one_header, std::string_view());
 		}
@@ -1059,6 +889,10 @@ namespace azure_proxy
 		{
 			if ((buffer_size - parser_idx) >= (total_content_length - read_content_length))
 			{
+				if ((buffer_size - parser_idx > total_content_length - read_content_length) && !_pipeline_allowed)
+				{
+					return std::make_pair(http_parser_result::pipeline_not_supported, std::string_view());
+				}
 				_status = http_parser_status::read_header;
 				auto cur_result_buffer = std::string_view(buffer + parser_idx, total_content_length - read_content_length);
 				parser_idx += total_content_length - read_content_length;
@@ -1083,6 +917,10 @@ namespace azure_proxy
 			if (_cur_chunk_checker.is_complete())
 			{
 				_status = http_parser_status::read_header;
+				if (parser_idx != buffer_size && !_pipeline_allowed)
+				{
+					return std::make_pair(http_parser_result::pipeline_not_supported, std::string_view());
+				}
 				return std::make_pair(http_parser_result::read_content_end, cur_result_buferr);
 
 			}
@@ -1135,12 +973,14 @@ namespace azure_proxy
 	{
 		_header.reset();
 	}
-	bool http_response_parser::buffer_consumed() const
+	http_parser_status http_response_parser::status() const
 	{
-		return parser_idx == buffer_size;
+		// 判断目前是否刚好读取完一个packet
+		return _status;
 	}
-	bool http_request_parser::buffer_consumed() const
+	http_parser_status http_request_parser::status() const
 	{
-		return parser_idx == buffer_size;
+		// 判断目前是否刚好读取完一个packet
+		return _status;
 	}
 }; // namespace azure_proxy

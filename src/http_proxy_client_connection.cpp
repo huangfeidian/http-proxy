@@ -18,7 +18,7 @@
 namespace azure_proxy
 {
 
-	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> in_logger) :
+	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count) :
 		strand(ua_socket.get_io_service()),
 		user_agent_socket(std::move(ua_socket)),
 		proxy_server_socket(this->user_agent_socket.get_io_service()),
@@ -26,10 +26,13 @@ namespace azure_proxy
 		connection_state(proxy_connection_state::ready),
 		timer(this->user_agent_socket.get_io_service()),
 		timeout(std::chrono::seconds(http_proxy_client_config::get_instance().get_timeout())),
-		logger(in_logger)
+		logger(in_logger),
+		connection_count(in_connection_count),
+		logger_prefix("connection " +std::to_string(connection_count) + ": ")
 	{
+
 		http_proxy_client_stat::get_instance().increase_current_connections();
-		logger->info("new connection come! total connection count {}", http_proxy_client_stat::get_instance().get_current_connections());
+		logger->info("{} new connection come! total connection count {}", logger_prefix, http_proxy_client_stat::get_instance().get_current_connections());
 	}
 
 	http_proxy_client_connection::~http_proxy_client_connection()
@@ -37,9 +40,9 @@ namespace azure_proxy
 		http_proxy_client_stat::get_instance().decrease_current_connections();
 	}
 
-	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> in_logger)
+	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count)
 	{
-		return std::shared_ptr<http_proxy_client_connection>(new http_proxy_client_connection(std::move(ua_socket), in_logger));
+		return std::shared_ptr<http_proxy_client_connection>(new http_proxy_client_connection(std::move(ua_socket), in_logger, in_connection_count));
 	}
 
 	void http_proxy_client_connection::start()
@@ -444,13 +447,14 @@ namespace azure_proxy
 
 	void http_proxy_client_connection::on_connection_established()
 	{
-
+		logger->info("{} connected to proxy server established", logger_prefix);
 		this->async_write_data_to_proxy_server(reinterpret_cast<const char*>(this->encrypted_cipher_info.data()), 0, this->encrypted_cipher_info.size());
 		this->async_read_data_from_proxy_server(false);
 	}
 
 	void http_proxy_client_connection::on_error(const error_code& error)
 	{
+		logger->warn("{} error shutdown connection", logger_prefix);
 		this->cancel_timer();
 		error_code ec;
 		if (this->proxy_server_socket.is_open())
@@ -467,12 +471,14 @@ namespace azure_proxy
 
 	void http_proxy_client_connection::on_timeout()
 	{
+		
 		if (this->connection_state == proxy_connection_state::resolve_proxy_server_address)
 		{
 			this->resolver.cancel();
 		}
 		else
 		{
+			logger->warn("{} on_timeout shutdown connection", logger_prefix);
 			error_code ec;
 			if (this->proxy_server_socket.is_open())
 			{
@@ -488,6 +494,7 @@ namespace azure_proxy
 	}
 	void http_proxy_client_connection::on_proxy_server_data_arrived(std::size_t bytes_transferred)
 	{
+		logger->trace("{} on_proxy_server_data_arrived bytes {}", logger_prefix, bytes_transferred);
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
 			std::copy(downgoing_buffer_read.data(), downgoing_buffer_read.data() + bytes_transferred, downgoing_buffer_write.data());
@@ -500,7 +507,6 @@ namespace azure_proxy
 			return;
 		}
 		std::uint32_t send_buffer_size = 0;
-		bool pre_header_remain = !_http_response_parser._header.http_version().empty();
 		while (true)
 		{
 			auto cur_parse_result = _http_response_parser.parse();
@@ -511,12 +517,6 @@ namespace azure_proxy
 			}
 			else if (cur_parse_result.first == http_parser_result::read_one_header)
 			{
-				if (pre_header_remain)
-				{
-					report_error(http_parser_result::pipeline_not_supported);
-					return;
-				}
-				pre_header_remain = true;
 				auto cur_header_counter = _http_response_parser._header.get_header_value("header_counter");
 				if (cur_header_counter)
 				{
@@ -540,23 +540,9 @@ namespace azure_proxy
 			}
 			else if(cur_parse_result.first == http_parser_result::read_content_end)
 			{
-				if (!_http_response_parser.buffer_consumed())
-				{
-					report_error(http_parser_result::pipeline_not_supported);
-					return;
-				}
 				_http_response_parser.reset_header();
 				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), downgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += cur_parse_result.second.size();
-			}
-			else if(cur_parse_result.first == http_parser_result::reading_header)
-			{
-				if (pre_header_remain)
-				{
-					report_error(http_parser_result::pipeline_not_supported);
-					return;
-				}
-				break;
 			}
 			else
 			{
@@ -576,11 +562,12 @@ namespace azure_proxy
 	}
 	void http_proxy_client_connection::on_user_agent_data_arrived(std::size_t bytes_transferred)
 	{
+		logger->trace("{} on_user_agent_data_arrived size {}", logger_prefix, bytes_transferred);
 		static std::atomic<uint32_t> header_counter = 0;
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
 			std::copy(upgoing_buffer_read.data(), upgoing_buffer_read.data() + bytes_transferred, upgoing_buffer_write.data());
-			async_write_data_to_proxy_server(upgoing_buffer_write.data(), bytes_transferred);
+			async_write_data_to_proxy_server(upgoing_buffer_write.data(), 0, bytes_transferred);
 			return;
 
 		}
@@ -590,7 +577,6 @@ namespace azure_proxy
 			return;
 		}
 		std::uint32_t send_buffer_size = 0;
-		bool pre_header_remain = !_http_request_parser._header.http_version().empty();
 		while (true)
 		{
 			auto cur_parse_result = _http_request_parser.parse();
@@ -600,15 +586,6 @@ namespace azure_proxy
 			}
 			else if (cur_parse_result.first == http_parser_result::read_one_header)
 			{
-				if (pre_header_remain)
-				{
-					report_error(http_parser_result::pipeline_not_supported);
-					return;
-				}
-				else
-				{
-					pre_header_remain = true;
-				}
 				_http_request_parser._header.set_header_counter(std::to_string(header_counter++));
 				auto header_data = _http_request_parser._header.encode_to_data();
 				std::copy(header_data.begin(), header_data.end(), upgoing_buffer_write.data() + send_buffer_size);
@@ -621,22 +598,8 @@ namespace azure_proxy
 			}
 			else if(cur_parse_result.first == http_parser_result::read_content_end)
 			{
-				if (!_http_request_parser.buffer_consumed())
-				{
-					report_error(http_parser_result::pipeline_not_supported);
-					return;
-				}
 				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), upgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += cur_parse_result.second.size();
-			}
-			else if (cur_parse_result.first == http_parser_result::reading_header)
-			{
-				if (pre_header_remain)
-				{
-					report_error(http_parser_result::pipeline_not_supported);
-					return;
-				}
-				break;
 			}
 			else
 			{

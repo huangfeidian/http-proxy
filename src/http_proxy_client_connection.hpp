@@ -54,8 +54,9 @@ namespace azure_proxy
 		std::chrono::seconds timeout;
 
 		std::shared_ptr<spdlog::logger> logger;
-
-		http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> logger);
+		const std::uint32_t connection_count;
+		const std::string logger_prefix;
+		http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
 	private:
 
 		// trace header
@@ -63,7 +64,7 @@ namespace azure_proxy
 		http_response_parser _http_response_parser;
 	public:
 		~http_proxy_client_connection();
-		static std::shared_ptr<http_proxy_client_connection> create(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> logger);
+		static std::shared_ptr<http_proxy_client_connection> create(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
 		void start();
 	private:
 		void async_read_data_from_user_agent(std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH);
