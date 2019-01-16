@@ -736,7 +736,7 @@ namespace azure_proxy
 			{
 				return std::make_pair(http_parser_result::reading_header, std::string_view());
 			}
-			for (int i = parser_idx; i < buffer_size - 4; i++)
+			for (int i = parser_idx; i <= buffer_size - 4; i++)
 			{
 				if (buffer[i] == '\r' && buffer[i + 1] == '\n' && buffer[i + 2] == '\r' && buffer[i + 3] == '\n')
 				{
@@ -748,8 +748,9 @@ namespace azure_proxy
 			{
 				return std::make_pair(http_parser_result::reading_header, std::string_view());
 			}
+			
+			auto cur_parse_result = http_header_parser::parse_request_header(reinterpret_cast<const unsigned char*>(buffer) + parser_idx, reinterpret_cast<const unsigned char*>(buffer) + double_crlf_pos, _header);
 			parser_idx = double_crlf_pos + 4;
-			auto cur_parse_result = http_header_parser::parse_request_header(reinterpret_cast<const unsigned char*>(buffer), reinterpret_cast<const unsigned char*>(buffer) + double_crlf_pos, _header);
 			if (cur_parse_result != http_parser_result::read_one_header)
 			{
 				return std::make_pair(http_parser_result::bad_request, std::string_view());
@@ -766,7 +767,7 @@ namespace azure_proxy
 			read_content_length = 0;
 			_cur_chunk_checker.reset();
 			const auto& cur_method = _header.method();
-			if (cur_method == "GET" || cur_method == "HEAD" || cur_method == "DELETE")
+			if (cur_method == "GET" || cur_method == "HEAD" || cur_method == "DELETE" ||cur_method == "CONNECT")
 			{
 				_status = http_parser_status::read_header;
 			}
@@ -888,7 +889,7 @@ namespace azure_proxy
 			{
 				return std::make_pair(http_parser_result::reading_header, std::string_view());
 			}
-			for (int i = parser_idx; i < buffer_size - 4; i++)
+			for (int i = parser_idx; i <= buffer_size - 4; i++)
 			{
 				if (buffer[i] == '\r' && buffer[i + 1] == '\n' && buffer[i + 2] == '\r' && buffer[i + 3] == '\n')
 				{
@@ -900,8 +901,9 @@ namespace azure_proxy
 			{
 				return std::make_pair(http_parser_result::reading_header, std::string_view());
 			}
+			
+			auto cur_parse_result = http_header_parser::parse_response_header(reinterpret_cast<const unsigned char*>(buffer) + parser_idx, reinterpret_cast<const unsigned char*>(buffer) + double_crlf_pos, _header);
 			parser_idx = double_crlf_pos + 4;
-			auto cur_parse_result = http_header_parser::parse_response_header(reinterpret_cast<const unsigned char*>(buffer), reinterpret_cast<const unsigned char*>(buffer) + double_crlf_pos, _header);
 			if (cur_parse_result != http_parser_result::read_one_header)
 			{
 				return std::make_pair(http_parser_result::bad_request, std::string_view());
@@ -1062,5 +1064,25 @@ namespace azure_proxy
 	{
 		// 判断目前是否刚好读取完一个packet
 		return _status;
+	}
+	void http_request_parser::reset()
+	{
+		_status = http_parser_status::read_header;
+		parser_idx = 0;
+		buffer_size = 0;
+		_header.reset();
+		_cur_chunk_checker.reset();
+		total_content_length = 0;
+		read_content_length = 0;
+	}
+	void http_response_parser::reset()
+	{
+		_status = http_parser_status::read_header;
+		parser_idx = 0;
+		buffer_size = 0;
+		_header.reset();
+		_cur_chunk_checker.reset();
+		total_content_length = 0;
+		read_content_length = 0;
 	}
 }; // namespace azure_proxy

@@ -160,6 +160,7 @@ namespace azure_proxy
 		void reset_header();
 		http_request_parser(bool pipeline_allowed = false);
 		http_parser_status status() const;
+		void reset();
 	};
 
 	class http_response_parser
@@ -181,6 +182,7 @@ namespace azure_proxy
 		void reset_header();
 		http_response_parser(bool pipeline_allowed = false);
 		http_parser_status status() const;
+		void reset();
 	};
 }; // namespace azure_proxy
 

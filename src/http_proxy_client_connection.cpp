@@ -585,9 +585,11 @@ namespace azure_proxy
 		while (true)
 		{
 			auto cur_parse_result = _http_request_parser.parse();
+			logger->trace("{} after one parse status is {}", logger_prefix, _http_request_parser.status());
 			if (cur_parse_result.first >= http_parser_result::parse_error)
 			{
 				report_error(cur_parse_result.first);
+				return;
 			}
 			else if (cur_parse_result.first == http_parser_result::read_one_header)
 			{
