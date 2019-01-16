@@ -16,7 +16,7 @@ INCLUDE_DIRECTORIES(${spdlog_include_dirs})
 
 if(ASIO_STANDALONE)
 # set(ASIO_DIR "C:\\Users\\hhln4510\\Documents\\Github\\asio\\asio\\include")
-set(ASIO_DIR "C:\\Users\\hhln4510\\Documents\\Github\\asio\\asio\\include")
+set(ASIO_DIR "D:\\Github\\asio-1.10.6\\include")
 include_directories(${ASIO_DIR})
 add_definitions(-DASIO_STANDALONE)
 add_definitions(-DASIO_MSVC)

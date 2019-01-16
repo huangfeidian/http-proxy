@@ -579,7 +579,7 @@ namespace azure_proxy
 			header._host = match_results[2];
 			if (match_results[4].matched)
 			{
-				auto port_result = try_prase_unsigned_int<std::uint32_t>(std::string(match_results[2]));
+				auto port_result = try_prase_unsigned_int<std::uint32_t>(std::string(match_results[4]));
 				if (!port_result)
 				{
 					return http_parser_result::buffer_overflow;

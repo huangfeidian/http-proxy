@@ -1,4 +1,4 @@
-#include "http_header_parser.hpp"
+﻿#include "http_header_parser.hpp"
 #include <iostream>
 #include <vector>
 
@@ -8,10 +8,16 @@ using namespace std;
 vector<string> get_test_cases()
 {
 	vector<string> result;
-	result.push_back(string("GET http://www.baidu.com/ HTTP/1.1\r\nHost: www.baidu.com\r\nProxy-Connection: keep-alive\r\nUpgrade-Insecure-Requests: 1\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\r\nAccept-Encoding: gzip, deflate\r\nAccept-Language: zh-CN,zh;q=0.9,en;q=0.8\r\n\r\n"));
+	//result.push_back(string("GET http://www.baidu.com/ HTTP/1.1\r\nHost: www.baidu.com\r\nProxy-Connection: keep-alive\r\nUpgrade-Insecure-Requests: 1\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\r\nAccept-Encoding: gzip, deflate\r\nAccept-Language: zh-CN,zh;q=0.9,en;q=0.8\r\n\r\n"));
 
 	//result.push_back(string("CONNECT www.bing.com:443 HTTP/1.1\r\nHost: www.bing.com:443\r\nProxy-Connection: keep-alive\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36\r\n\r\n"));
+	result.push_back("GET http://192.168.1.69:9091/favicon.ico HTTP/1.1\r\nHost:192.168.1.69:9091\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:64.0) Gecko/20100101 Firefox/64.0\r\n\r\n");
 	return result;
+}
+vector<string> get_response_test_cases()
+{
+	vector<string> result;
+	result.push_back(string("HTTP/1.1 301 Moved Permanently\r\nContent-Length: 31\r\nContent-Type: text/html; charset=ISO-8859-1\r\nDate: Wed, 16 Jan 2019 15:45:53 GMT\r\nLocation:/transmission/web/\r\nServer: Transmission\r\n\r\n"));
 }
 int main()
 {

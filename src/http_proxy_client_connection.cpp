@@ -263,7 +263,7 @@ namespace azure_proxy
 
 	void http_proxy_client_connection::async_read_data_from_user_agent(std::size_t at_least_size, std::size_t at_most_size)
 	{
-		logger->trace("{} async_read_data_from_user_agent begin", logger_prefix);
+		logger->debug("{} async_read_data_from_user_agent begin", logger_prefix);
 		auto self(this->shared_from_this());
 		this->set_timer();
 		if (this->logger->level() == spdlog::level::level_enum::off)
@@ -275,7 +275,7 @@ namespace azure_proxy
 					if (!error)
 					{
 						http_proxy_client_stat::get_instance().on_upgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-						this->encryptor->encrypt(reinterpret_cast<const unsigned char*>(&this->upgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->upgoing_buffer_write[0]), bytes_transferred);
+						this->decryptor->copy(reinterpret_cast<const unsigned char*>(&this->upgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->upgoing_buffer_write[0]), bytes_transferred);
 						this->async_write_data_to_proxy_server(this->upgoing_buffer_write.data(), 0, bytes_transferred);
 
 					}
@@ -312,7 +312,7 @@ namespace azure_proxy
 
 	void http_proxy_client_connection::async_read_data_from_proxy_server(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
 	{
-		logger->trace("{} async_read_data_from_proxy_server begin", logger_prefix);
+		logger->debug("{} async_read_data_from_proxy_server begin", logger_prefix);
 		auto self(this->shared_from_this());
 		if (set_timer)
 		{
@@ -327,7 +327,7 @@ namespace azure_proxy
 					if (!error)
 					{
 						http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-						this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
+						this->decryptor->copy(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
 
 						this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, bytes_transferred);
 
@@ -351,7 +351,7 @@ namespace azure_proxy
 					if (!error)
 					{
 						http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-						this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
+						this->decryptor->copy(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
 						this->on_proxy_server_data_arrived(bytes_transferred);
 					}
 					else
@@ -497,7 +497,7 @@ namespace azure_proxy
 	}
 	void http_proxy_client_connection::on_proxy_server_data_arrived(std::size_t bytes_transferred)
 	{
-		logger->trace("{} on_proxy_server_data_arrived bytes {}", logger_prefix, bytes_transferred);
+		logger->debug("{} on_proxy_server_data_arrived bytes {}", logger_prefix, bytes_transferred);
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
 			std::copy(downgoing_buffer_read.data(), downgoing_buffer_read.data() + bytes_transferred, downgoing_buffer_write.data());
@@ -531,7 +531,7 @@ namespace azure_proxy
 					connection_state = proxy_connection_state::tunnel_transfer;
 				}
 				auto header_data = _http_response_parser._header.encode_to_data();
-				logger->trace("{} read proxy response header data {}", logger_prefix, header_data);
+				//logger->trace("{} read proxy response header data {}", logger_prefix, header_data);
 				_http_request_parser.reset_header();
 				
 				std::copy(header_data.begin(), header_data.end(), downgoing_buffer_write.data() + send_buffer_size);
@@ -566,8 +566,8 @@ namespace azure_proxy
 	}
 	void http_proxy_client_connection::on_user_agent_data_arrived(std::size_t bytes_transferred)
 	{
-		logger->trace("{} on_user_agent_data_arrived size {}", logger_prefix, bytes_transferred);
-		logger->trace("{} data is {}", logger_prefix, std::string(upgoing_buffer_read.data(), upgoing_buffer_read.data() + bytes_transferred));
+		logger->debug("{} on_user_agent_data_arrived size {}", logger_prefix, bytes_transferred);
+		//logger->trace("{} data is {}", logger_prefix, std::string(upgoing_buffer_read.data(), upgoing_buffer_read.data() + bytes_transferred));
 		static std::atomic<uint32_t> header_counter = 0;
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
@@ -585,7 +585,7 @@ namespace azure_proxy
 		while (true)
 		{
 			auto cur_parse_result = _http_request_parser.parse();
-			logger->trace("{} after one parse status is {}", logger_prefix, _http_request_parser.status());
+			//logger->trace("{} after one parse status is {}", logger_prefix, _http_request_parser.status());
 			if (cur_parse_result.first >= http_parser_result::parse_error)
 			{
 				report_error(cur_parse_result.first);
@@ -595,7 +595,7 @@ namespace azure_proxy
 			{
 				_http_request_parser._header.set_header_counter(std::to_string(header_counter++));
 				auto header_data = _http_request_parser._header.encode_to_data();
-				logger->trace("{} read ua request header data {}", logger_prefix, header_data);
+				//logger->trace("{} read ua request header data {}", logger_prefix, header_data);
 				std::copy(header_data.begin(), header_data.end(), upgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += header_data.size();
 			}

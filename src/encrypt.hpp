@@ -1,4 +1,4 @@
-/*
+﻿/*
  *    encrypt.hpp:
  *
  *    Copyright (C) 2014-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
@@ -37,10 +37,15 @@ namespace azure_proxy
 				{
 					cur_block_size = length % block_size;
 				}
-				encrypt(data + i * block_size, &temp_buffer[0], cur_block_size);
+				copy(data + i * block_size, &temp_buffer[0], cur_block_size);
 				std::copy(&temp_buffer[0], &temp_buffer[0] + cur_block_size, data + i * block_size);
 			}
 
+		}
+		void copy(const unsigned char* in, unsigned unsigned char* out, std::size_t length)
+		{
+			assert(in && out);
+			std::memcpy(out, in, length);
 		}
 		virtual ~stream_encryptor()
 		{
@@ -53,6 +58,11 @@ namespace azure_proxy
 		virtual void decrypt(const unsigned char* in, unsigned char* out, std::size_t length) = 0;
 		virtual ~stream_decryptor()
 		{
+		}
+		void copy(const unsigned char* in, unsigned unsigned char* out, std::size_t length)
+		{
+			assert(in && out);
+			std::memcpy(out, in, length);
 		}
 	};
 
