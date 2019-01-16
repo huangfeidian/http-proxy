@@ -226,7 +226,19 @@ namespace azure_proxy
 		result.reserve(500);
 		result += _method;
 		result += " ";
-		result += _path_and_query;
+		if (_method == "CONNECT")
+		{
+			result += _host + ":" + std::to_string(_port);
+		}
+		else
+		{
+			result += _scheme + "://" + _host;
+			if (_port != 80 && _port != 0)
+			{
+				result += ":" + std::to_string(_port);
+			}
+			result += _path_and_query;
+		}
 		result += " HTTP/";
 		result += _http_version;
 		result += "\r\n";

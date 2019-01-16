@@ -59,7 +59,6 @@ namespace azure_proxy
 	{
 		assert(at_least_size <= at_most_size && at_most_size <= BUFFER_LENGTH);
 		auto self(this->shared_from_this());
-		logger->trace("{} set timer at {}", logger_prefix, "async_read_data_from_proxy_client");
 		this->set_timer();
 		
 		asio::async_read(this->proxy_client_socket,
@@ -69,7 +68,6 @@ namespace azure_proxy
 		{
 			if (this->cancel_timer())
 			{
-				logger->trace("{} cancel timer {}", this->logger_prefix, "async_read_data_from_proxy_client");
 				if (!error)
 				{
 					this->on_proxy_client_data_arrived(bytes_transferred);
@@ -88,7 +86,6 @@ namespace azure_proxy
 		auto self(this->shared_from_this());
 		if (set_timer)
 		{
-			logger->trace("{} set timer at {}", logger_prefix, "async_read_data_from_origin_server");
 			this->set_timer();
 			
 		}
@@ -99,7 +96,6 @@ namespace azure_proxy
 		{
 			if (this->cancel_timer())
 			{
-				logger->trace("{} cancel timer {}", this->logger_prefix, "async_read_data_from_origin_server");
 				if (!error)
 				{
 					this->on_origin_server_data_arrived(bytes_transferred);
@@ -140,7 +136,6 @@ namespace azure_proxy
 			asio::ip::tcp::resolver::query query(this->_request_parser._header.host(), std::to_string(this->_request_parser._header.port()));
 			auto self(this->shared_from_this());
 			this->connection_context.connection_state = proxy_connection_state::resolve_origin_server_address;
-			logger->trace("{} set timer at {}", logger_prefix, "async_connect_to_origin_server");
 			this->set_timer();
 			
 			logger->info("{} connect to {}:{}", logger_prefix, this->_request_parser._header.host(), this->_request_parser._header.port());
@@ -167,7 +162,6 @@ namespace azure_proxy
 	void http_proxy_server_connection::async_write_data_to_origin_server(const char* write_buffer, std::size_t offset, std::size_t size)
 	{
 		auto self(this->shared_from_this());
-		logger->trace("{} set timer at {}", logger_prefix, "async_write_data_to_origin_server");
 		this->set_timer();
 		
 		this->origin_server_socket.async_write_some(asio::buffer(write_buffer + offset, size),
@@ -175,7 +169,6 @@ namespace azure_proxy
 		{
 			if (this->cancel_timer())
 			{
-				logger->trace("{} cancel timer {}", this->logger_prefix, "async_write_data_to_origin_server");
 				if (!error)
 				{
 					this->connection_context.reconnect_on_error = false;
@@ -200,7 +193,6 @@ namespace azure_proxy
 	void http_proxy_server_connection::async_write_data_to_proxy_client(const char* write_buffer, std::size_t offset, std::size_t size)
 	{
 		auto self(this->shared_from_this());
-		logger->trace("{} set timer at {}", logger_prefix, "async_write_data_to_proxy_client");
 		this->set_timer();
 		
 		this->proxy_client_socket.async_write_some(asio::buffer(write_buffer + offset, size),
@@ -208,7 +200,6 @@ namespace azure_proxy
 		{
 			if (this->cancel_timer())
 			{
-				logger->trace("{} cancel timer {}", this->logger_prefix, "async_write_data_to_proxy_client");
 				if (!error)
 				{
 					if (bytes_transferred < size)
@@ -352,7 +343,6 @@ namespace azure_proxy
 		this->connection_context.origin_server_endpoint = std::make_unique<asio::ip::tcp::endpoint>(endpoint_iterator->endpoint());
 		auto self(this->shared_from_this());
 		this->connection_context.connection_state = proxy_connection_state::connect_to_origin_server;
-		logger->trace("{} set timer at {}", logger_prefix, "on_resolved");
 		this->set_timer();
 		this->origin_server_socket.async_connect(endpoint_iterator->endpoint(),
 												 this->strand.wrap([this, self, endpoint_iterator](const error_code& error) mutable

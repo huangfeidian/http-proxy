@@ -560,7 +560,7 @@ namespace azure_proxy
 		}
 		else
 		{
-			async_read_data_from_user_agent();
+			async_read_data_from_proxy_server();
 		}
 		
 	}
