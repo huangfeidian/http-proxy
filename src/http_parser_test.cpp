@@ -5,7 +5,7 @@ using namespace azure_proxy;
 using namespace std;
 int main()
 {
-	std::string request_input = "CONNECT www.bing.com:443 HTTP/1.1\r\nHost: www.bing.com : 443\r\nProxy - Connection : keep - alive\r\nUser - Agent : Mozilla / 5.0 (Windows NT 10.0; Win64; x64) AppleWebKit / 537.36 (KHTML, like Gecko) Chrome / 71.0.3578.98 Safari / 537.36\r\n\r\n";
+	std::string request_input = "CONNECT www.bing.com:443 HTTP/1.1\r\nHost: www.bing.com:443\r\nProxy-Connection: keep-alive\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36\r\n\r\n";
 	http_request_parser _parser;
 	_parser.append_input(reinterpret_cast<const unsigned char*>(request_input.c_str()), request_input.size());
 	auto parse_result = _parser.parse();

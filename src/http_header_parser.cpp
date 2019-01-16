@@ -471,7 +471,9 @@ namespace azure_proxy
 				else
 				{
 					//删掉末尾的空白字符
-					headers.insert(std::make_pair(std::move(header_field_name), std::move(remove_trail_blank(header_field_value))));
+					headers.insert(std::make_pair(header_field_name, remove_trail_blank(header_field_value)));
+					header_field_name.clear();
+					header_field_value.clear();
 					if (*iter == '\r')
 					{
 						state = parse_header_state::header_field_crlfcr;
@@ -600,9 +602,9 @@ namespace azure_proxy
 
 		++iter;
 		auto parse_header_result = parse_headers(reinterpret_cast<const unsigned char*>(&(*iter)), reinterpret_cast<const unsigned char*>(&(*end)), header._headers_map);
-		if (parse_header_result.first == http_parser_result::parse_error)
+		if (parse_header_result.first >= http_parser_result::parse_error)
 		{
-			return http_parser_result::parse_error;
+			return parse_header_result.first;
 		}
 		auto temp_iter = header._headers_map.find("header_counter");
 		if (temp_iter != header._headers_map.end())
@@ -749,7 +751,7 @@ namespace azure_proxy
 				return std::make_pair(http_parser_result::reading_header, std::string_view());
 			}
 			
-			auto cur_parse_result = http_header_parser::parse_request_header(reinterpret_cast<const unsigned char*>(buffer) + parser_idx, reinterpret_cast<const unsigned char*>(buffer) + double_crlf_pos, _header);
+			auto cur_parse_result = http_header_parser::parse_request_header(reinterpret_cast<const unsigned char*>(buffer) + parser_idx, reinterpret_cast<const unsigned char*>(buffer) + double_crlf_pos + 4, _header);
 			parser_idx = double_crlf_pos + 4;
 			if (cur_parse_result != http_parser_result::read_one_header)
 			{
@@ -902,7 +904,7 @@ namespace azure_proxy
 				return std::make_pair(http_parser_result::reading_header, std::string_view());
 			}
 			
-			auto cur_parse_result = http_header_parser::parse_response_header(reinterpret_cast<const unsigned char*>(buffer) + parser_idx, reinterpret_cast<const unsigned char*>(buffer) + double_crlf_pos, _header);
+			auto cur_parse_result = http_header_parser::parse_response_header(reinterpret_cast<const unsigned char*>(buffer) + parser_idx, reinterpret_cast<const unsigned char*>(buffer) + double_crlf_pos + 4, _header);
 			parser_idx = double_crlf_pos + 4;
 			if (cur_parse_result != http_parser_result::read_one_header)
 			{
