@@ -417,6 +417,7 @@ namespace azure_proxy
 		}
 		assert(this->encryptor != nullptr && this->decryptor != nullptr);
 		this->decryptor->decrypt(upgoing_buffer_read.data(), upgoing_buffer_write.data(), bytes_transferred);
+		logger->debug("{} decrypt client data size {} hash {}", logger_prefix, bytes_transferred, aes_generator::sum(upgoing_buffer_write.data(), bytes_transferred));
 		//logger->trace("{} data is {}", logger_prefix, std::string(reinterpret_cast<const char*>(upgoing_buffer_write.data()), bytes_transferred));
 		if (this->connection_context.connection_state == proxy_connection_state::tunnel_transfer)
 		{
@@ -465,7 +466,7 @@ namespace azure_proxy
 				}
 				header_readed = true;
 				auto header_data = _request_parser._header.encode_to_data();
-				//logger->trace("{} read client request header {}", logger_prefix, header_data);
+				logger->trace("{} read client request header {}", logger_prefix, header_data);
 				std::copy(header_data.begin(), header_data.end(), upgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += header_data.size();
 				this->read_request_context.is_proxy_client_keep_alive = _request_parser._header.is_keep_alive();
@@ -518,6 +519,7 @@ namespace azure_proxy
 		logger->debug("{} on_origin_server_data_arrived size {}", logger_prefix, bytes_transferred);
 		if (this->connection_context.connection_state == proxy_connection_state::tunnel_transfer)
 		{
+			logger->debug("{} encrypt origin server data size {} hash {}", logger_prefix, bytes_transferred, aes_generator::sum(downgoing_buffer_read.data(), bytes_transferred));
 			this->encryptor->encrypt(downgoing_buffer_read.data(), downgoing_buffer_write.data(), bytes_transferred);
 			this->async_write_data_to_proxy_client(reinterpret_cast<const char*>(downgoing_buffer_write.data()), 0, bytes_transferred);
 			return;
@@ -546,7 +548,7 @@ namespace azure_proxy
 				}
 				read_response_context.is_origin_server_keep_alive = is_keep_alive.value();
 				auto header_data = _response_parser._header.encode_to_data();
-				//logger->trace("{} read server response header {}", logger_prefix, header_data);
+				logger->trace("{} read server response header {}", logger_prefix, header_data);
 				std::copy(header_data.begin(), header_data.end(), downgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += header_data.size();
 				this->connection_context.connection_state = proxy_connection_state::write_http_response_header;
@@ -574,6 +576,7 @@ namespace azure_proxy
 		}
 		if (send_buffer_size)
 		{
+			logger->debug("{} encrypt origin server data size {} hash {}", logger_prefix, send_buffer_size, aes_generator::sum(downgoing_buffer_write.data(), send_buffer_size));
 			this->encryptor->encrypt(downgoing_buffer_write.data(), downgoing_buffer_write.data(), send_buffer_size);
 			this->async_write_data_to_proxy_client(reinterpret_cast<const char*>(this->downgoing_buffer_write.data()), 0, send_buffer_size);
 		}

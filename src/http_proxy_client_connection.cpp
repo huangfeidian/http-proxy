@@ -148,48 +148,25 @@ namespace azure_proxy
 		logger->debug("{} async_read_data_from_user_agent begin", logger_prefix);
 		auto self(this->shared_from_this());
 		this->set_timer();
-		if (this->logger->level() == spdlog::level::level_enum::off)
-		{
-			this->user_agent_socket.async_read_some(asio::buffer(this->upgoing_buffer_read.data(), this->upgoing_buffer_read.size()), this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
-			{
-				if (this->cancel_timer())
-				{
-					if (!error)
-					{
-						http_proxy_client_stat::get_instance().on_upgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-						this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->upgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->upgoing_buffer_write[0]), bytes_transferred);
-						this->async_write_data_to_proxy_server(this->upgoing_buffer_write.data(), 0, bytes_transferred);
 
-					}
-					else
-					{
-						this->on_error(error);
-					}
-				}
-			}));
-		}
-		else
+		asio::async_read(this->user_agent_socket,
+			asio::buffer(&this->upgoing_buffer_read[0], at_most_size),
+			asio::transfer_at_least(at_least_size),
+			this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
 		{
-			asio::async_read(this->user_agent_socket,
-				asio::buffer(&this->upgoing_buffer_read[0], at_most_size),
-				asio::transfer_at_least(at_least_size),
-				this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
+			if (this->cancel_timer())
 			{
-				if (this->cancel_timer())
+				if (!error)
 				{
-					if (!error)
-					{
-						this->on_user_agent_data_arrived(bytes_transferred);
-					}
-					else
-					{
-						this->on_error(error);
-					}
+					this->on_user_agent_data_arrived(bytes_transferred);
 				}
-			})
-			);
-		}
-		
+				else
+				{
+					this->on_error(error);
+				}
+			}
+		})
+		);
 	}
 
 	void http_proxy_client_connection::async_read_data_from_proxy_server(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
@@ -200,51 +177,28 @@ namespace azure_proxy
 		{
 			this->set_timer();
 		}
-		if (logger->level() == spdlog::level::off)
-		{
-			this->proxy_server_socket.async_read_some(asio::buffer(this->downgoing_buffer_read.data(), this->downgoing_buffer_read.size()), this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
-			{
-				if (this->cancel_timer())
-				{
-					if (!error)
-					{
-						http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-						this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
-
-						this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, bytes_transferred);
-
-					}
-					else
-					{
-						this->on_error(error);
-					}
-				}
-			}));
-		}
-		else
-		{
-			asio::async_read(this->proxy_server_socket,
-				asio::buffer(&this->downgoing_buffer_read[0], at_most_size),
-				asio::transfer_at_least(at_least_size),
-				this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
-			{
-				if (this->cancel_timer())
-				{
-					if (!error)
-					{
-						http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-						this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
-						this->on_proxy_server_data_arrived(bytes_transferred);
-					}
-					else
-					{
-						this->on_error(error);
-					}
-				}
-			})
-			);
-		}
 		
+		asio::async_read(this->proxy_server_socket,
+			asio::buffer(&this->downgoing_buffer_read[0], at_most_size),
+			asio::transfer_at_least(at_least_size),
+			this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
+		{
+			if (this->cancel_timer())
+			{
+				if (!error)
+				{
+					http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
+					this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
+					logger->debug("{} decrypt server data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::sum(downgoing_buffer_write.data(), bytes_transferred));
+					this->on_proxy_server_data_arrived(bytes_transferred);
+				}
+				else
+				{
+					this->on_error(error);
+				}
+			}
+		})
+		);
 	}
 
 	void http_proxy_client_connection::async_write_data_to_user_agent(const char* write_buffer, std::size_t offset, std::size_t size)
@@ -382,7 +336,6 @@ namespace azure_proxy
 		logger->debug("{} on_proxy_server_data_arrived bytes {}", logger_prefix, bytes_transferred);
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
-			decryptor->decrypt(reinterpret_cast<const unsigned char*>(downgoing_buffer_read.data()), reinterpret_cast<unsigned char*>(downgoing_buffer_write.data()), bytes_transferred);
 			this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, bytes_transferred);
 			return;
 		}
@@ -453,6 +406,7 @@ namespace azure_proxy
 		static std::atomic<uint32_t> header_counter = 0;
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
+			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::sum(upgoing_buffer_read.data(), bytes_transferred));
 			encryptor->encrypt(reinterpret_cast<const unsigned char*>(upgoing_buffer_read.data()), reinterpret_cast<unsigned char*>(upgoing_buffer_write.data()), bytes_transferred);
 			async_write_data_to_proxy_server(upgoing_buffer_write.data(), 0, bytes_transferred);
 			return;
@@ -499,6 +453,7 @@ namespace azure_proxy
 		}
 		if (send_buffer_size)
 		{
+			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, send_buffer_size, aes_generator::sum(upgoing_buffer_write.data(), send_buffer_size));
 			encryptor->transform(reinterpret_cast<unsigned char*>(upgoing_buffer_write.data()), send_buffer_size, 256);
 			this->async_write_data_to_proxy_server(this->upgoing_buffer_write.data(), 0, send_buffer_size);
 		}
