@@ -159,7 +159,7 @@ namespace azure_proxy
 				this->state = http_chunk_check_state::chunk_check_failed;
 				return std::make_pair(false, iter - begin);
 			}
-			return std::make_pair(false, iter - begin);
+			return std::make_pair(true, iter - begin);
 		}
 	};
 

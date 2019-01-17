@@ -44,6 +44,8 @@ namespace azure_proxy
 		invalid_version,
 		invalid_status,
 		invalid_transfer_encoding,
+		chunk_check_error,
+		invalid_parser_status,
 
 	};
 	std::tuple<std::uint32_t, std::string, std::string> from_praser_result_to_description(http_parser_result cur_result);
