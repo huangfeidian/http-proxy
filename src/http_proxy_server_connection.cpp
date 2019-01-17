@@ -385,7 +385,7 @@ namespace azure_proxy
 		{
 			const unsigned char response_message[] = "HTTP/1.1 200 Connection Established\r\nConnection: Close\r\n\r\n";
 			this->modified_response_data.resize(sizeof(response_message) - 1);
-			this->encryptor->copy(response_message, reinterpret_cast<unsigned char*>(&this->modified_response_data[0]), this->modified_response_data.size());
+			this->encryptor->encrypt(response_message, reinterpret_cast<unsigned char*>(&this->modified_response_data[0]), this->modified_response_data.size());
 			this->connection_context.connection_state = proxy_connection_state::report_connection_established;
 			this->async_write_data_to_proxy_client(&this->modified_response_data[0], 0, this->modified_response_data.size());
 		}
@@ -416,7 +416,7 @@ namespace azure_proxy
 			return;
 		}
 		assert(this->encryptor != nullptr && this->decryptor != nullptr);
-		this->decryptor->copy(upgoing_buffer_read.data(), upgoing_buffer_write.data(), bytes_transferred);
+		this->decryptor->decrypt(upgoing_buffer_read.data(), upgoing_buffer_write.data(), bytes_transferred);
 		//logger->trace("{} data is {}", logger_prefix, std::string(reinterpret_cast<const char*>(upgoing_buffer_write.data()), bytes_transferred));
 		if (this->connection_context.connection_state == proxy_connection_state::tunnel_transfer)
 		{
@@ -518,7 +518,7 @@ namespace azure_proxy
 		logger->debug("{} on_origin_server_data_arrived size {}", logger_prefix, bytes_transferred);
 		if (this->connection_context.connection_state == proxy_connection_state::tunnel_transfer)
 		{
-			this->encryptor->copy(downgoing_buffer_read.data(), downgoing_buffer_write.data(), bytes_transferred);
+			this->encryptor->encrypt(downgoing_buffer_read.data(), downgoing_buffer_write.data(), bytes_transferred);
 			this->async_write_data_to_proxy_client(reinterpret_cast<const char*>(downgoing_buffer_write.data()), 0, bytes_transferred);
 			return;
 		}
@@ -574,7 +574,7 @@ namespace azure_proxy
 		}
 		if (send_buffer_size)
 		{
-			this->encryptor->copy(downgoing_buffer_write.data(), downgoing_buffer_write.data(), send_buffer_size);
+			this->encryptor->encrypt(downgoing_buffer_write.data(), downgoing_buffer_write.data(), send_buffer_size);
 			this->async_write_data_to_proxy_client(reinterpret_cast<const char*>(this->downgoing_buffer_write.data()), 0, send_buffer_size);
 		}
 		else

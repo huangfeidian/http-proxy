@@ -81,125 +81,7 @@ namespace azure_proxy
 			// aes
 			std::vector<unsigned char> ivec(16);
 			std::vector<unsigned char> key_vec;
-			assert(cipher_name[3] == '-' && cipher_name[7] == '-');
-			if (std::strcmp(cipher_name.c_str() + 8, "cfb") == 0 || std::strcmp(cipher_name.c_str() + 8, "cfb128") == 0)
-			{
-				//where is cfb-128
-				// aes-xxx-cfb
-				if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "128"))
-				{
-					cipher_code = 0x00;
-					key_vec.resize(128 / 8);
-				}
-				else if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "192"))
-				{
-					cipher_code = 0x05;
-					key_vec.resize(192 / 8);
-				}
-				else
-				{
-					cipher_code = 0x0A;
-					key_vec.resize(256 / 8);
-				}
-				key_generator::get_instance().generate(ivec.data(), ivec.size());
-				key_generator::get_instance().generate(key_vec.data(), key_vec.size());
-				this->encryptor = std::unique_ptr<stream_encryptor>(new aes_cfb128_encryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
-				this->decryptor = std::unique_ptr<stream_decryptor>(new aes_cfb128_decryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
-			}
-			else if (std::strcmp(cipher_name.c_str() + 8, "cfb8") == 0)
-			{
-				// aes-xxx-cfb8
-				if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "128"))
-				{
-					cipher_code = 0x01;
-					key_vec.resize(128 / 8);
-				}
-				else if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "192"))
-				{
-					cipher_code = 0x06;
-					key_vec.resize(192 / 8);
-				}
-				else
-				{
-					cipher_code = 0x0B;
-					key_vec.resize(256 / 8);
-				}
-				key_generator::get_instance().generate(ivec.data(), ivec.size());
-				key_generator::get_instance().generate(key_vec.data(), key_vec.size());
-				this->encryptor = std::unique_ptr<stream_encryptor>(new aes_cfb8_encryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
-				this->decryptor = std::unique_ptr<stream_decryptor>(new aes_cfb8_decryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
-			}
-			else if (std::strcmp(cipher_name.c_str() + 8, "cfb1") == 0)
-			{
-				// aes-xxx-cfb1
-				if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "128"))
-				{
-					cipher_code = 0x02;
-					key_vec.resize(128 / 8);
-				}
-				else if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "192"))
-				{
-					cipher_code = 0x07;
-					key_vec.resize(192 / 8);
-				}
-				else
-				{
-					cipher_code = 0x0C;
-					key_vec.resize(256 / 8);
-				}
-				key_generator::get_instance().generate(ivec.data(), ivec.size());
-				key_generator::get_instance().generate(key_vec.data(), key_vec.size());
-				this->encryptor = std::unique_ptr<stream_encryptor>(new aes_cfb1_encryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
-				this->decryptor = std::unique_ptr<stream_decryptor>(new aes_cfb1_decryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
-			}
-			else if (std::strcmp(cipher_name.c_str() + 8, "ofb") == 0)
-			{
-				// aes-xxx-ofb
-				if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "128"))
-				{
-					cipher_code = 0x03;
-					key_vec.resize(128 / 8);
-				}
-				else if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "192"))
-				{
-					cipher_code = 0x08;
-					key_vec.resize(192 / 8);
-				}
-				else
-				{
-					cipher_code = 0x0D;
-					key_vec.resize(256 / 8);
-				}
-				key_generator::get_instance().generate(ivec.data(), ivec.size());
-				key_generator::get_instance().generate(key_vec.data(), key_vec.size());
-				this->encryptor = std::unique_ptr<stream_encryptor>(new aes_ofb128_encryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
-				this->decryptor = std::unique_ptr<stream_decryptor>(new aes_ofb128_decryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
-			}
-			// else if (std::strcmp(cipher_name.c_str() + 8, "ctr") == 0)
-			// {
-			// 	// aes-xxx-ctr
-			// 	if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "128"))
-			// 	{
-			// 		cipher_code = 0x04;
-			// 		key_vec.resize(128 / 8);
-			// 	}
-			// 	else if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "192"))
-			// 	{
-			// 		cipher_code = 0x09;
-			// 		key_vec.resize(192 / 8);
-			// 	}
-			// 	else
-			// 	{
-			// 		cipher_code = 0x0E;
-			// 		key_vec.resize(256 / 8);
-			// 	}
-			// 	std::fill(ivec.begin(), ivec.end(), 0);
-			// 	key_generator::get_instance().generate(key_vec.data(), key_vec.size());
-			// 	this->encryptor = std::unique_ptr<stream_encryptor>(new aes_ctr128_encryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
-			// 	this->decryptor = std::unique_ptr<stream_decryptor>(new aes_ctr128_decryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
-			// }
-			// 7 ~ 22 ivec
-			// 23 ~ key
+			aes_generator::generate(cipher_name, cipher_code, ivec, key_vec, this->encryptor, this->decryptor);
 			std::copy(ivec.cbegin(), ivec.cend(), cipher_info_raw.begin() + 7);
 			std::copy(key_vec.cbegin(), key_vec.cend(), cipher_info_raw.begin() + 23);
 		}
@@ -275,7 +157,7 @@ namespace azure_proxy
 					if (!error)
 					{
 						http_proxy_client_stat::get_instance().on_upgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-						this->decryptor->copy(reinterpret_cast<const unsigned char*>(&this->upgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->upgoing_buffer_write[0]), bytes_transferred);
+						this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->upgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->upgoing_buffer_write[0]), bytes_transferred);
 						this->async_write_data_to_proxy_server(this->upgoing_buffer_write.data(), 0, bytes_transferred);
 
 					}
@@ -327,7 +209,7 @@ namespace azure_proxy
 					if (!error)
 					{
 						http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-						this->decryptor->copy(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
+						this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
 
 						this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, bytes_transferred);
 
@@ -351,7 +233,7 @@ namespace azure_proxy
 					if (!error)
 					{
 						http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-						this->decryptor->copy(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
+						this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
 						this->on_proxy_server_data_arrived(bytes_transferred);
 					}
 					else
@@ -500,7 +382,7 @@ namespace azure_proxy
 		logger->debug("{} on_proxy_server_data_arrived bytes {}", logger_prefix, bytes_transferred);
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
-			std::copy(downgoing_buffer_read.data(), downgoing_buffer_read.data() + bytes_transferred, downgoing_buffer_write.data());
+			decryptor->decrypt(reinterpret_cast<const unsigned char*>(downgoing_buffer_read.data()), reinterpret_cast<unsigned char*>(downgoing_buffer_write.data()), bytes_transferred);
 			this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, bytes_transferred);
 			return;
 		}
@@ -571,7 +453,7 @@ namespace azure_proxy
 		static std::atomic<uint32_t> header_counter = 0;
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
-			std::copy(upgoing_buffer_read.data(), upgoing_buffer_read.data() + bytes_transferred, upgoing_buffer_write.data());
+			encryptor->encrypt(reinterpret_cast<const unsigned char*>(upgoing_buffer_read.data()), reinterpret_cast<unsigned char*>(upgoing_buffer_write.data()), bytes_transferred);
 			async_write_data_to_proxy_server(upgoing_buffer_write.data(), 0, bytes_transferred);
 			return;
 

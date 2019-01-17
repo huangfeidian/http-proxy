@@ -13,7 +13,7 @@
 #include <memory>
 #include <stdexcept>
 #include <vector>
-
+#include "key_generator.hpp"
 extern "C" {
 #include <openssl/aes.h>
 #include <openssl/rsa.h>
@@ -37,7 +37,7 @@ namespace azure_proxy
 				{
 					cur_block_size = length % block_size;
 				}
-				copy(data + i * block_size, &temp_buffer[0], cur_block_size);
+				encrypt(data + i * block_size, &temp_buffer[0], cur_block_size);
 				std::copy(&temp_buffer[0], &temp_buffer[0] + cur_block_size, data + i * block_size);
 			}
 
@@ -468,6 +468,154 @@ namespace azure_proxy
 		}
 	};
 
+	class aes_generator
+	{
+		//cipher code
+		// 0x00 aes-128-cfb
+		// 0x01 aes-128-cfb8
+		// 0x02 aes-128-cfb1
+		// 0x03 aes-128-ofb
+		// 0x04 aes-128-ctr
+		// 0x05 aes-192-cfb
+		// 0x06 aes-192-cfb8
+		// 0x07 aes-192-cfb1
+		// 0x08 aes-192-ofb
+		// 0x09 aes-192-ctr
+		// 0x0A aes-256-cfb
+		// 0x0B aes-256-cfb8
+		// 0x0C aes-256-cfb1
+		// 0x0D aes-256-ofb
+		// 0x0E aes-256-ctr
+	public:
+		static bool generate(const std::string& cipher_name, char& cipher_code, std::vector<unsigned char>& ivec, std::vector<unsigned char>& key_vec, std::unique_ptr<stream_encryptor>& encryptor, std::unique_ptr<stream_decryptor>& decryptor)
+		{
+			assert(cipher_name[3] == '-' && cipher_name[7] == '-');
+			if (std::strcmp(cipher_name.c_str() + 8, "cfb") == 0 || std::strcmp(cipher_name.c_str() + 8, "cfb128") == 0)
+			{
+				//where is cfb-128
+				// aes-xxx-cfb
+				if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "128"))
+				{
+					cipher_code = 0x00;
+					key_vec.resize(128 / 8);
+				}
+				else if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "192"))
+				{
+					cipher_code = 0x05;
+					key_vec.resize(192 / 8);
+				}
+				else
+				{
+					cipher_code = 0x0A;
+					key_vec.resize(256 / 8);
+				}
+				key_generator::get_instance().generate(ivec.data(), ivec.size());
+				key_generator::get_instance().generate(key_vec.data(), key_vec.size());
+				encryptor = std::unique_ptr<stream_encryptor>(new aes_cfb128_encryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
+				decryptor = std::unique_ptr<stream_decryptor>(new aes_cfb128_decryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
+				return true;
+			}
+			else if (std::strcmp(cipher_name.c_str() + 8, "cfb8") == 0)
+			{
+				// aes-xxx-cfb8
+				if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "128"))
+				{
+					cipher_code = 0x01;
+					key_vec.resize(128 / 8);
+				}
+				else if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "192"))
+				{
+					cipher_code = 0x06;
+					key_vec.resize(192 / 8);
+				}
+				else
+				{
+					cipher_code = 0x0B;
+					key_vec.resize(256 / 8);
+				}
+				key_generator::get_instance().generate(ivec.data(), ivec.size());
+				key_generator::get_instance().generate(key_vec.data(), key_vec.size());
+				encryptor = std::unique_ptr<stream_encryptor>(new aes_cfb8_encryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
+				decryptor = std::unique_ptr<stream_decryptor>(new aes_cfb8_decryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
+				return true;
+			}
+			else if (std::strcmp(cipher_name.c_str() + 8, "cfb1") == 0)
+			{
+				// aes-xxx-cfb1
+				if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "128"))
+				{
+					cipher_code = 0x02;
+					key_vec.resize(128 / 8);
+				}
+				else if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "192"))
+				{
+					cipher_code = 0x07;
+					key_vec.resize(192 / 8);
+				}
+				else
+				{
+					cipher_code = 0x0C;
+					key_vec.resize(256 / 8);
+				}
+				key_generator::get_instance().generate(ivec.data(), ivec.size());
+				key_generator::get_instance().generate(key_vec.data(), key_vec.size());
+				encryptor = std::unique_ptr<stream_encryptor>(new aes_cfb1_encryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
+				decryptor = std::unique_ptr<stream_decryptor>(new aes_cfb1_decryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
+				return true;
+			}
+			else if (std::strcmp(cipher_name.c_str() + 8, "ofb") == 0)
+			{
+				// aes-xxx-ofb
+				if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "128"))
+				{
+					cipher_code = 0x03;
+					key_vec.resize(128 / 8);
+				}
+				else if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "192"))
+				{
+					cipher_code = 0x08;
+					key_vec.resize(192 / 8);
+				}
+				else
+				{
+					cipher_code = 0x0D;
+					key_vec.resize(256 / 8);
+				}
+				key_generator::get_instance().generate(ivec.data(), ivec.size());
+				key_generator::get_instance().generate(key_vec.data(), key_vec.size());
+				encryptor = std::unique_ptr<stream_encryptor>(new aes_ofb128_encryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
+				decryptor = std::unique_ptr<stream_decryptor>(new aes_ofb128_decryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
+				return true;
+			}
+			// else if (std::strcmp(cipher_name.c_str() + 8, "ctr") == 0)
+			// {
+			// 	// aes-xxx-ctr
+			// 	if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "128"))
+			// 	{
+			// 		cipher_code = 0x04;
+			// 		key_vec.resize(128 / 8);
+			// 	}
+			// 	else if (std::equal(cipher_name.begin() + 4, cipher_name.begin() + 7, "192"))
+			// 	{
+			// 		cipher_code = 0x09;
+			// 		key_vec.resize(192 / 8);
+			// 	}
+			// 	else
+			// 	{
+			// 		cipher_code = 0x0E;
+			// 		key_vec.resize(256 / 8);
+			// 	}
+			// 	std::fill(ivec.begin(), ivec.end(), 0);
+			// 	key_generator::get_instance().generate(key_vec.data(), key_vec.size());
+			// 	this->encryptor = std::unique_ptr<stream_encryptor>(new aes_ctr128_encryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
+			// 	this->decryptor = std::unique_ptr<stream_decryptor>(new aes_ctr128_decryptor(key_vec.data(), key_vec.size() * 8, ivec.data()));
+			// }
+			// 7 ~ 22 ivec
+			// 23 ~ key
+			return false;
+		}
+	};
+	
 } // namespace azure_proxy
 
 #endif
