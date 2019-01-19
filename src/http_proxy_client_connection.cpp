@@ -30,7 +30,7 @@ namespace azure_proxy
 		connection_count(in_connection_count),
 		logger_prefix("connection " +std::to_string(connection_count) + ": ")
 	{
-
+		_request_time = std::chrono::system_clock::now();
 		http_proxy_client_stat::get_instance().increase_current_connections();
 		logger->info("{} new connection come! total connection count {}", logger_prefix, http_proxy_client_stat::get_instance().get_current_connections());
 	}
@@ -189,7 +189,7 @@ namespace azure_proxy
 				{
 					http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
 					this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
-					logger->debug("{} decrypt server data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::sum(downgoing_buffer_write.data(), bytes_transferred));
+					logger->debug("{} decrypt server data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::checksum(downgoing_buffer_write.data(), bytes_transferred));
 					this->on_proxy_server_data_arrived(bytes_transferred);
 				}
 				else
@@ -339,7 +339,7 @@ namespace azure_proxy
 			this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, bytes_transferred);
 			return;
 		}
-		if (!_http_response_parser.append_input(reinterpret_cast<const unsigned char*>(downgoing_buffer_write.data()), bytes_transferred))
+		if (!_response_parser.append_input(reinterpret_cast<const unsigned char*>(downgoing_buffer_write.data()), bytes_transferred))
 		{
 			report_error("400", "Bad request", "buffer overflow");
 			return;
@@ -347,7 +347,7 @@ namespace azure_proxy
 		std::uint32_t send_buffer_size = 0;
 		while (true)
 		{
-			auto cur_parse_result = _http_response_parser.parse();
+			auto cur_parse_result = _response_parser.parse();
 			if (cur_parse_result.first >= http_parser_result::parse_error)
 			{
 				report_error(cur_parse_result.first);
@@ -355,22 +355,28 @@ namespace azure_proxy
 			}
 			else if (cur_parse_result.first == http_parser_result::read_one_header)
 			{
-				auto cur_header_counter = _http_response_parser._header.get_header_value("header_counter");
+				auto cur_header_counter = _response_parser._header.get_header_value("header_counter");
 				if (cur_header_counter)
 				{
 					logger->info("request {0} back", cur_header_counter.value());
 				}
-				_http_response_parser._header.erase_header("header_counter");
-				if (_http_request_parser._header.method() == "CONNECT" && _http_response_parser._header.status_code() == 200)
+				_response_parser._header.erase_header("header_counter");
+				if (_request_parser._header.method() == "CONNECT" && _response_parser._header.status_code() == 200)
 				{
 					connection_state = proxy_connection_state::tunnel_transfer;
 				}
-				auto header_data = _http_response_parser._header.encode_to_data();
+				auto header_data = _response_parser._header.encode_to_data();
 				//logger->trace("{} read proxy response header data {}", logger_prefix, header_data);
-				_http_request_parser.reset_header();
-				
 				std::copy(header_data.begin(), header_data.end(), downgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += header_data.size();
+				auto _response_time = std::chrono::system_clock::now();
+				std::chrono::duration<double> elapsed_seconds = _response_time - _request_time;
+				if (elapsed_seconds.count() > 0.5)
+				{
+					logger->warn("{} response for host {} cost {} seconds", logger_prefix, _request_parser._header.host(), elapsed_seconds.count());
+				}
+				_request_parser.reset_header();
+
 			}
 			else if (cur_parse_result.first == http_parser_result::read_some_content)
 			{
@@ -379,7 +385,7 @@ namespace azure_proxy
 			}
 			else if(cur_parse_result.first == http_parser_result::read_content_end)
 			{
-				_http_response_parser.reset_header();
+				_response_parser.reset_header();
 				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), downgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += cur_parse_result.second.size();
 			}
@@ -406,13 +412,13 @@ namespace azure_proxy
 		static std::atomic<uint32_t> header_counter = 0;
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
-			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::sum(upgoing_buffer_read.data(), bytes_transferred));
+			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::checksum(upgoing_buffer_read.data(), bytes_transferred));
 			encryptor->encrypt(reinterpret_cast<const unsigned char*>(upgoing_buffer_read.data()), reinterpret_cast<unsigned char*>(upgoing_buffer_write.data()), bytes_transferred);
 			async_write_data_to_proxy_server(upgoing_buffer_write.data(), 0, bytes_transferred);
 			return;
 
 		}
-		if (!_http_request_parser.append_input(reinterpret_cast<const unsigned char*>(&upgoing_buffer_read[0]), bytes_transferred))
+		if (!_request_parser.append_input(reinterpret_cast<const unsigned char*>(&upgoing_buffer_read[0]), bytes_transferred))
 		{
 			report_error("400", "Bad request", "buffer overflow");
 			return;
@@ -420,7 +426,7 @@ namespace azure_proxy
 		std::uint32_t send_buffer_size = 0;
 		while (true)
 		{
-			auto cur_parse_result = _http_request_parser.parse();
+			auto cur_parse_result = _request_parser.parse();
 			//logger->trace("{} after one parse status is {}", logger_prefix, _http_request_parser.status());
 			if (cur_parse_result.first >= http_parser_result::parse_error)
 			{
@@ -429,11 +435,12 @@ namespace azure_proxy
 			}
 			else if (cur_parse_result.first == http_parser_result::read_one_header)
 			{
-				_http_request_parser._header.set_header_counter(std::to_string(header_counter++));
-				auto header_data = _http_request_parser._header.encode_to_data();
+				_request_parser._header.set_header_counter(std::to_string(header_counter++));
+				auto header_data = _request_parser._header.encode_to_data();
 				//logger->trace("{} read ua request header data {}", logger_prefix, header_data);
 				std::copy(header_data.begin(), header_data.end(), upgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += header_data.size();
+				_request_time = std::chrono::system_clock::now();
 			}
 			else if (cur_parse_result.first == http_parser_result::read_some_content)
 			{
@@ -453,7 +460,7 @@ namespace azure_proxy
 		}
 		if (send_buffer_size)
 		{
-			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, send_buffer_size, aes_generator::sum(upgoing_buffer_write.data(), send_buffer_size));
+			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, send_buffer_size, aes_generator::checksum(upgoing_buffer_write.data(), send_buffer_size));
 			encryptor->transform(reinterpret_cast<unsigned char*>(upgoing_buffer_write.data()), send_buffer_size, 256);
 			this->async_write_data_to_proxy_server(this->upgoing_buffer_write.data(), 0, send_buffer_size);
 		}

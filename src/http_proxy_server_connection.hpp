@@ -52,6 +52,7 @@ class http_proxy_server_connection : public std::enable_shared_from_this<http_pr
 	http_response_parser _response_parser;
 	const std::uint32_t connection_count;
 	const std::string logger_prefix;
+	decltype(std::chrono::system_clock::now()) _request_time;
 private:
 
 	http_proxy_server_connection(asio::ip::tcp::socket&& proxy_client_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count);

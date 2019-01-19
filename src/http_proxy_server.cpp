@@ -36,9 +36,9 @@ void http_proxy_server::run()
 	this->acceptor.listen(asio::socket_base::max_connections);
 	
 	auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-	console_sink->set_level(spdlog::level::trace);
+	console_sink->set_level(config.get_console_log_level());
 	auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(config.get_log_file_name(), true);
-	file_sink->set_level(spdlog::level::trace);
+	file_sink->set_level(config.get_file_log_level());
 	this->logger = std::make_shared<spdlog::logger>(std::string("ahps"), spdlog::sinks_init_list{ console_sink, file_sink });
 	this->logger->set_level(config.get_log_level());
 	connection_count = 0;

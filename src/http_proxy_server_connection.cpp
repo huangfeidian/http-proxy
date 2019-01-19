@@ -38,6 +38,7 @@ namespace azure_proxy
 		logger_prefix("connection " + std::to_string(connection_count) + ": ")
 	{
 		this->connection_context.connection_state = proxy_connection_state::read_cipher_data;
+		_request_time = std::chrono::system_clock::now();
 	}
 
 	http_proxy_server_connection::~http_proxy_server_connection()
@@ -152,7 +153,7 @@ namespace azure_proxy
 					}
 					else
 					{
-						logger->warn("{} report error at {}", logger_prefix, "async_connect_to_origin_server");
+						logger->error("{} cant connect to host {} port {}", logger_prefix, _request_parser._header.host(), _request_parser._header.port());
 						this->on_error(error);
 					}
 				}
@@ -417,7 +418,7 @@ namespace azure_proxy
 		}
 		assert(this->encryptor != nullptr && this->decryptor != nullptr);
 		this->decryptor->decrypt(upgoing_buffer_read.data(), upgoing_buffer_write.data(), bytes_transferred);
-		logger->debug("{} decrypt client data size {} hash {}", logger_prefix, bytes_transferred, aes_generator::sum(upgoing_buffer_write.data(), bytes_transferred));
+		logger->debug("{} decrypt client data size {} hash {}", logger_prefix, bytes_transferred, aes_generator::checksum(upgoing_buffer_write.data(), bytes_transferred));
 		//logger->trace("{} data is {}", logger_prefix, std::string(reinterpret_cast<const char*>(upgoing_buffer_write.data()), bytes_transferred));
 		if (this->connection_context.connection_state == proxy_connection_state::tunnel_transfer)
 		{
@@ -442,6 +443,7 @@ namespace azure_proxy
 			}
 			else if (cur_parse_result.first == http_parser_result::read_one_header)
 			{
+				_request_time = std::chrono::system_clock::now();
 				auto cur_header_counter = _request_parser._header.get_header_value("header_counter");
 				if (cur_header_counter)
 				{
@@ -519,7 +521,7 @@ namespace azure_proxy
 		logger->debug("{} on_origin_server_data_arrived size {}", logger_prefix, bytes_transferred);
 		if (this->connection_context.connection_state == proxy_connection_state::tunnel_transfer)
 		{
-			logger->debug("{} encrypt origin server data size {} hash {}", logger_prefix, bytes_transferred, aes_generator::sum(downgoing_buffer_read.data(), bytes_transferred));
+			logger->debug("{} encrypt origin server data size {} hash {}", logger_prefix, bytes_transferred, aes_generator::checksum(downgoing_buffer_read.data(), bytes_transferred));
 			this->encryptor->encrypt(downgoing_buffer_read.data(), downgoing_buffer_write.data(), bytes_transferred);
 			this->async_write_data_to_proxy_client(reinterpret_cast<const char*>(downgoing_buffer_write.data()), 0, bytes_transferred);
 			return;
@@ -552,6 +554,12 @@ namespace azure_proxy
 				std::copy(header_data.begin(), header_data.end(), downgoing_buffer_write.data() + send_buffer_size);
 				send_buffer_size += header_data.size();
 				this->connection_context.connection_state = proxy_connection_state::write_http_response_header;
+				auto _response_time = std::chrono::system_clock::now();
+				std::chrono::duration<double> elapsed_seconds = _response_time - _request_time;
+				if (elapsed_seconds.count() > 0.5)
+				{
+					logger->warn("{} response for host {} cost {} seconds", logger_prefix, _request_parser._header.host(), elapsed_seconds.count());
+				}
 			}
 			else if (cur_parse_result.first == http_parser_result::read_some_content)
 			{
@@ -576,7 +584,7 @@ namespace azure_proxy
 		}
 		if (send_buffer_size)
 		{
-			logger->debug("{} encrypt origin server data size {} hash {}", logger_prefix, send_buffer_size, aes_generator::sum(downgoing_buffer_write.data(), send_buffer_size));
+			logger->debug("{} encrypt origin server data size {} hash {}", logger_prefix, send_buffer_size, aes_generator::checksum(downgoing_buffer_write.data(), send_buffer_size));
 			this->encryptor->encrypt(downgoing_buffer_write.data(), downgoing_buffer_write.data(), send_buffer_size);
 			this->async_write_data_to_proxy_client(reinterpret_cast<const char*>(this->downgoing_buffer_write.data()), 0, send_buffer_size);
 		}
@@ -700,7 +708,7 @@ namespace azure_proxy
 
 	void http_proxy_server_connection::on_timeout()
 	{
-		logger->warn("{} connection timeout", logger_prefix);
+		logger->warn("{} connection to {} timeout", logger_prefix, _request_parser._header.host());
 		error_code ec;
 		if (this->origin_server_socket.is_open())
 		{

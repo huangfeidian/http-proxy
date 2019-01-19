@@ -128,13 +128,16 @@ namespace azure_proxy {
 		else {
 			set_config_value("workers", 4);
 		}
-		if (json_obj.find("log_level") != json_obj.end())
+		for (const auto& one_log_level : { "log_level", "console_log_level", "file_log_level" })
 		{
-			set_config_value("log_level", int(spdlog::level::from_str(json_obj["log_level"])));
-		}
-		else
-		{
-			set_config_value("log_level", int(spdlog::level::level_enum::off));
+			if (json_obj.find(one_log_level) != json_obj.end())
+			{
+				set_config_value(one_log_level, int(spdlog::level::from_str(json_obj[one_log_level])));
+			}
+			else
+			{
+				set_config_value(one_log_level, int(spdlog::level::level_enum::off));
+			}
 		}
 		if (json_obj.find("log_file") != json_obj.end())
 		{
@@ -213,6 +216,14 @@ namespace azure_proxy {
 	spdlog::level::level_enum http_proxy_server_config::get_log_level() const
 	{
 		return spdlog::level::level_enum(this->get_config_value<int>("log_level"));
+	}
+	spdlog::level::level_enum http_proxy_server_config::get_console_log_level() const
+	{
+		return spdlog::level::level_enum(this->get_config_value<int>("console_log_level"));
+	}
+	spdlog::level::level_enum http_proxy_server_config::get_file_log_level() const
+	{
+		return spdlog::level::level_enum(this->get_config_value<int>("file_log_level"));
 	}
 	std::string http_proxy_server_config::get_log_file_name() const
 	{

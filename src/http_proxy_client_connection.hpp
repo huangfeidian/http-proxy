@@ -56,12 +56,13 @@ namespace azure_proxy
 		std::shared_ptr<spdlog::logger> logger;
 		const std::uint32_t connection_count;
 		const std::string logger_prefix;
+		decltype(std::chrono::system_clock::now()) _request_time;
 		http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
 	private:
 
 		// trace header
-		http_request_parser _http_request_parser;
-		http_response_parser _http_response_parser;
+		http_request_parser _request_parser;
+		http_response_parser _response_parser;
 	public:
 		~http_proxy_client_connection();
 		static std::shared_ptr<http_proxy_client_connection> create(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);

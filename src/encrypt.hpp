@@ -13,6 +13,7 @@
 #include <memory>
 #include <stdexcept>
 #include <vector>
+#include <numeric>
 #include "key_generator.hpp"
 extern "C" {
 #include <openssl/aes.h>
@@ -614,18 +615,15 @@ namespace azure_proxy
 			// 23 ~ key
 			return false;
 		}
-		static std::uint64_t sum(const unsigned char* begin, std::uint32_t length)
+		static std::uint64_t checksum(const unsigned char* begin, std::uint32_t length)
 		{
 			std::uint64_t total = 0;
-			for (int i = 0; i < length; i++)
-			{
-				total += *(begin + i);
-			}
+			return std::accumulate(begin, begin + length, total);
 			return total;
 		}
-		static std::uint64_t sum(const char* begin, std::uint32_t length)
+		static std::uint64_t checksum(const char* begin, std::uint32_t length)
 		{
-			return sum(reinterpret_cast<const unsigned char*>(begin), length);
+			return checksum(reinterpret_cast<const unsigned char*>(begin), length);
 		}
 	};
 	

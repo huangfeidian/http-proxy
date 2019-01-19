@@ -1,0 +1,21 @@
+{
+    "bind_address": "0.0.0.0",
+    "listen_port": 8090,
+    "rsa_private_key": "-----BEGIN RSA PRIVATEKEY-----\nMIIEowIBAAKCAQEApcXguJX8PB7O6e6mOdXFYtMDUpDMdhrFWpeUkjnstMr21Qyh\npGJVbOWUKLOBHsOgeZq5oP7/QFhGmAcGWoRAQnrx0v5nEyQERnP8VUEhS/XOZPIz\nxs7+I7ogQ13YdmJP7CAraaMyjI1Zbtgqn60mIuZ+blmeIa2j1dsNOhCzT637+O2+\n9PO3Rg6q6Y7ZceaWSX+ZjF/jg0c6fsbo6ic/3EdxzOOhlTs0F7eENS1Sq9cqeLCK\nsK5Q1OmtwwfMKDvU5WcsjLD2kzx/74aCjUvtfW5TQdy66A2tWnpzmbsYC7gqreIb\naGKDgxx2xnqYWvIDidrYgBKSgdfMNdScsiBvGQIBJQKCAQEAhmkXEjRrpl4rOjce\n/nX5/RnLV7OsssmZGQVIB9vwWzzIIl1Eynk+WEtxNcH5/USroN5RUhrczGNAKD0M\nEgpdna/K/hphaXcmD5xQDcYa/1GuRAKmhYU8wwWdnmfERE+2bG0cR9BuLMWidYys\n8CuGtIOJGzPn/6GLwic7KCk3cQhGL001sxfWrptPbTGEnK+EFfeGc7l1ezHMevef\nxev5hCUXQAxcJ3EWO+4gPbi80GR65y5pjBLYzBO0iPfYcPVILHFP1wldOghjTIAl\nfqqi3f4SLBsqRSO//O3tfOcsnasNY4x/kbSpVzXX22dLv4cQQvdDPgkkqBxAUih8\nMYG45QKBgQD+9zvwmziTVSiNmpqTPyeBANLXsXI110mPQtVOBXUCj4sCzv2m28lK\n0NdjMwg/a5q8/r5y2LeEBDYXAfXU8F8bTbLiYnoWZfrFBRfsHcPsNV28Io/Q1iZV\nI1iTHsLTOWQjIlp8bnKcRvs1dBtv/AdMQ7Fywle8heZNsEZd5q9hTwKBgQCmcgXH\n2rdW5lnD4eHeYG8lk/t55c02YNnZtVnNTnWaoTla2ZJ4AERN2tQKT58ZUEkJGI4v\nRM59KlcE5PFbNRScT9M0ft6GzBVAcns0/fnSAxL4LStpIwgNkECzC5bjIO//kMC9\nX9Vapedhw8Yo0JDwBKMbV55+G4piZH5ybD//FwKBgQCefgKqUqagxjvNpUtUnOE0\ng/ivl9FfvS2560ZTGCYkL7dG719nuQ5sxwJuGM3Gjv9S44sky+ey7dxvKrtosRiG\nmBVAnhSKdr56eMmuc14dNe4o1zbN7OdlWyk428U3MYNvyT8qwTJ80i10QUF89pzA\ntHU5f7n/kYFS4zKpEtu5BwKBgFD5Mz6hwPnX2KR7uf17BaOUGXmSY9VD35pYOYZ5\nMks5rTMdvOBu1R701duArkOqhGVKN1VEEW1S3jm7fFXieLq/DM1uJxElA2t19r/V\ngHQBftmZbxCNlTcH6B/AcusJGs9bLVU1imNzTfg1ulkLhMfK55DC13uesgZaZwc7\nlMFJAoGBAI/j+iRwhWJ3BZolPy4aof/3+4bo7ss0QVVXTmmHhpRV/d3yDFqvGGq6\nVEPXqk6MwbiBACXzQTHNsQdZ/7rUyqGkrBzNJqETTLCeGrD4QlyABaxX3uwRBccS\nT/Q3xLyBq2u7Oru/1scBXW8NCAZ9ELY7c+rrvJHZoVy/FvsewV8d\n-----END RSA PRIVATE KEY-----",
+    "timeout": 240,
+    "workers": 4,
+    "auth": true,
+    "users": [
+        {
+            "username": "username1",
+            "password": "password1"
+        },
+        {
+            "username": "foobar",
+            "password": "bazqux"
+        }
+    ],
+    "log_level": "debug",
+    "console_log_level": "warn",
+    "file_log_level": "info"
+}

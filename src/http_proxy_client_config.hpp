@@ -41,6 +41,8 @@ namespace azure_proxy
 		int get_timeout() const;
 		int get_workers() const;
 		spdlog::level::level_enum get_log_level() const;
+		spdlog::level::level_enum get_console_log_level() const;
+		spdlog::level::level_enum get_file_log_level() const;
 		std::string get_log_file_name() const;
 		static http_proxy_client_config& get_instance();
 	};
