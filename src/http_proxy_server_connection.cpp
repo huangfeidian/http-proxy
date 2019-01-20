@@ -370,7 +370,7 @@ namespace azure_proxy
 					}
 					else
 					{
-						logger->warn("{} report error at {}", logger_prefix, "on_resolved");
+						logger->warn("{} fail to connect origin server {}", logger_prefix, _request_parser._header.host());
 						this->on_error(error);
 					}
 				}

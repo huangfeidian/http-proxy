@@ -99,12 +99,14 @@ namespace azure_proxy
 		rsa rsa_pub(http_proxy_client_config::get_instance().get_rsa_public_key());
 		if (rsa_pub.modulus_size() < 128)
 		{
+			logger->warn("{} invalid rsa public key", logger_prefix);
 			return;
 		}
 
 		this->encrypted_cipher_info.resize(rsa_pub.modulus_size());
 		if (this->encrypted_cipher_info.size() != rsa_pub.encrypt(cipher_info_raw.size(), cipher_info_raw.data(), this->encrypted_cipher_info.data(), rsa_padding::pkcs1_oaep_padding))
 		{
+			logger->warn("{} invalid rsa encrypt size", logger_prefix);
 			return;
 		}
 
@@ -130,6 +132,7 @@ namespace azure_proxy
 							}
 							else
 							{
+								logger->warn("{} fail to connect to proxy server {} port {}", logger_prefix, http_proxy_client_config::get_instance().get_proxy_server_address(), http_proxy_client_config::get_instance().get_proxy_server_port());
 								this->on_error(error);
 							}
 						}
@@ -137,6 +140,7 @@ namespace azure_proxy
 				}
 				else
 				{
+					logger->warn("{} fail to resolve proxy server {}", logger_prefix, http_proxy_client_config::get_instance().get_proxy_server_address());
 					this->on_error(error);
 				}
 			}
@@ -287,7 +291,6 @@ namespace azure_proxy
 	{
 		logger->info("{} connected to proxy server established", logger_prefix);
 		this->async_write_data_to_proxy_server(reinterpret_cast<const char*>(this->encrypted_cipher_info.data()), 0, this->encrypted_cipher_info.size());
-		logger->info("{} send cipher to server size {}", logger_prefix, this->encrypted_cipher_info.size());
 		this->async_read_data_from_proxy_server(false);
 	}
 

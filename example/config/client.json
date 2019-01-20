@@ -1,13 +1,13 @@
 {
     "proxy_server_address": "127.0.0.1",
-    "proxy_server_port": 8090,
+    "proxy_server_port": 1899,
     "bind_address": "127.0.0.1",
-    "listen_port": 8089,
-    "rsa_public_key": "---- BEGIN SSH2 PUBLIC KEY ----\nAAAAB3NzaC1yc2EAAAABJQAAAQEApcXguJX8PB7O6e6mOdXFYtMDUpDMdhrFWpeU\nkjnstMr21QyhpGJVbOWUKLOBHsOgeZq5oP7/QFhGmAcGWoRAQnrx0v5nEyQERnP8\nVUEhS/XOZPIzxs7+I7ogQ13YdmJP7CAraaMyjI1Zbtgqn60mIuZ+blmeIa2j1dsN\nOhCzT637+O2+9PO3Rg6q6Y7ZceaWSX+ZjF/jg0c6fsbo6ic/3EdxzOOhlTs0F7eE\nNS1Sq9cqeLCKsK5Q1OmtwwfMKDvU5WcsjLD2kzx/74aCjUvtfW5TQdy66A2tWnpz\nmbsYC7gqreIbaGKDgxx2xnqYWvIDidrYgBKSgdfMNdScsiBvGQ==\n---- END SSH2 PUBLIC KEY ----",
+    "listen_port": 1898,
+    "rsa_public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAokBkhbNcpAk2KTi3bSbO\nw1x9pgUxetqdPr5r17ciB1yJ3isjVNJjeAYilYjxNwYNObthRKKJWMbbcNt3HTld\nMzWubY4oQDgTErDlqJU5G+BJqB1vUeH0yRoiNHyN2aIY2SR8Nptt+1B2x3cltho0\ngiUD/8/xuI06jFXhuOvrClOML/lDFP6J2WoJD+hgWuxTqfhA1QvizpFy9U0MT1HW\nBTbF39NqcJwYv2cIpaHw7b+NTTcRbmh6tnK3CPk+yJuNX//Frx35fb0hhTqQ2Dmi\nUzG41Mnm064IZQWwYwar4LlOie+Jke5u7dUycIoCnnA5QHi5ARlMX8fMIk3kw/cK\nAQIDAQAB\n-----END PUBLIC KEY-----",
     "cipher": "aes-256-ofb",
     "timeout": 240,
     "workers": 2,
-    "log_level": "debug",
+    "log_level": "info",
     "console_log_level": "warn",
     "file_log_level": "info"
 }
