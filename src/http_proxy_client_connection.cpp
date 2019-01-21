@@ -162,6 +162,7 @@ namespace azure_proxy
 			{
 				if (!error)
 				{
+					http_proxy_client_stat::get_instance().on_upgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
 					this->on_user_agent_data_arrived(bytes_transferred);
 				}
 				else
