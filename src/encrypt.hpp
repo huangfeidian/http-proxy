@@ -27,7 +27,7 @@ namespace azure_proxy
 	class stream_encryptor
 	{
 	public:
-		virtual void encrypt(const unsigned char* in, unsigned unsigned char* out, std::size_t length) = 0;
+		virtual void encrypt(const unsigned char* in, unsigned char* out, std::size_t length) = 0;
 		void transform(unsigned char* data, std::size_t length, std::size_t block_size)
 		{
 			std::vector<unsigned char> temp_buffer(block_size, 0);
@@ -43,7 +43,7 @@ namespace azure_proxy
 			}
 
 		}
-		void copy(const unsigned char* in, unsigned unsigned char* out, std::size_t length)
+		void copy(const unsigned char* in, unsigned char* out, std::size_t length)
 		{
 			assert(in && out);
 			std::memcpy(out, in, length);
@@ -60,7 +60,7 @@ namespace azure_proxy
 		virtual ~stream_decryptor()
 		{
 		}
-		void copy(const unsigned char* in, unsigned unsigned char* out, std::size_t length)
+		void copy(const unsigned char* in, unsigned char* out, std::size_t length)
 		{
 			assert(in && out);
 			std::memcpy(out, in, length);

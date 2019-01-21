@@ -12,7 +12,11 @@
 #include <unordered_set>
 #include "http_header_parser.hpp"
 #include <optional>
+#ifdef _MSC_VER
 #include <charconv>
+#else
+#include <exception>
+#endif 
 
 
 namespace azure_proxy
@@ -58,8 +62,9 @@ namespace azure_proxy
 			*iter = std::tolower(static_cast<char>(*iter));
 		}
 	}
+#ifdef _MSC_VER
 	template<typename T>
-	std::optional<T> try_prase_unsigned_int(const std::string& _text)
+	std::optional<T> try_parse_unsigned_int(const std::string& _text)
 	{
 		T result;
 		if (auto[p, ec] = std::from_chars(_text.c_str(), _text.c_str() + _text.size(), result); ec == std::errc())
@@ -69,6 +74,51 @@ namespace azure_proxy
 		return std::nullopt;
 
 	}
+#else
+	template<typename T>
+	std::optional<T> try_parse_unsigned_int(const std::string& text)
+	{
+		return std::nullopt;
+	}
+	template <>
+	std::optional<std::uint32_t> try_parse_unsigned_int<std::uint32_t>(const std::string& text)
+	{
+		try
+		{
+			std::size_t pos = 0;
+			auto result = std::stoul(text, &pos);
+			if (pos != text.size())
+			{
+				return std::nullopt;
+			}
+			return result;
+		}
+		catch (const std::exception&)
+		{
+			return std::nullopt;
+		}
+	}
+	template <>
+	std::optional<std::uint64_t> try_parse_unsigned_int<std::uint64_t>(const std::string& text)
+	{
+		try
+		{
+			std::size_t pos = 0;
+			auto result = std::stoull(text, &pos);
+			if (pos != text.size())
+			{
+				return std::nullopt;
+			}
+			return result;
+		}
+		catch (const std::exception&)
+		{
+			return std::nullopt;
+		}
+	}
+#endif // _MSC_VER
+
+	
 	std::tuple<std::uint32_t, std::string, std::string> from_praser_result_to_description(http_parser_result cur_result)
 	{
 		switch (cur_result)
@@ -556,7 +606,7 @@ namespace azure_proxy
 				return http_parser_result::buffer_overflow;
 			}
 			header._host = match_results[1];
-			auto port_result = try_prase_unsigned_int<std::uint32_t>(std::string(match_results[2]));
+			auto port_result = try_parse_unsigned_int<std::uint32_t>(std::string(match_results[2]));
 			if (!port_result)
 			{
 				return http_parser_result::buffer_overflow;
@@ -579,7 +629,7 @@ namespace azure_proxy
 			header._host = match_results[2];
 			if (match_results[4].matched)
 			{
-				auto port_result = try_prase_unsigned_int<std::uint32_t>(std::string(match_results[4]));
+				auto port_result = try_parse_unsigned_int<std::uint32_t>(std::string(match_results[4]));
 				if (!port_result)
 				{
 					return http_parser_result::buffer_overflow;
@@ -660,7 +710,7 @@ namespace azure_proxy
 			return http_parser_result::buffer_overflow;
 		}
 
-		auto status_result = try_prase_unsigned_int<std::uint32_t>(std::string(std::string(tmp, iter)));
+		auto status_result = try_parse_unsigned_int<std::uint32_t>(std::string(std::string(tmp, iter)));
 		if (!status_result)
 		{
 			return http_parser_result::buffer_overflow;
@@ -791,7 +841,7 @@ namespace azure_proxy
 				auto transfer_encoding_value = _header.get_header_value("Transfer-Encoding");
 				if (content_length_value)
 				{
-					auto length_opt = try_prase_unsigned_int<std::uint64_t>(content_length_value.value());
+					auto length_opt = try_parse_unsigned_int<std::uint64_t>(content_length_value.value());
 					if (!length_opt)
 					{
 						return std::make_pair(http_parser_result::bad_request, std::string_view());
@@ -938,7 +988,7 @@ namespace azure_proxy
 			auto transfer_encoding_value = _header.get_header_value("Transfer-Encoding");
 			if (content_length_value)
 			{
-				auto length_opt = try_prase_unsigned_int<std::uint64_t>(content_length_value.value());
+				auto length_opt = try_parse_unsigned_int<std::uint64_t>(content_length_value.value());
 				if (!length_opt)
 				{
 					return std::make_pair(http_parser_result::bad_request, std::string_view());

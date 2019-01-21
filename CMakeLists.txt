@@ -15,27 +15,18 @@ find_package(spdlog CONFIG REQUIRED)
 INCLUDE_DIRECTORIES(${spdlog_include_dirs})
 
 if(ASIO_STANDALONE)
-# set(ASIO_DIR "C:\\Users\\hhln4510\\Documents\\Github\\asio\\asio\\include")
-set(ASIO_DIR "D:\\Github\\asio-1.10.6\\include")
+set(ASIO_DIR "C:\\Users\\hhln4510\\Documents\\Github\\asio\\asio\\include")
+# set(ASIO_DIR "D:\\Github\\asio-1.10.6\\include")
 include_directories(${ASIO_DIR})
 add_definitions(-DASIO_STANDALONE)
 add_definitions(-DASIO_MSVC)
 else()
-find_package(Boost REQUIRED COMPONENTS system regex)
+find_package(Boost REQUIRED COMPONENTS system regex asio)
 include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIR})
 endif()
 
-
-
-
-
-if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-  add_definitions(-DBOOST_ASIO_HAS_MOVE)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
-endif()
+set(CMAKE_CXX_STANDARD 17)
 
 if(MSVC)
 add_definitions(-DBOOST_ASIO_HAS_MOVE)

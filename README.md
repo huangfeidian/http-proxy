@@ -21,40 +21,34 @@ Windows平台可以从 https://github.com/lxrite/azure-http-proxy/releases 下�
 
 ### 编译器
 
-AHP使用了部分C++11/14特性，所以对编译器的版本有较高要求，下面列出了部分已测试过可以用来编译AHP的编译器
+AHP使用了部分C++11/14/17特性，所以对编译器的版本有较高要求，下面列出了部分已测试过可以用来编译AHP的编译器
 
- - Microsoft Visual Studio >= 2013
- - GCC >= 4.9
- - Clang >= 3.4
+ - Microsoft Visual Studio >= 2015
+ - GCC >= 7.3.1
+ - Clang >= 4
  - MinGW >= 4.9
-
+09b7a6004ed6eeb90b27d5f4da7fc682bcc2c023 这个版本不需要c++17，如果编译器无法升级的话，请checkout这个版本。
 参考：http://en.cppreference.com/w/cpp/compiler_support
 ###本版本修改
 我的版本将原始版本对boost::any boost::optional的依赖都去除了，同时将原来的json依赖替换为了nlohmann 的json，https://github.com/nlohmann/json。
-引入了std::make_unique，经测试gcc 4.8已无法满足make_unique的，如需使用请升级到4.9.同时Visual Studio 2015可完美编译，Clang未测试。
+引入spdlog进行log追踪，系统自带的spdlog 版本是master版，与当前代码所用spdlog不匹配，需要使用者自行去github下载对应的develop版本 https://github.com/gabime/spdlog
+stand_alone的asio 也可以去github下载，https://github.com/chriskohlhoff/asio
 ### 安装依赖
 
-AHP依赖Boost和OpenSSL库，且要求Boost库版本不低于1.52
+AHP依赖OpenSSL库
 
-绝大多数Linux发行版都可以通过包管理安装Boost和OpenSSL
+绝大多数Linux发行版都可以通过包管理安装OpenSSL
 
 #### Ubuntu
 
-    $ apt-get install libboost-system-dev
-    $ apt-get install libboost-regex-dev
     $ apt-get install libssl-dev
 
 #### Fedora
-
-    $ yum install boost-devel
-    $ yum install boost-system
-    $ yum install boost-regex
     $ yum install openssl
     $ yum install openssl-devel
 
-Windows则需要自己编译Boost库，而OpenSSL库可以从 https://wiki.openssl.org/index.php/Binaries 下载到编译好的。
-#### 本版本修改
-已剥离对boost的依赖，并允许使用非boost版本的Asio.
+Windows OpenSSL库可以从 https://slproweb.com/products/Win32OpenSSL.html 下载到编译好的。
+
 ### 编译
 AHP使用自动化构建工具CMake来实现跨平台构建，构建时选择是否单独使用`ASIO`,如果使用这种模式请修改`CMakelist.txt`文件中`ASIO_DIR`的路径。
 
@@ -102,7 +96,10 @@ Windows下可以使用cmake-gui.exe，Linux或其他类Unix系统可以使用下
           "username": "foobar",
           "password": "bazqux"
         }
-      ]
+      ]，
+	  "log_level": "info",
+	  "console_log_level": "warning",
+	  "file_log_level": "info"
     }
 
 字段名          | 描述               | 是否必选         | 默认值    |
@@ -114,6 +111,9 @@ timeout         | 超时时间（秒）     | 否               | 240       |
 workers         | 并发工作线程数     | 否               | 4         |
 auth            | 启用代理身份验证   | 否               | false     |
 users           | 用户列表           | auth为true时必选 | 无        |
+log_level       | 日志等级           | 否               | off        |
+console_log_level       | 控制台输出日志等级           | 否               | off        |
+file_log_level       | 文件输出日志等级           | 否               | off        |
 
 如果是监听`ipv6`地址的话，则需要在地址那里填写"::"
 ### 配置客户端
@@ -129,7 +129,10 @@ users           | 用户列表           | auth为true时必选 | 无        |
       "rsa_public_key": "-----BEGIN PUBLIC KEY----- ...... -----END PUBLIC KEY-----",
       "cipher": "aes-256-ofb",
       "timeout": 240,
-      "workers": 2
+      "workers": 2,
+	 "log_level": "info",
+	  "console_log_level": "warning",
+	  "file_log_level": "info"
     }
 
 字段名               | 描述                 | 是否必选         | 默认值        |
@@ -142,6 +145,9 @@ rsa_public_key       | RSA公钥              | 是               | 无         
 cipher               | 加密方法             | 否               | "aes-256-ofb" |
 timeout              | 超时时间（秒）       | 否               | 240           |
 workers              | 并发工作线程数       | 否               | 2             |
+log_level       | 日志等级           | 否               | off        |
+console_log_level       | 控制台输出日志等级           | 否               | off        |
+file_log_level       | 文件输出日志等级           | 否               | off        |
 
 #### 支持的加密方法
 
