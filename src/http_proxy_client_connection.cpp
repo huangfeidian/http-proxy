@@ -18,17 +18,8 @@
 namespace azure_proxy
 {
 
-	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count) :
-		strand(ua_socket.get_io_service()),
-		user_agent_socket(std::move(ua_socket)),
-		proxy_server_socket(this->user_agent_socket.get_io_service()),
-		resolver(this->user_agent_socket.get_io_service()),
-		connection_state(proxy_connection_state::ready),
-		timer(this->user_agent_socket.get_io_service()),
-		timeout(std::chrono::seconds(http_proxy_client_config::get_instance().get_timeout())),
-		logger(in_logger),
-		connection_count(in_connection_count),
-		logger_prefix("connection " +std::to_string(connection_count) + ": ")
+	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count) :
+	http_proxy_connection(std::move(ua_socket), std::move(server_socket), in_logger, in_connection_count, http_proxy_client_config::get_instance().get_timeout())
 	{
 		_request_time = std::chrono::system_clock::now();
 		http_proxy_client_stat::get_instance().increase_current_connections();
@@ -40,12 +31,12 @@ namespace azure_proxy
 		http_proxy_client_stat::get_instance().decrease_current_connections();
 	}
 
-	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(asio::ip::tcp::socket&& ua_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count)
+	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count)
 	{
-		return std::shared_ptr<http_proxy_client_connection>(new http_proxy_client_connection(std::move(ua_socket), in_logger, in_connection_count));
+		return std::make_shared<http_proxy_client_connection>(std::move(ua_socket), in_logger, in_connection_count);
 	}
 
-	void http_proxy_client_connection::start()
+	bool http_proxy_client_connection::init_cipher()
 	{
 		std::array<unsigned char, 86> cipher_info_raw;
 		cipher_info_raw.fill(0);
@@ -88,7 +79,7 @@ namespace azure_proxy
 
 		if (!this->encryptor || !this->decryptor)
 		{
-			return;
+			return false;
 		}
 
 		// 5 cipher code
@@ -100,16 +91,28 @@ namespace azure_proxy
 		if (rsa_pub.modulus_size() < 128)
 		{
 			logger->warn("{} invalid rsa public key", logger_prefix);
-			return;
+			return false;
 		}
 
 		this->encrypted_cipher_info.resize(rsa_pub.modulus_size());
 		if (this->encrypted_cipher_info.size() != rsa_pub.encrypt(cipher_info_raw.size(), cipher_info_raw.data(), this->encrypted_cipher_info.data(), rsa_padding::pkcs1_oaep_padding))
 		{
 			logger->warn("{} invalid rsa encrypt size", logger_prefix);
+			return false;
+		}
+	}
+	void http_proxy_client_connection::start()
+	{
+
+		if(!init_cipher())
+		{
 			return;
 		}
-
+		async_connect_to_origin_server();
+		
+	}
+	void http_proxy_client_connection::async_connect_to_server()
+	{
 		auto self(this->shared_from_this());
 		asio::ip::tcp::resolver::query query(http_proxy_client_config::get_instance().get_proxy_server_address(), std::to_string(http_proxy_client_config::get_instance().get_proxy_server_port()));
 		this->connection_state = proxy_connection_state::resolve_proxy_server_address;
@@ -122,13 +125,13 @@ namespace azure_proxy
 				{
 					this->connection_state = proxy_connection_state::connecte_to_proxy_server;
 					this->set_timer();
-					this->proxy_server_socket.async_connect(*iterator, this->strand.wrap([this, self](const error_code& error)
+					this->server_socket.async_connect(*iterator, this->strand.wrap([this, self](const error_code& error)
 					{
 						if (this->cancel_timer())
 						{
 							if (!error)
 							{
-								this->on_connection_established();
+								this->on_server_connected();
 							}
 							else
 							{
@@ -147,14 +150,14 @@ namespace azure_proxy
 		});
 	}
 
-	void http_proxy_client_connection::async_read_data_from_user_agent(std::size_t at_least_size, std::size_t at_most_size)
+	void http_proxy_client_connection::async_read_data_from_client(std::size_t at_least_size, std::size_t at_most_size)
 	{
-		logger->debug("{} async_read_data_from_user_agent begin", logger_prefix);
+		logger->debug("{} async_read_data_from_client begin", logger_prefix);
 		auto self(this->shared_from_this());
 		this->set_timer();
 
-		asio::async_read(this->user_agent_socket,
-			asio::buffer(&this->upgoing_buffer_read[0], at_most_size),
+		asio::async_read(this->client_socket,
+			asio::buffer(&this->client_read_buffer[0], at_most_size),
 			asio::transfer_at_least(at_least_size),
 			this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
 		{
@@ -162,8 +165,7 @@ namespace azure_proxy
 			{
 				if (!error)
 				{
-					http_proxy_client_stat::get_instance().on_upgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-					this->on_user_agent_data_arrived(bytes_transferred);
+					this->on_client_data_arrived(bytes_transferred);
 				}
 				else
 				{
@@ -174,17 +176,17 @@ namespace azure_proxy
 		);
 	}
 
-	void http_proxy_client_connection::async_read_data_from_proxy_server(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
+	void http_proxy_client_connection::async_read_data_from_server(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
 	{
-		logger->debug("{} async_read_data_from_proxy_server begin", logger_prefix);
+		logger->debug("{} async_read_data_from_server begin", logger_prefix);
 		auto self(this->shared_from_this());
 		if (set_timer)
 		{
 			this->set_timer();
 		}
 		
-		asio::async_read(this->proxy_server_socket,
-			asio::buffer(&this->downgoing_buffer_read[0], at_most_size),
+		asio::async_read(this->server_socket,
+			asio::buffer(&this->server_read_buffer[0], at_most_size),
 			asio::transfer_at_least(at_least_size),
 			this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
 		{
@@ -192,10 +194,7 @@ namespace azure_proxy
 			{
 				if (!error)
 				{
-					http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-					this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->downgoing_buffer_read[0]), reinterpret_cast<unsigned char*>(&this->downgoing_buffer_write[0]), bytes_transferred);
-					logger->debug("{} decrypt server data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::checksum(downgoing_buffer_write.data(), bytes_transferred));
-					this->on_proxy_server_data_arrived(bytes_transferred);
+					this->on_server_data_arrived(bytes_transferred);
 				}
 				else
 				{
@@ -206,11 +205,11 @@ namespace azure_proxy
 		);
 	}
 
-	void http_proxy_client_connection::async_write_data_to_user_agent(const char* write_buffer, std::size_t offset, std::size_t size)
+	void http_proxy_client_connection::async_write_data_to_client(const char* write_buffer, std::size_t offset, std::size_t size)
 	{
 		auto self(this->shared_from_this());
 		this->set_timer();
-		this->user_agent_socket.async_write_some(asio::buffer(write_buffer + offset, size),
+		this->client_socket.async_write_some(asio::buffer(write_buffer + offset, size),
 			this->strand.wrap([this, self, write_buffer, offset, size](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer())
@@ -220,11 +219,11 @@ namespace azure_proxy
 					http_proxy_client_stat::get_instance().on_downgoing_send(static_cast<std::uint32_t>(bytes_transferred));
 					if (bytes_transferred < size)
 					{
-						this->async_write_data_to_user_agent(write_buffer, offset + bytes_transferred, size - bytes_transferred);
+						this->async_write_data_to_client(write_buffer, offset + bytes_transferred, size - bytes_transferred);
 					}
 					else
 					{
-						this->async_read_data_from_proxy_server();
+						this->async_read_data_from_server();
 					}
 				}
 				else
@@ -235,11 +234,11 @@ namespace azure_proxy
 		}));
 	}
 
-	void http_proxy_client_connection::async_write_data_to_proxy_server(const char* write_buffer, std::size_t offset, std::size_t size)
+	void http_proxy_client_connection::async_write_data_to_server(const char* write_buffer, std::size_t offset, std::size_t size)
 	{
 		auto self(this->shared_from_this());
 		this->set_timer();
-		this->proxy_server_socket.async_write_some(asio::buffer(write_buffer + offset, size),
+		this->server_socket.async_write_some(asio::buffer(write_buffer + offset, size),
 			this->strand.wrap([this, self, write_buffer, offset, size](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer())
@@ -249,11 +248,11 @@ namespace azure_proxy
 					http_proxy_client_stat::get_instance().on_upgoing_send(static_cast<std::uint32_t>(bytes_transferred));
 					if (bytes_transferred < size)
 					{
-						this->async_write_data_to_proxy_server(write_buffer, offset + bytes_transferred, size - bytes_transferred);
+						this->async_write_data_to_server(write_buffer, offset + bytes_transferred, size - bytes_transferred);
 					}
 					else
 					{
-						this->async_read_data_from_user_agent();
+						this->async_read_data_from_client();
 					}
 				}
 				else
@@ -265,85 +264,29 @@ namespace azure_proxy
 			);
 	}
 
-	void http_proxy_client_connection::set_timer()
-	{
-		if (this->timer.expires_from_now(this->timeout) != 0)
-		{
-			assert(false);
-		}
-		auto self(this->shared_from_this());
-		this->timer.async_wait(this->strand.wrap([this, self](const error_code& error)
-		{
-			if (error != asio::error::operation_aborted)
-			{
-				this->on_timeout();
-			}
-		}));
-	}
 
-	bool http_proxy_client_connection::cancel_timer()
-	{
-		std::size_t ret = this->timer.cancel();
-		assert(ret <= 1);
-		return ret == 1;
-	}
 
-	void http_proxy_client_connection::on_connection_established()
+	void http_proxy_client_connection::on_server_connected()
 	{
 		logger->info("{} connected to proxy server established", logger_prefix);
-		this->async_write_data_to_proxy_server(reinterpret_cast<const char*>(this->encrypted_cipher_info.data()), 0, this->encrypted_cipher_info.size());
-		this->async_read_data_from_proxy_server(false);
+		this->async_write_data_to_server(reinterpret_cast<const char*>(this->encrypted_cipher_info.data()), 0, this->encrypted_cipher_info.size());
+		this->async_read_data_from_server(false);
 	}
 
-	void http_proxy_client_connection::on_error(const error_code& error)
-	{
-		logger->warn("{} error shutdown connection {}", logger_prefix, error.message());
-		this->cancel_timer();
-		error_code ec;
-		if (this->proxy_server_socket.is_open())
-		{
-			this->proxy_server_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-			this->proxy_server_socket.close(ec);
-		}
-		if (this->user_agent_socket.is_open())
-		{
-			this->user_agent_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-			this->user_agent_socket.close(ec);
-		}
-	}
 
-	void http_proxy_client_connection::on_timeout()
+	void http_proxy_client_connection::on_server_data_arrived(std::size_t bytes_transferred)
 	{
-		
-		if (this->connection_state == proxy_connection_state::resolve_proxy_server_address)
-		{
-			this->resolver.cancel();
-		}
-		else
-		{
-			logger->warn("{} on_timeout shutdown connection", logger_prefix);
-			error_code ec;
-			if (this->proxy_server_socket.is_open())
-			{
-				this->proxy_server_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-				this->proxy_server_socket.close(ec);
-			}
-			if (this->user_agent_socket.is_open())
-			{
-				this->user_agent_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-				this->user_agent_socket.close(ec);
-			}
-		}
-	}
-	void http_proxy_client_connection::on_proxy_server_data_arrived(std::size_t bytes_transferred)
-	{
-		logger->debug("{} on_proxy_server_data_arrived bytes {}", logger_prefix, bytes_transferred);
+		http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
+		this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->server_read_buffer[0]), reinterpret_cast<unsigned char*>(&this->client_send_bufer[0]), bytes_transferred);
+		logger->debug("{} decrypt server data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::checksum(client_send_bufer.data(), bytes_transferred));
+
+		logger->debug("{} on_server_data_arrived bytes {}", logger_prefix, bytes_transferred);
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
-			this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, bytes_transferred);
+			this->async_write_data_to_client(this->client_send_bufer.data(), 0, bytes_transferred);
 			return;
 		}
-		if (!_response_parser.append_input(reinterpret_cast<const unsigned char*>(downgoing_buffer_write.data()), bytes_transferred))
+		if (!_response_parser.append_input(reinterpret_cast<const unsigned char*>(client_send_bufer.data()), bytes_transferred))
 		{
 			report_error("400", "Bad request", "buffer overflow");
 			return;
@@ -371,7 +314,7 @@ namespace azure_proxy
 				}
 				auto header_data = _response_parser._header.encode_to_data();
 				//logger->trace("{} read proxy response header data {}", logger_prefix, header_data);
-				std::copy(header_data.begin(), header_data.end(), downgoing_buffer_write.data() + send_buffer_size);
+				std::copy(header_data.begin(), header_data.end(), client_send_bufer.data() + send_buffer_size);
 				send_buffer_size += header_data.size();
 				auto _response_time = std::chrono::system_clock::now();
 				std::chrono::duration<double> elapsed_seconds = _response_time - _request_time;
@@ -384,13 +327,13 @@ namespace azure_proxy
 			}
 			else if (cur_parse_result.first == http_parser_result::read_some_content)
 			{
-				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), downgoing_buffer_write.data() + send_buffer_size);
+				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), client_send_bufer.data() + send_buffer_size);
 				send_buffer_size += cur_parse_result.second.size();
 			}
 			else if(cur_parse_result.first == http_parser_result::read_content_end)
 			{
 				_response_parser.reset_header();
-				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), downgoing_buffer_write.data() + send_buffer_size);
+				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), client_send_bufer.data() + send_buffer_size);
 				send_buffer_size += cur_parse_result.second.size();
 			}
 			else
@@ -401,28 +344,29 @@ namespace azure_proxy
 		}
 		if (send_buffer_size)
 		{
-			this->async_write_data_to_user_agent(this->downgoing_buffer_write.data(), 0, send_buffer_size);
+			this->async_write_data_to_client(this->client_send_bufer.data(), 0, send_buffer_size);
 		}
 		else
 		{
-			async_read_data_from_proxy_server();
+			async_read_data_from_server();
 		}
 		
 	}
-	void http_proxy_client_connection::on_user_agent_data_arrived(std::size_t bytes_transferred)
+	void http_proxy_client_connection::on_client_data_arrived(std::size_t bytes_transferred)
 	{
-		logger->debug("{} on_user_agent_data_arrived size {}", logger_prefix, bytes_transferred);
-		//logger->trace("{} data is {}", logger_prefix, std::string(upgoing_buffer_read.data(), upgoing_buffer_read.data() + bytes_transferred));
+		http_proxy_client_stat::get_instance().on_upgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
+		logger->debug("{} on_client_data_arrived size {}", logger_prefix, bytes_transferred);
+		//logger->trace("{} data is {}", logger_prefix, std::string(client_read_buffer.data(), client_read_buffer.data() + bytes_transferred));
 		static std::atomic<uint32_t> header_counter = 0;
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
-			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::checksum(upgoing_buffer_read.data(), bytes_transferred));
-			encryptor->encrypt(reinterpret_cast<const unsigned char*>(upgoing_buffer_read.data()), reinterpret_cast<unsigned char*>(upgoing_buffer_write.data()), bytes_transferred);
-			async_write_data_to_proxy_server(upgoing_buffer_write.data(), 0, bytes_transferred);
+			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::checksum(client_read_buffer.data(), bytes_transferred));
+			encryptor->encrypt(reinterpret_cast<const unsigned char*>(client_read_buffer.data()), reinterpret_cast<unsigned char*>(server_send_buffer.data()), bytes_transferred);
+			async_write_data_to_server(server_send_buffer.data(), 0, bytes_transferred);
 			return;
 
 		}
-		if (!_request_parser.append_input(reinterpret_cast<const unsigned char*>(&upgoing_buffer_read[0]), bytes_transferred))
+		if (!_request_parser.append_input(reinterpret_cast<const unsigned char*>(&client_read_buffer[0]), bytes_transferred))
 		{
 			report_error("400", "Bad request", "buffer overflow");
 			return;
@@ -442,18 +386,18 @@ namespace azure_proxy
 				_request_parser._header.set_header_counter(std::to_string(header_counter++));
 				auto header_data = _request_parser._header.encode_to_data();
 				//logger->trace("{} read ua request header data {}", logger_prefix, header_data);
-				std::copy(header_data.begin(), header_data.end(), upgoing_buffer_write.data() + send_buffer_size);
+				std::copy(header_data.begin(), header_data.end(), server_send_buffer.data() + send_buffer_size);
 				send_buffer_size += header_data.size();
 				_request_time = std::chrono::system_clock::now();
 			}
 			else if (cur_parse_result.first == http_parser_result::read_some_content)
 			{
-				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), upgoing_buffer_write.data() + send_buffer_size);
+				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), server_send_buffer.data() + send_buffer_size);
 				send_buffer_size += cur_parse_result.second.size();
 			}
 			else if(cur_parse_result.first == http_parser_result::read_content_end)
 			{
-				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), upgoing_buffer_write.data() + send_buffer_size);
+				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), server_send_buffer.data() + send_buffer_size);
 				send_buffer_size += cur_parse_result.second.size();
 			}
 			else
@@ -464,34 +408,14 @@ namespace azure_proxy
 		}
 		if (send_buffer_size)
 		{
-			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, send_buffer_size, aes_generator::checksum(upgoing_buffer_write.data(), send_buffer_size));
-			encryptor->transform(reinterpret_cast<unsigned char*>(upgoing_buffer_write.data()), send_buffer_size, 256);
-			this->async_write_data_to_proxy_server(this->upgoing_buffer_write.data(), 0, send_buffer_size);
+			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, send_buffer_size, aes_generator::checksum(server_send_buffer.data(), send_buffer_size));
+			encryptor->transform(reinterpret_cast<unsigned char*>(server_send_buffer.data()), send_buffer_size, 256);
+			this->async_write_data_to_server(this->server_send_buffer.data(), 0, send_buffer_size);
 		}
 		else
 		{
-			async_read_data_from_user_agent();
+			async_read_data_from_client();
 		}
 		
-	}
-	void http_proxy_client_connection::report_error(const std::string& status_code, const std::string& status_description, const std::string& error_message)
-	{
-		logger->warn("{} report error status_code {} status_description {} error_message {}", logger_prefix, status_code, status_description, error_message);
-		error_code ec;
-		if (this->proxy_server_socket.is_open())
-		{
-			this->proxy_server_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-			this->proxy_server_socket.close(ec);
-		}
-		if (this->user_agent_socket.is_open())
-		{
-			this->user_agent_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-			this->user_agent_socket.close(ec);
-		}
-	}
-	void http_proxy_client_connection::report_error(http_parser_result _status)
-	{
-		auto error_detail = from_praser_result_to_description(_status);
-		report_error(std::to_string(std::get<0>(error_detail)), std::get<1>(error_detail), std::get<2>(error_detail));
 	}
 } // namespace azure_proxy

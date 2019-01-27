@@ -23,7 +23,7 @@ namespace azure_proxy
 		std::mutex mtx;
 		key_generator()
 		{
-			//ÓÃÊ±¼äÓënew³öÀ´Ò»¸ö±äÁ¿µÄµØÖ·×öÒì»ò Ò²ÊÇÂùÆ´µÄ
+			//ç”¨æ—¶é—´ä¸newå‡ºæ¥ä¸€ä¸ªå˜é‡çš„åœ°å€åšå¼‚æˆ– ä¹Ÿæ˜¯è›®æ‹¼çš„
 			std::uint64_t seed = reinterpret_cast<std::uint64_t>(std::unique_ptr<int>(new int(0)).get()) ^ static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count());
 			this->gen.seed(static_cast<unsigned int>(seed));
 		}
@@ -40,12 +40,12 @@ namespace azure_proxy
 		}
 		static key_generator& get_instance()
 		{
-			//È«¾Ö¾²Ì¬·½·¨
+			//å…¨å±€é™æ€æ–¹æ³•
 			static key_generator instance;
 			return instance;
 		}
 	};
-
+	
 }
 
 #endif
