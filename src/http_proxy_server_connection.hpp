@@ -38,7 +38,7 @@ class http_proxy_server_connection : public std::enable_shared_from_this<http_pr
 	std::array<unsigned char, BUFFER_LENGTH> client_read_buffer;
 	std::array<unsigned char, BUFFER_LENGTH> server_send_buffer;
 	std::array<unsigned char, BUFFER_LENGTH> server_read_buffer;
-	std::array<unsigned char, BUFFER_LENGTH> client_send_bufer;
+	std::array<unsigned char, BUFFER_LENGTH> client_send_buffer;
 	rsa rsa_pri;
 	std::vector<unsigned char> encrypted_cipher_info;
 	std::unique_ptr<stream_encryptor> encryptor;
@@ -68,8 +68,8 @@ private:
 	void async_read_data_from_client(std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH);
 	void async_read_data_from_server(bool set_timer = true, std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH);
 	void async_connect_to_origin_server();
-	void async_write_data_to_server(const char* write_buffer, std::size_t offset, std::size_t size);
-	void async_write_data_to_client(const char* write_buffer, std::size_t offset, std::size_t size);
+	void async_send_data_to_server(const char* write_buffer, std::size_t offset, std::size_t size);
+	void async_send_data_to_client(const char* write_buffer, std::size_t offset, std::size_t size);
 	void start_tunnel_transfer();
 	void report_error(const std::string& status_code, const std::string& status_description, const std::string& error_message);
 	void report_authentication_failed();

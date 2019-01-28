@@ -626,7 +626,29 @@ namespace azure_proxy
 			return checksum(reinterpret_cast<const unsigned char*>(begin), length);
 		}
 	};
-	
+	class network_utils
+	{
+	public:
+		static void encode_network_int(unsigned char* buffer_begin, std::uint32_t value)
+		{
+			buffer_begin[3] = value % 256;
+			send_size = value >> 8;
+			buffer_begin[2] = value % 256;
+			send_size = value >> 8;
+			buffer_begin[1] = value % 256;
+			send_size = value >> 8;
+			buffer_begin[0] = value % 256;
+		}
+		static uint32_t decode_network_int(const unsigned char* buffer)
+		{
+			std::uint32_t result = 0;
+			result = result << 8 + static_cast<uint8_t>(buffer[0]);
+			result = result << 8 + static_cast<uint8_t>(buffer[1]);
+			result = result << 8 + static_cast<uint8_t>(buffer[2]);
+			result = result << 8 + static_cast<uint8_t>(buffer[3]);
+			return result;
+		}
+	}
 } // namespace azure_proxy
 
 #endif

@@ -14,12 +14,13 @@ namespace azure_proxy
     {
         auto result = std::make_shared<http_proxy_client_session>(std::move(ua_socket), std::move(_server_socket),  logger, in_connection_count, in_session_manager);
         _session_manager.add_session(result);
+		return result;
     }
     http_proxy_client_session::~http_proxy_client_session
     {
         _session_manager.remove_session(connection_count);
     }
-    http_proxy_client_session::async_read_data_from_server(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
+    void http_proxy_client_session::async_read_data_from_server(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
     {
         if (set_timer)
 		{
@@ -27,4 +28,10 @@ namespace azure_proxy
 		}
         _session_manager.post_read_task(shared_from_this(), server_read_buffer.data(), at_least_size, at_most_size);
     }
+	void http_proxy_client_session::async_send_data_to_server(std::size_t offset, std::size_t size)
+	{
+		set_timer();
+		_session_manager.post_send_task(shared_from_this(), server_send_buffer.data(), offset, size);
+	}
+
 }

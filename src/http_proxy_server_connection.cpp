@@ -162,7 +162,7 @@ namespace azure_proxy
 		}
 	}
 
-	void http_proxy_server_connection::async_write_data_to_server(const char* write_buffer, std::size_t offset, std::size_t size)
+	void http_proxy_server_connection::async_send_data_to_server(const char* write_buffer, std::size_t offset, std::size_t size)
 	{
 		auto self(this->shared_from_this());
 		this->set_timer();
@@ -177,7 +177,7 @@ namespace azure_proxy
 					this->connection_context.reconnect_on_error = false;
 					if (bytes_transferred < size)
 					{
-						this->async_write_data_to_server(write_buffer, offset + bytes_transferred, size - bytes_transferred);
+						this->async_send_data_to_server(write_buffer, offset + bytes_transferred, size - bytes_transferred);
 					}
 					else
 					{
@@ -187,7 +187,7 @@ namespace azure_proxy
 				}
 				else
 				{
-					logger->warn("{} report error at {}", logger_prefix, "async_write_data_to_server");
+					logger->warn("{} report error at {}", logger_prefix, "async_send_data_to_server");
 					this->on_error(error);
 				}
 			}
@@ -195,7 +195,7 @@ namespace azure_proxy
 													);
 	}
 
-	void http_proxy_server_connection::async_write_data_to_client(const char* write_buffer, std::size_t offset, std::size_t size)
+	void http_proxy_server_connection::async_send_data_to_client(const char* write_buffer, std::size_t offset, std::size_t size)
 	{
 		auto self(this->shared_from_this());
 		this->set_timer();
@@ -209,7 +209,7 @@ namespace azure_proxy
 				{
 					if (bytes_transferred < size)
 					{
-						this->async_write_data_to_client(write_buffer, offset + bytes_transferred, size - bytes_transferred);
+						this->async_send_data_to_client(write_buffer, offset + bytes_transferred, size - bytes_transferred);
 					}
 					else
 					{
@@ -218,7 +218,7 @@ namespace azure_proxy
 				}
 				else
 				{
-					logger->warn("{} report error at {}", logger_prefix, "async_write_data_to_client");
+					logger->warn("{} report error at {}", logger_prefix, "async_send_data_to_client");
 					this->on_error(error);
 				}
 			}
@@ -280,7 +280,7 @@ namespace azure_proxy
 		this->encryptor->transform(reinterpret_cast<unsigned char*>(&modified_response_data[0]), modified_response_data.size(), 16);
 		this->connection_context.connection_state = proxy_connection_state::report_error;
 		auto self(this->shared_from_this());
-		this->async_write_data_to_client(this->modified_response_data.data(), 0, this->modified_response_data.size());
+		this->async_send_data_to_client(this->modified_response_data.data(), 0, this->modified_response_data.size());
 	}
 	void http_proxy_server_connection::report_error(http_parser_result _parser_result)
 	{
@@ -304,7 +304,7 @@ namespace azure_proxy
 		this->modified_response_data += content;
 		this->encryptor->transform(reinterpret_cast<unsigned char*>(&modified_response_data[0]), modified_response_data.size(), 16);
 		this->connection_context.connection_state = proxy_connection_state::report_error;
-		this->async_write_data_to_client(this->modified_response_data.data(), 0, this->modified_response_data.size());
+		this->async_send_data_to_client(this->modified_response_data.data(), 0, this->modified_response_data.size());
 	}
 
 	void http_proxy_server_connection::set_timer()
@@ -388,13 +388,13 @@ namespace azure_proxy
 			this->modified_response_data.resize(sizeof(response_message) - 1);
 			this->encryptor->encrypt(response_message, reinterpret_cast<unsigned char*>(&this->modified_response_data[0]), this->modified_response_data.size());
 			this->connection_context.connection_state = proxy_connection_state::report_connection_established;
-			this->async_write_data_to_client(&this->modified_response_data[0], 0, this->modified_response_data.size());
+			this->async_send_data_to_client(&this->modified_response_data[0], 0, this->modified_response_data.size());
 		}
 		else
 		{
 			logger->info("{} send request to origin server method {} resource {} header_counter {}", logger_prefix, this->_request_parser._header.method(), this->_request_parser._header.path_and_query(), this->_request_parser._header.get_header_counter());
 			this->connection_context.connection_state = proxy_connection_state::write_http_request_header;
-			this->async_write_data_to_server(reinterpret_cast<const char*>(server_send_buffer.data()), 0, read_request_context.send_buffer_size);
+			this->async_send_data_to_server(reinterpret_cast<const char*>(server_send_buffer.data()), 0, read_request_context.send_buffer_size);
 		}
 	}
 
@@ -422,7 +422,7 @@ namespace azure_proxy
 		//logger->trace("{} data is {}", logger_prefix, std::string(reinterpret_cast<const char*>(server_send_buffer.data()), bytes_transferred));
 		if (this->connection_context.connection_state == proxy_connection_state::tunnel_transfer)
 		{
-			this->async_write_data_to_server(reinterpret_cast<const char*>(server_send_buffer.data()), 0, bytes_transferred);
+			this->async_send_data_to_server(reinterpret_cast<const char*>(server_send_buffer.data()), 0, bytes_transferred);
 			return;
 		}
 		if (!_request_parser.append_input(server_send_buffer.data(), bytes_transferred))
@@ -506,7 +506,7 @@ namespace azure_proxy
 			}
 			else
 			{
-				async_write_data_to_server(reinterpret_cast<const char *>(server_send_buffer.data()), 0, send_buffer_size);
+				async_send_data_to_server(reinterpret_cast<const char *>(server_send_buffer.data()), 0, send_buffer_size);
 			}
 		}
 		else
@@ -522,8 +522,8 @@ namespace azure_proxy
 		if (this->connection_context.connection_state == proxy_connection_state::tunnel_transfer)
 		{
 			logger->debug("{} encrypt origin server data size {} hash {}", logger_prefix, bytes_transferred, aes_generator::checksum(server_read_buffer.data(), bytes_transferred));
-			this->encryptor->encrypt(server_read_buffer.data(), client_send_bufer.data(), bytes_transferred);
-			this->async_write_data_to_client(reinterpret_cast<const char*>(client_send_bufer.data()), 0, bytes_transferred);
+			this->encryptor->encrypt(server_read_buffer.data(), client_send_buffer.data(), bytes_transferred);
+			this->async_send_data_to_client(reinterpret_cast<const char*>(client_send_buffer.data()), 0, bytes_transferred);
 			return;
 		}
 		if (!_response_parser.append_input(server_read_buffer.data(), bytes_transferred))
@@ -551,7 +551,7 @@ namespace azure_proxy
 				read_response_context.is_origin_server_keep_alive = is_keep_alive.value();
 				auto header_data = _response_parser._header.encode_to_data();
 				logger->trace("{} read server response header {}", logger_prefix, header_data);
-				std::copy(header_data.begin(), header_data.end(), client_send_bufer.data() + send_buffer_size);
+				std::copy(header_data.begin(), header_data.end(), client_send_buffer.data() + send_buffer_size);
 				send_buffer_size += header_data.size();
 				this->connection_context.connection_state = proxy_connection_state::write_http_response_header;
 				auto _response_time = std::chrono::system_clock::now();
@@ -564,7 +564,7 @@ namespace azure_proxy
 			else if (cur_parse_result.first == http_parser_result::read_some_content)
 			{
 				this->connection_context.connection_state = proxy_connection_state::write_http_response_content;
-				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), client_send_bufer.data() + send_buffer_size);
+				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), client_send_buffer.data() + send_buffer_size);
 				send_buffer_size += cur_parse_result.second.size();
 
 			}
@@ -574,7 +574,7 @@ namespace azure_proxy
 				_response_parser.reset_header();
 				_request_parser.reset_header();
 				//logger->trace("{} read server response content {}", logger_prefix, cur_parse_result.second);
-				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), client_send_bufer.data() + send_buffer_size);
+				std::copy(cur_parse_result.second.begin(), cur_parse_result.second.end(), client_send_buffer.data() + send_buffer_size);
 				send_buffer_size += cur_parse_result.second.size();
 			}
 			else
@@ -584,9 +584,9 @@ namespace azure_proxy
 		}
 		if (send_buffer_size)
 		{
-			logger->debug("{} encrypt origin server data size {} hash {}", logger_prefix, send_buffer_size, aes_generator::checksum(client_send_bufer.data(), send_buffer_size));
-			this->encryptor->encrypt(client_send_bufer.data(), client_send_bufer.data(), send_buffer_size);
-			this->async_write_data_to_client(reinterpret_cast<const char*>(this->client_send_bufer.data()), 0, send_buffer_size);
+			logger->debug("{} encrypt origin server data size {} hash {}", logger_prefix, send_buffer_size, aes_generator::checksum(client_send_buffer.data(), send_buffer_size));
+			this->encryptor->encrypt(client_send_buffer.data(), client_send_buffer.data(), send_buffer_size);
+			this->async_send_data_to_client(reinterpret_cast<const char*>(this->client_send_buffer.data()), 0, send_buffer_size);
 		}
 		else
 		{
