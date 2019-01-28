@@ -45,6 +45,8 @@ namespace azure_proxy
 		spdlog::level::level_enum get_file_log_level() const;
 		std::string get_log_file_name() const;
 		static http_proxy_client_config& get_instance();
+		template<typename T>
+		bool init_cipher_for_connection(T& _connection);
 	};
 
 } // namespace azure_proxy

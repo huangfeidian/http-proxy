@@ -36,118 +36,16 @@ namespace azure_proxy
 		return std::make_shared<http_proxy_client_connection>(std::move(ua_socket), in_logger, in_connection_count);
 	}
 
-	bool http_proxy_client_connection::init_cipher()
-	{
-		std::array<unsigned char, 86> cipher_info_raw;
-		cipher_info_raw.fill(0);
-		// 0 ~ 2
-		cipher_info_raw[0] = 'A';
-		cipher_info_raw[1] = 'H';
-		cipher_info_raw[2] = 'P';
-
-		// 3 zero
-		// 4 zero
-
-		// 5 cipher code
-		// 0x00 aes-128-cfb
-		// 0x01 aes-128-cfb8
-		// 0x02 aes-128-cfb1
-		// 0x03 aes-128-ofb
-		// 0x04 aes-128-ctr
-		// 0x05 aes-192-cfb
-		// 0x06 aes-192-cfb8
-		// 0x07 aes-192-cfb1
-		// 0x08 aes-192-ofb
-		// 0x09 aes-192-ctr
-		// 0x0A aes-256-cfb
-		// 0x0B aes-256-cfb8
-		// 0x0C aes-256-cfb1
-		// 0x0D aes-256-ofb
-		// 0x0E aes-256-ctr
-
-		char cipher_code = 0;
-		const auto& cipher_name = http_proxy_client_config::get_instance().get_cipher();
-		if (cipher_name.size() > 7 && std::equal(cipher_name.begin(), cipher_name.begin() + 3, "aes"))
-		{
-			// aes
-			std::vector<unsigned char> ivec(16);
-			std::vector<unsigned char> key_vec;
-			aes_generator::generate(cipher_name, cipher_code, ivec, key_vec, this->encryptor, this->decryptor);
-			std::copy(ivec.cbegin(), ivec.cend(), cipher_info_raw.begin() + 7);
-			std::copy(key_vec.cbegin(), key_vec.cend(), cipher_info_raw.begin() + 23);
-		}
-
-		if (!this->encryptor || !this->decryptor)
-		{
-			return false;
-		}
-
-		// 5 cipher code
-		cipher_info_raw[5] = static_cast<unsigned char>(cipher_code);
-
-		// 6 zero
-
-		rsa rsa_pub(http_proxy_client_config::get_instance().get_rsa_public_key());
-		if (rsa_pub.modulus_size() < 128)
-		{
-			logger->warn("{} invalid rsa public key", logger_prefix);
-			return false;
-		}
-
-		this->encrypted_cipher_info.resize(rsa_pub.modulus_size());
-		if (this->encrypted_cipher_info.size() != rsa_pub.encrypt(cipher_info_raw.size(), cipher_info_raw.data(), this->encrypted_cipher_info.data(), rsa_padding::pkcs1_oaep_padding))
-		{
-			logger->warn("{} invalid rsa encrypt size", logger_prefix);
-			return false;
-		}
-	}
+	
 	void http_proxy_client_connection::start()
 	{
 
-		if(!init_cipher())
+		if(!http_proxy_client_config::init_cipher(*this))
 		{
 			return;
 		}
-		async_connect_to_origin_server();
+		async_connect_to_server(http_proxy_client_config::get_instance().get_proxy_server_address(), http_proxy_client_config::get_instance().get_proxy_server_port());
 		
-	}
-	void http_proxy_client_connection::async_connect_to_server()
-	{
-		auto self(this->shared_from_this());
-		asio::ip::tcp::resolver::query query(http_proxy_client_config::get_instance().get_proxy_server_address(), std::to_string(http_proxy_client_config::get_instance().get_proxy_server_port()));
-		this->connection_state = proxy_connection_state::resolve_proxy_server_address;
-		this->set_timer();
-		this->resolver.async_resolve(query, [this, self](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
-		{
-			if (this->cancel_timer())
-			{
-				if (!error)
-				{
-					this->connection_state = proxy_connection_state::connecte_to_proxy_server;
-					this->set_timer();
-					this->server_socket.async_connect(*iterator, this->strand.wrap([this, self](const error_code& error)
-					{
-						if (this->cancel_timer())
-						{
-							if (!error)
-							{
-								this->on_server_connected();
-							}
-							else
-							{
-								logger->warn("{} fail to connect to proxy server {} port {}", logger_prefix, http_proxy_client_config::get_instance().get_proxy_server_address(), http_proxy_client_config::get_instance().get_proxy_server_port());
-								this->on_error(error);
-							}
-						}
-					}));
-				}
-				else
-				{
-					logger->warn("{} fail to resolve proxy server {}", logger_prefix, http_proxy_client_config::get_instance().get_proxy_server_address());
-					this->on_error(error);
-				}
-			}
-		});
 	}
 
 	void http_proxy_client_connection::async_read_data_from_client(std::size_t at_least_size, std::size_t at_most_size)

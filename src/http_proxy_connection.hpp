@@ -61,8 +61,8 @@ class http_proxy_connection : public std::enable_shared_from_this < http_proxy_c
 		virtual void async_read_data_from_client(std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH) = 0;
 		virtual void async_read_data_from_server(bool set_timer = true, std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH) = 0;
 		virtual void async_send_data_to_client(std::size_t offset, std::size_t size) = 0;
-		virtual void async_send_data_to_server( std::size_t offset, std::size_t size) = 0;
-		virtual void async_connect_to_server() = 0;
+		virtual void async_send_data_to_server(std::size_t offset, std::size_t size) = 0;
+		virtual void async_connect_to_server(std::string server_ip, std::uint32_t server_port);
 		void set_timer();
 		bool cancel_timer();
 

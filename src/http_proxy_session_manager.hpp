@@ -48,9 +48,11 @@ namespace azure_proxy
         bool remove_session(std::uint32_t _session_idx);
     private:
         bool init_cipher();
-		void write_one();
+		void do_send_one();
 		bool post_send_task(std::uint32_t session_idx, const unsigned char* send_buffer, std::uint32_t buffer_size, session_data_cmd data_type);
 		void on_data_arrived(std::uint32_t byte_transfered, const char* read_buffer);
+        virtual void on_control_data_arrived(std::uint32_t connection_idx, session_data_cmd cmd_type, std::uint32_t data_size, const char* buffer);
+
     }
 
 }

@@ -86,4 +86,42 @@ namespace azure_proxy
 			}
 		}));
 	}
+    void http_proxy_connection::async_connect_to_server(std::string server_ip, std::uint32_t server_port)
+    {
+        auto self(this->shared_from_this());
+		asio::ip::tcp::resolver::query query(server_ip, std::to_string(server_port));
+		this->connection_state = proxy_connection_state::resolve_proxy_server_address;
+		this->set_timer();
+		this->resolver.async_resolve(query, [this, self, =](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
+		{
+			if (this->cancel_timer())
+			{
+				if (!error)
+				{
+					this->connection_state = proxy_connection_state::connecte_to_proxy_server;
+					this->set_timer();
+					this->server_socket.async_connect(*iterator, this->strand.wrap([this, self](const error_code& error)
+					{
+						if (this->cancel_timer())
+						{
+							if (!error)
+							{
+								this->on_server_connected();
+							}
+							else
+							{
+								logger->warn("{} fail to connect to server {} port {}", logger_prefix, server_ip, server_port);
+								this->on_error(error);
+							}
+						}
+					}));
+				}
+				else
+				{
+					logger->warn("{} fail to resolve server {}", logger_prefix, server_ip);
+					this->on_error(error);
+				}
+			}
+		});
+    }
 }

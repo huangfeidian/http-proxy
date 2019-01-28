@@ -68,7 +68,7 @@ namespace azure_proxy
 			async_send_data_to_server(0, send_size + 12);
 		}
 	}
-	void http_proxy_session_manager::on_client_data_send(std::uint32_t bytes_transfer)
+	void http_proxy_session_manager::on_client_data_send(std::uint32_t bytes_transferred)
 	{
 		bool remain_progress = false;
 		{
@@ -81,7 +81,7 @@ namespace azure_proxy
 			do_send_one();
 		}
 	}
-	void http_proxy_session_manager::on_server_data_send(std::uint32_t bytes_transfer)
+	void http_proxy_session_manager::on_server_data_send(std::uint32_t bytes_transferred)
 	{
 		bool remain_progress = false;
 		{
@@ -110,16 +110,16 @@ namespace azure_proxy
 			std::lock_guard<std::mutex> session_guard(_session_mutex);
 			_sessions.erase(_session_idx);
 		}
-		post_send_task(_new_session->connection_count, std::nullptr, 0, session_data_cmd::remove_session)
+		post_send_task(_session_idx, std::nullptr, 0, session_data_cmd::remove_session)
 	}
 	void http_proxy_session_manager::on_data_arrived(std::uint32_t byte_transfered, const char* read_buffer)
 	{
-		bytes_transfer += buffer_offset - read_offset;
-		buffer_offset += bytes_transfer;
+		bytes_transferred += buffer_offset - read_offset;
+		buffer_offset += bytes_transferred;
 		while(true)
 		{
 			std::uint32_t offset = 0;
-			auto cur_parse_result = parse_data(read_buffer, bytes_transfer, read_offset);
+			auto cur_parse_result = parse_data(read_buffer, bytes_transferred, read_offset);
 			if(!cur_parse_result.first)
 			{
 				if(is_downgoing)
@@ -143,6 +143,10 @@ namespace azure_proxy
 			else
 			{
 				std::copy(read_buffer + read_offset + 12, server_read_buffer.data() + read_offset + 12 + cur_parse_result.second, _decrypt_buffer.data());
+			}
+			if(data_type != session_data_cmd::session_data)
+			{
+				on_control_data_arrived(session_idx, data_type, cur_parse_result.second, _decrypt_buffer.data());
 			}
 			read_offset += 12 + cur_parse_result.second;
 			std::shared_ptr<http_proxy_connection> _cur_session;
@@ -194,13 +198,13 @@ namespace azure_proxy
 			}
 		}
 	}
-	void http_proxy_session_manager::on_server_data_arrived(std::uint32_t bytes_transfer)
+	void http_proxy_session_manager::on_server_data_arrived(std::uint32_t bytes_transferred)
 	{
-		on_data_arrived(bytes_transfer, server_read_buffer.data());
+		on_data_arrived(bytes_transferred, server_read_buffer.data());
 	}
-	void http_proxy_session_manager::on_client_data_arrived(std::uint32_t bytes_transfer)
+	void http_proxy_session_manager::on_client_data_arrived(std::uint32_t bytes_transferred)
 	{
-		on_data_arrived(bytes_transfer, client_read_buffer.data());
+		on_data_arrived(bytes_transferred, client_read_buffer.data());
 	}
 	void http_proxy_session_manager::async_read_data_from_server(bool set_timer, std::uint32_t at_least_size, std::uint32_t at_most_size)
 	{
