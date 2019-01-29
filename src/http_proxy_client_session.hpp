@@ -1,10 +1,3 @@
-/*
- *    http_proxy_client_connection.hpp:
- *
- *    Copyright (C) 2019-2021 spiritsaway.info All Rights Reserved.
- *
- */
-
 #pragma once
 
 #include <array>

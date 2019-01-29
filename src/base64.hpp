@@ -1,12 +1,5 @@
-/*
- *    base64.hpp:
- *
- *    Copyright (C) 2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
+#pragma once
 
-#ifndef AZURE_ENCODING_BASE64_HPP
-#define AZURE_ENCODING_BASE64_HPP
 #include <exception>
 #include <iterator>
 #include <string>
@@ -120,5 +113,3 @@ namespace azure_proxy
 
 	} // namespace encoding
 } // namespace azure_proxy
-
-#endif

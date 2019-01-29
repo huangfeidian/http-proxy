@@ -1,12 +1,4 @@
-﻿/*
- *    encrypt.hpp:
- *
- *    Copyright (C) 2014-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
-
-#ifndef AZURE_ENCRYPT_HPP
-#define AZURE_ENCRYPT_HPP
+﻿#pragma once
 
 #include <cassert>
 #include <cstring>
@@ -631,12 +623,13 @@ namespace azure_proxy
 	public:
 		static void encode_network_int(unsigned char* buffer_begin, std::uint32_t value)
 		{
+
 			buffer_begin[3] = value % 256;
-			send_size = value >> 8;
+			value = value >> 8;
 			buffer_begin[2] = value % 256;
-			send_size = value >> 8;
+			value = value >> 8;
 			buffer_begin[1] = value % 256;
-			send_size = value >> 8;
+			value = value >> 8;
 			buffer_begin[0] = value % 256;
 		}
 		static uint32_t decode_network_int(const unsigned char* buffer)
@@ -648,7 +641,6 @@ namespace azure_proxy
 			result = result << 8 + static_cast<uint8_t>(buffer[3]);
 			return result;
 		}
-	}
+	};
 } // namespace azure_proxy
 
-#endif

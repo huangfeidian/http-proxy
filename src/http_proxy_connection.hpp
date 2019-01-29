@@ -1,10 +1,4 @@
-/*
- *    http_proxy_client_connection.hpp:
- *
- *    Copyright (C) 2019-2021 spiritsaway.info All Rights Reserved.
- *
- */
-#pragma once
+﻿#pragma once
 
 #include <array>
 #include <chrono>
@@ -14,8 +8,11 @@
 #include <asio.hpp>
 using error_code = asio::error_code;
 
+#include <spdlog/spdlog.h>
 #include "http_header_parser.hpp"
 #include "http_proxy_connection_context.hpp"
+#include "encrypt.hpp"
+
 
 namespace azure_proxy
 {
@@ -40,6 +37,7 @@ class http_proxy_connection : public std::enable_shared_from_this < http_proxy_c
 		std::shared_ptr<spdlog::logger> logger;
 		const std::uint32_t connection_count;
 		const std::string logger_prefix;
+		rsa rsa_pri;
 		decltype(std::chrono::system_clock::now()) _request_time;
 		http_proxy_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t in_timeout);
 	private:

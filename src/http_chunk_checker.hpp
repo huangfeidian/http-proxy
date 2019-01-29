@@ -1,12 +1,4 @@
-﻿/*
- *    http_chunk_checker.hpp:
- *
- *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
-
-#ifndef AZURE_HTTP_CHUNCK_CHCKER_HPP
-#define AZURE_HTTP_CHUNCK_CHCKER_HPP
+﻿#pragma once
 
 #include <cassert>
 #include <cctype>
@@ -164,5 +156,3 @@ namespace azure_proxy
 	};
 
 } // namespace azure_proxy
-
-#endif

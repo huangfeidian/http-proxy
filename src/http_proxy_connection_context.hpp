@@ -1,24 +1,9 @@
-﻿/*
- *    http_proxy_connection_context.hpp:
- *
- *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
-
-#ifndef AZURE_http_proxy_connection_context_HPP
-#define AZURE_http_proxy_connection_context_HPP
+﻿#pragma once
 
 #include <cstdint>
 
-#ifdef ASIO_STANDALONE
 #include <asio.hpp>
 using error_code = asio::error_code;
-
-#else
-#include <boost/asio.hpp>
-namespace asio = boost::asio;
-using error_code = boost::system::error_code;
-#endif
 
 #include "http_chunk_checker.hpp"
 
@@ -53,7 +38,7 @@ enum class session_data_cmd
 	session_data,
 	ping_data,
 	pong_data,
-}
+};
 struct http_proxy_connection_context {
 	proxy_connection_state connection_state;
 	bool reconnect_on_error;
@@ -72,5 +57,3 @@ struct http_proxy_server_connection_read_response_context {
 };
 
 } // namespace azure_proxy
-
-#endif

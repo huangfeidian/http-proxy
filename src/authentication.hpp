@@ -1,12 +1,4 @@
-/*
- *    authentication.hpp:
- *
- *    Copyright (C) 2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
-
-#ifndef AZURE_AUTHENTICATION_HPP
-#define AZURE_AUTHENTICATION_HPP
+#pragma once
 
 #include <map>
 #include <string>
@@ -33,5 +25,3 @@ public:
 };
 
 } // namespace azure_proxy
-
-#endif

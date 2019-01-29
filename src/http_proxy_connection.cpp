@@ -1,8 +1,8 @@
-#include "http_proxy_connection.hpp"
+﻿#include "http_proxy_connection.hpp"
 
 namespace azure_proxy
 {
-	http_proxy_connection::http_proxy_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t in_timeout)
+	http_proxy_connection::http_proxy_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::uint32_t in_timeout)
 	:
 	strand(in_client_socket.get_io_service()),
 	client_socket(std::move(in_client_socket)),
@@ -17,7 +17,7 @@ namespace azure_proxy
 	{
 
 	}
-	static std::shared_ptr<http_proxy_connection> http_proxy_connection::create(asio::ip::tcp::socket&& _in_client_socket, asio::ip::tcp::socket&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout)
+	std::shared_ptr<http_proxy_connection> http_proxy_connection::create(asio::ip::tcp::socket&& _in_client_socket, asio::ip::tcp::socket&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout)
 	{
 		return std::make_shared<http_proxy_connection>(std::move(_in_client_socket), std::move(_in_server_socket), logger, in_connection_idx, _in_timeout);
 	}
@@ -92,7 +92,7 @@ namespace azure_proxy
 		asio::ip::tcp::resolver::query query(server_ip, std::to_string(server_port));
 		this->connection_state = proxy_connection_state::resolve_proxy_server_address;
 		this->set_timer();
-		this->resolver.async_resolve(query, [this, self, =](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
+		this->resolver.async_resolve(query, [this, self, server_ip, server_port](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
 		{
 			if (this->cancel_timer())
 			{

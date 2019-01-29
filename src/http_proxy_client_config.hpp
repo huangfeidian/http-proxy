@@ -1,12 +1,4 @@
-﻿/*
- *    http_proxy_client_config.hpp:
- *
- *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
-
-#ifndef AZURE_HTTP_PROXY_CLIENT_CONFIG_HPP
-#define AZURE_HTTP_PROXY_CLIENT_CONFIG_HPP
+﻿#pragma once
 
 #include <cassert>
 #include <map>
@@ -45,9 +37,6 @@ namespace azure_proxy
 		spdlog::level::level_enum get_file_log_level() const;
 		std::string get_log_file_name() const;
 		static http_proxy_client_config& get_instance();
-		template<typename T>
 	};
 
 } // namespace azure_proxy
-
-#endif

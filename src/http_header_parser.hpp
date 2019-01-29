@@ -1,12 +1,4 @@
-﻿/*
- *    http_header_parser.hpp:
- *
- *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
-
-#ifndef AZURE_HTTP_HEADER_PARSER_HPP
-#define AZURE_HTTP_HEADER_PARSER_HPP
+﻿#pragma once
 
 #include <algorithm>
 #include <cctype>
@@ -187,5 +179,3 @@ namespace azure_proxy
 		void reset();
 	};
 }; // namespace azure_proxy
-
-#endif

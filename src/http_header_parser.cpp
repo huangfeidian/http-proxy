@@ -1,10 +1,4 @@
-﻿/*
- *    http_header_parser.cpp:
- *
- *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
-
+﻿
 #include <iterator>
 #include <regex>
 #include <memory>

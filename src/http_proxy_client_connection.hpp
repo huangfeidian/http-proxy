@@ -1,27 +1,11 @@
-﻿/*
- *    http_proxy_client_connection.hpp:
- *
- *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
-
-#ifndef AZURE_HTTP_PROXY_CLIENT_CONNECTION_HPP
-#define AZURE_HTTP_PROXY_CLIENT_CONNECTION_HPP
-
+﻿#pragma once
 #include <array>
 #include <chrono>
 #include <memory>
 #include <vector>
 
-#ifdef ASIO_STANDALONE
 #include <asio.hpp>
 using error_code = asio::error_code;
-
-#else
-#include <boost/asio.hpp>
-namespace asio = boost::asio;
-using error_code = boost::system::error_code;
-#endif
 
 #include "encrypt.hpp"
 #include "http_header_parser.hpp"
@@ -39,11 +23,10 @@ namespace azure_proxy
 		http_request_parser _request_parser;
 		http_response_parser _response_parser;
 	public:
+		http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
 		virtual ~http_proxy_client_connection();
 		static std::shared_ptr<http_proxy_client_connection> create(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
 		virtual void start();
 	};
 
 } // namespace azure_proxy
-
-#endif

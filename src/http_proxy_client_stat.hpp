@@ -1,27 +1,13 @@
-﻿/*
- *    http_proxy_client_stat.hpp:
- *
- *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
-
-#ifndef AZURE_HTTP_PROXY_CLIENT_STAT_HPP
-#define AZURE_HTTP_PROXY_CLIENT_STAT_HPP
+﻿#pragma once
 
 #include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <deque>
 
-#ifdef ASIO_STANDALONE
 #include <asio.hpp>
 using error_code = asio::error_code;
 
-#else
-#include <boost/asio.hpp>
-namespace asio = boost::asio;
-using error_code = boost::system::error_code;
-#endif
 
 namespace azure_proxy {
 
@@ -88,4 +74,3 @@ public:
 
 } // namespace azure_proxy
 
-#endif

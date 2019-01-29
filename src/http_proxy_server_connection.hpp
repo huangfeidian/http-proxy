@@ -1,12 +1,4 @@
-﻿/*
- *    http_proxy_server_connection.hpp:
- *
- *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
-
-#ifndef AZURE_HTTP_PROXY_SERVER_CONNECTION_HPP
-#define AZURE_HTTP_PROXY_SERVER_CONNECTION_HPP
+﻿#pragma once
 
 #include <array>
 #include <chrono>
@@ -49,5 +41,3 @@ private:
 };
 
 } // namespace azure_proxy
-
-#endif

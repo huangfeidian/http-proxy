@@ -1,11 +1,4 @@
-﻿/*
-*    http_proxy_server_connection.cpp:
-*
-*    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
-*
-*/
-
-#include <cctype>
+﻿#include <cctype>
 #include <algorithm>
 #include <cassert>
 #include <cstring>

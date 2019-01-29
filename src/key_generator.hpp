@@ -1,12 +1,4 @@
-/*
- *    key_gennerator.hpp:
- *
- *    Copyright (C) 2014-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
-
-#ifndef AZURE_KEY_GENERATOR_HPP
-#define AZURE_KEY_GENERATOR_HPP
+#pragma once
 
 #include <random>
 #include <memory>
@@ -47,5 +39,3 @@ namespace azure_proxy
 	};
 	
 }
-
-#endif

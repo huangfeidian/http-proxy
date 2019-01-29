@@ -1,10 +1,3 @@
-/*
- *    authentication.cpp:
- *
- *    Copyright (C) 2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
-
 #include <algorithm>
 #include <iterator>
 
