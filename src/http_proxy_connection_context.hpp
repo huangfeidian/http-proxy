@@ -25,7 +25,9 @@ using error_code = boost::system::error_code;
 namespace azure_proxy {
 
 enum class proxy_connection_state {
+	ready,
 	read_cipher_data,
+	send_cipher_data,
 	resolve_origin_server_address,
 	connect_to_origin_server,
 	tunnel_transfer,
@@ -39,9 +41,9 @@ enum class proxy_connection_state {
 	write_http_response_content,
 	report_connection_established,
 	report_error,
-	ready,
 	resolve_proxy_server_address,
-	connecte_to_proxy_server
+	connecte_to_proxy_server,
+	session_tranfer,
 };
 enum class session_data_cmd
 {
@@ -49,6 +51,8 @@ enum class session_data_cmd
 	new_session,
 	remove_session,
 	session_data,
+	ping_data,
+	pong_data,
 }
 struct http_proxy_connection_context {
 	proxy_connection_state connection_state;

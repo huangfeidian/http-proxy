@@ -33,137 +33,19 @@ namespace azure_proxy
 
 	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count)
 	{
-		return std::make_shared<http_proxy_client_connection>(std::move(ua_socket), in_logger, in_connection_count);
+		return std::make_shared<http_proxy_client_connection>(std::move(ua_socket), std::move(_server_socket), in_connection_count);
 	}
-
 	
 	void http_proxy_client_connection::start()
 	{
 
-		if(!http_proxy_client_config::init_cipher(*this))
+		if(!init_cipher(http_proxy_client_config::get_instance().get_cipher(), http_proxy_client_config::get_instance().get_rsa_public_key()))
 		{
 			return;
 		}
 		async_connect_to_server(http_proxy_client_config::get_instance().get_proxy_server_address(), http_proxy_client_config::get_instance().get_proxy_server_port());
 		
 	}
-
-	void http_proxy_client_connection::async_read_data_from_client(std::size_t at_least_size, std::size_t at_most_size)
-	{
-		logger->debug("{} async_read_data_from_client begin", logger_prefix);
-		auto self(this->shared_from_this());
-		this->set_timer();
-
-		asio::async_read(this->client_socket,
-			asio::buffer(&this->client_read_buffer[0], at_most_size),
-			asio::transfer_at_least(at_least_size),
-			this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
-		{
-			if (this->cancel_timer())
-			{
-				if (!error)
-				{
-					this->on_client_data_arrived(bytes_transferred);
-				}
-				else
-				{
-					this->on_error(error);
-				}
-			}
-		})
-		);
-	}
-
-	void http_proxy_client_connection::async_read_data_from_server(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
-	{
-		logger->debug("{} async_read_data_from_server begin", logger_prefix);
-		auto self(this->shared_from_this());
-		if (set_timer)
-		{
-			this->set_timer();
-		}
-		
-		asio::async_read(this->server_socket,
-			asio::buffer(&this->server_read_buffer[0], at_most_size),
-			asio::transfer_at_least(at_least_size),
-			this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
-		{
-			if (this->cancel_timer())
-			{
-				if (!error)
-				{
-					this->on_server_data_arrived(bytes_transferred);
-				}
-				else
-				{
-					this->on_error(error);
-				}
-			}
-		})
-		);
-	}
-
-	void http_proxy_client_connection::async_send_data_to_client(std::size_t offset, std::size_t size)
-	{
-		auto self(this->shared_from_this());
-		this->set_timer();
-		auto write_buffer = client_send_buffer.data();
-		this->client_socket.async_write_some(asio::buffer(write_buffer + offset, size),
-			this->strand.wrap([this, self, write_buffer, offset, size](const error_code& error, std::size_t bytes_transferred)
-		{
-			if (this->cancel_timer())
-			{
-				if (!error)
-				{
-					http_proxy_client_stat::get_instance().on_downgoing_send(static_cast<std::uint32_t>(bytes_transferred));
-					if (bytes_transferred < size)
-					{
-						this->async_send_data_to_client(write_buffer, offset + bytes_transferred, size - bytes_transferred);
-					}
-					else
-					{
-						this->async_read_data_from_server();
-					}
-				}
-				else
-				{
-					this->on_error(error);
-				}
-			}
-		}));
-	}
-
-	void http_proxy_client_connection::async_send_data_to_server(std::size_t offset, std::size_t size)
-	{
-		auto self(this->shared_from_this());
-		this->set_timer();
-		auto write_buffer = server_send_buffer.data();
-		this->server_socket.async_write_some(asio::buffer(write_buffer + offset, size),
-			this->strand.wrap([this, self, write_buffer, offset, size](const error_code& error, std::size_t bytes_transferred)
-		{
-			if (this->cancel_timer())
-			{
-				if (!error)
-				{
-					http_proxy_client_stat::get_instance().on_upgoing_send(static_cast<std::uint32_t>(bytes_transferred));
-					if (bytes_transferred < size)
-					{
-						this->async_send_data_to_server(offset + bytes_transferred, size - bytes_transferred);
-					}
-					else
-					{
-						this->async_read_data_from_client();
-					}
-				}
-				else
-				{
-					this->on_error(error);
-				}
-			}
-		})
-			);
-	}
-
 
 
 	void http_proxy_client_connection::on_server_connected()
@@ -318,5 +200,13 @@ namespace azure_proxy
 			async_read_data_from_client();
 		}
 		
+	}
+	void http_proxy_client_connection::on_client_data_send()
+	{
+		async_read_data_from_server();
+	}
+	void http_proxy_client_connection::on_server_data_send()
+	{
+		async_read_data_from_client();
 	}
 } // namespace azure_proxy

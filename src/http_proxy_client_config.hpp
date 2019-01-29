@@ -46,7 +46,6 @@ namespace azure_proxy
 		std::string get_log_file_name() const;
 		static http_proxy_client_config& get_instance();
 		template<typename T>
-		bool init_cipher_for_connection(T& _connection);
 	};
 
 } // namespace azure_proxy

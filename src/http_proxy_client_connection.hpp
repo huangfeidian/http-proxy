@@ -42,8 +42,6 @@ namespace azure_proxy
 		virtual ~http_proxy_client_connection();
 		static std::shared_ptr<http_proxy_client_connection> create(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
 		virtual void start();
-	private:
-		bool init_cipher();
 	};
 
 } // namespace azure_proxy

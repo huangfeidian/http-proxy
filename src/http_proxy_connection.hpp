@@ -11,17 +11,12 @@
 #include <memory>
 #include <vector>
 
-#ifdef ASIO_STANDALONE
 #include <asio.hpp>
 using error_code = asio::error_code;
 
-#else
-#include <boost/asio.hpp>
-namespace asio = boost::asio;
-using error_code = boost::system::error_code;
-#endif
-
 #include "http_header_parser.hpp"
+#include "http_proxy_connection_context.hpp"
+
 namespace azure_proxy
 {
 
@@ -42,7 +37,6 @@ class http_proxy_connection : public std::enable_shared_from_this < http_proxy_c
 		std::unique_ptr<stream_encryptor> encryptor;
 		std::unique_ptr<stream_decryptor> decryptor;
 		std::chrono::seconds timeout;
-
 		std::shared_ptr<spdlog::logger> logger;
 		const std::uint32_t connection_count;
 		const std::string logger_prefix;
@@ -58,10 +52,10 @@ class http_proxy_connection : public std::enable_shared_from_this < http_proxy_c
 		static std::shared_ptr<http_proxy_connection> create(asio::ip::tcp::socket&& _in_client_socket, asio::ip::tcp::socket&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout);
 		virtual void start();
 	private:
-		virtual void async_read_data_from_client(std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH) = 0;
-		virtual void async_read_data_from_server(bool set_timer = true, std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH) = 0;
-		virtual void async_send_data_to_client(std::size_t offset, std::size_t size) = 0;
-		virtual void async_send_data_to_server(std::size_t offset, std::size_t size) = 0;
+		virtual void async_read_data_from_client(std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH);
+		virtual void async_read_data_from_server(bool set_timer = true, std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH);
+		virtual void async_send_data_to_client(std::size_t offset, std::size_t size);
+		virtual void async_send_data_to_server(std::size_t offset, std::size_t size);
 		virtual void async_connect_to_server(std::string server_ip, std::uint32_t server_port);
 		void set_timer();
 		bool cancel_timer();
@@ -75,10 +69,12 @@ class http_proxy_connection : public std::enable_shared_from_this < http_proxy_c
 		virtual void on_client_data_send(std::size_t bytes_transfered) = 0;
 		virtual void on_server_data_arrived(std::size_t bytes_transfered) = 0;
 		virtual void on_server_data_send(std::size_t bytes_transfered) = 0;
-		void report_error(const std::string& status_code, const std::string& 
+		virtual void report_error(const std::string& status_code, const std::string& 
 		status_description, const std::string& error_message);
 		void close_connection();
 		void report_error(http_parser_result _status);
+		bool init_cipher(const std::string& cipher_name, const std::string& rsa_pub);
+		bool accept_cipher(const std::string& cipher_data);
 	};
 
 } // namespace azure_proxy

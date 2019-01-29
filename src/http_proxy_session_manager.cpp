@@ -53,10 +53,11 @@ namespace azure_proxy
 		if(buffer_size)
 		{
 			std::copy(cur_task.buffer, cur_task.buffer + cur_task.buffer_size, buffer_begin + 12);
-			if(encryptor)
+			if(encryptor && connection_context != proxy_connection_state::send_cipher_data)
 			{
 				encryptor->transform(std::reinterpret_cast<unsigned char *>(buffer_begin + 12), send_size, 128);
 			}
+
 		}
 		
 		if(is_downgoing)
@@ -136,7 +137,7 @@ namespace azure_proxy
 			std::uint32_t data_type = network_utils::decode_network_int(read_buffer + read_offset + 4);
 			std::uint32_t session_idx = network_utils::decode_network_int(read_buffer + read_offset + 8);
 
-			if(decryptor)
+			if(decryptor && connection_context != read_cipher_data)
 			{
 				decryptor->decrypt(read_buffer + read_offset + 12, _decrypt_buffer.data(), cur_parse_result.second);
 			}

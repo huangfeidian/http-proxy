@@ -9,13 +9,23 @@ namespace azure_proxy
     }
     void http_proxy_client_session_manager::start()
     {
-        if(!http_proxy_client_config::init_cipher_for_connection(*this))
+		const auto& config_instance = http_proxy_client_config::get_instance();
+        if(!init_cipher(config_instance.get_cipher(), config_instance.get_rsa_public_key()))
         {
             shutdown_connection();
             return;
         }
-        async_connect_to_server(http_proxy_client_config::get_instance().get_proxy_server_address(), http_proxy_client_config::get_instance().get_proxy_server_port());
+		connection_state = proxy_connection_state::connect_to_origin_server;
+        async_connect_to_server(config_instance.get_proxy_server_address(), config_instance.get_proxy_server_port());
     }
+	void http_proxy_client_session_manager::on_server_connected()
+	{
+		logger->info("{} connected to proxy server established", logger_prefix);
+		connection_state = proxy_connection_state::send_cipher_data;
+		post_send_task(connection_count, encrypted_cipher_info.data(), encrypted_cipher_info.size(), session_data_cmd::authenticate)
+		connection_state = proxy_connection_state::session_tranfer;
+		this->async_read_data_from_server(false);
+	}
     void http_proxy_client_session_manager::on_control_data_arrived(std::uint32_t connection_idx, session_data_cmd cmd_type, std::uint32_t data_size, const char* buffer)
     {
         switch(cmd_type)
