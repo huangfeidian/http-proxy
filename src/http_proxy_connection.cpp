@@ -2,7 +2,7 @@
 
 namespace azure_proxy
 {
-	http_proxy_connection::http_proxy_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::uint32_t in_timeout)
+	http_proxy_connection::http_proxy_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::uint32_t in_timeout, const std::string& in_rsa_key)
 	:
 	strand(in_client_socket.get_io_service()),
 	client_socket(std::move(in_client_socket)),
@@ -13,13 +13,14 @@ namespace azure_proxy
 	timeout(std::chrono::seconds(in_timeout)),
 	logger(in_logger),
 	connection_count(in_connection_count),
-	logger_prefix("connection " +std::to_string(connection_count) + ": ")
+	logger_prefix("connection " +std::to_string(connection_count) + ": "),
+	rsa_key(rsa_key)
 	{
 
 	}
-	std::shared_ptr<http_proxy_connection> http_proxy_connection::create(asio::ip::tcp::socket&& _in_client_socket, asio::ip::tcp::socket&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout)
+	std::shared_ptr<http_proxy_connection> http_proxy_connection::create(asio::ip::tcp::socket&& _in_client_socket, asio::ip::tcp::socket&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout, const std::string& in_rsa_key)
 	{
-		return std::make_shared<http_proxy_connection>(std::move(_in_client_socket), std::move(_in_server_socket), logger, in_connection_idx, _in_timeout);
+		return std::make_shared<http_proxy_connection>(std::move(_in_client_socket), std::move(_in_server_socket), logger, in_connection_idx, _in_timeout, in_rsa_key);
 	}
 
 	void http_proxy_connection::report_error(http_parser_result _status)
@@ -86,43 +87,48 @@ namespace azure_proxy
 			}
 		}));
 	}
-	void http_proxy_connection::async_connect_to_server(std::string server_ip, std::uint32_t server_port)
+	void http_proxy_connection::async_connect_to_server(std::string server_host, std::uint32_t server_port)
 	{
 		auto self(this->shared_from_this());
-		asio::ip::tcp::resolver::query query(server_ip, std::to_string(server_port));
+		asio::ip::tcp::resolver::query query(server_host, std::to_string(server_port));
 		this->connection_state = proxy_connection_state::resolve_proxy_server_address;
 		this->set_timer();
-		this->resolver.async_resolve(query, [this, self, server_ip, server_port](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
+		this->resolver.async_resolve(query, [this, self](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
 		{
 			if (this->cancel_timer())
 			{
 				if (!error)
 				{
-					this->connection_state = proxy_connection_state::connecte_to_proxy_server;
-					this->set_timer();
-					this->server_socket.async_connect(*iterator, this->strand.wrap([this, self](const error_code& error)
-					{
-						if (this->cancel_timer())
-						{
-							if (!error)
-							{
-								this->on_server_connected();
-							}
-							else
-							{
-								logger->warn("{} fail to connect to server {} port {}", logger_prefix, server_ip, server_port);
-								this->on_error(error);
-							}
-						}
-					}));
+					on_resolved(iterator);
 				}
 				else
 				{
-					logger->warn("{} fail to resolve server {}", logger_prefix, server_ip);
+					logger->warn("{} fail to resolve server {}", logger_prefix, iterator->host_name());
 					this->on_error(error);
 				}
 			}
 		});
+	}
+	void http_proxy_connection::on_resolved(asio::ip::tcp::resolver::iterator endpoint_iterator)
+	{
+		auto self = shared_from_this();
+		this->connection_state = proxy_connection_state::connecte_to_proxy_server;
+		this->set_timer();
+		this->server_socket.async_connect(*endpoint_iterator, this->strand.wrap([this, self, host = endpoint_iterator->host_name()](const error_code& error)
+		{
+			if (this->cancel_timer())
+			{
+				if (!error)
+				{
+					this->on_server_connected();
+				}
+				else
+				{
+					logger->warn("{} fail to connect to server {}", logger_prefix, host);
+					this->on_error(error);
+				}
+			}
+		}));
 	}
 	bool http_proxy_connection::init_cipher(const std::string& cipher_name, const std::string& rsa_pub_key)
 	{
@@ -189,15 +195,15 @@ namespace azure_proxy
 		}
 		return true;
 	}
-	bool http_proxy_connection::accept_cipher(const std::string& cipher_data)
+	bool http_proxy_connection::accept_cipher(const unsigned char* cipher_data, std::size_t cipher_size)
 	{
-		if (cipher_data.size() != this->rsa_pri.modulus_size())
+		if (cipher_size != this->rsa_key.modulus_size())
 		{
 			return false;
 		}
-		std::vector<unsigned char> decrypted_cipher_info(this->rsa_pri.modulus_size());
+		std::vector<unsigned char> decrypted_cipher_info(this->rsa_key.modulus_size());
 
-		if (86 != this->rsa_pri.decrypt(this->rsa_pri.modulus_size(), cipher_data.data(), decrypted_cipher_info.data(), rsa_padding::pkcs1_oaep_padding))
+		if (86 != this->rsa_key.decrypt(this->rsa_key.modulus_size(), cipher_data, decrypted_cipher_info.data(), rsa_padding::pkcs1_oaep_padding))
 		{
 			return false;
 		}
@@ -335,7 +341,6 @@ namespace azure_proxy
 		if (set_timer)
 		{
 			this->set_timer();
-			
 		}
 		asio::async_read(this->server_socket,
 								asio::buffer(&this->server_read_buffer[0], at_most_size),
@@ -358,10 +363,13 @@ namespace azure_proxy
 								);
 	}
 
-	void http_proxy_connection::async_read_data_from_client(std::size_t at_least_size, std::size_t at_most_size)
+	void http_proxy_connection::async_read_data_from_client(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
 	{
 		assert(at_least_size <= at_most_size && at_most_size <= BUFFER_LENGTH);
 		auto self(this->shared_from_this());
+		if(set_timer)
+		{
+		}
 		this->set_timer();
 		
 		asio::async_read(this->client_socket,
@@ -385,27 +393,31 @@ namespace azure_proxy
 								);
 	}
 
-	void http_proxy_connection::async_send_data_to_server(const char* write_buffer, std::size_t offset, std::size_t size)
+	void http_proxy_connection::async_send_data_to_server(const unsigned char* write_buffer, std::size_t offset, std::size_t size)
+	{
+		async_send_data_to_server_impl(write_buffer, offset, size, size);
+	}
+	void http_proxy_connection::async_send_data_to_server_impl(const unsigned char* write_buffer, std::size_t offset, std::size_t remain_size, std::size_t total_size)
 	{
 		auto self(this->shared_from_this());
 		this->set_timer();
-		
-		this->server_socket.async_write_some(asio::buffer(write_buffer + offset, size),
-													this->strand.wrap([this, self, write_buffer, offset, size](const error_code& error, std::size_t bytes_transferred)
+
+		this->server_socket.async_write_some(asio::buffer(write_buffer + offset, remain_size),
+			this->strand.wrap([this, self, write_buffer, offset, remain_size, total_size](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer())
 			{
 				if (!error)
 				{
 					this->connection_context.reconnect_on_error = false;
-					if (bytes_transferred < size)
+					if (bytes_transferred < remain_size)
 					{
-						this->async_send_data_to_server(write_buffer, offset + bytes_transferred, size - bytes_transferred);
+						this->async_send_data_to_server(write_buffer, offset + bytes_transferred, remain_size - bytes_transferred);
 					}
 					else
 					{
 						logger->debug("{} send to server with size {}", logger_prefix, offset + bytes_transferred);
-						this->on_server_data_send();
+						this->on_server_data_send(total_size);
 					}
 				}
 				else
@@ -415,28 +427,32 @@ namespace azure_proxy
 				}
 			}
 		})
-													);
+		);
 	}
 
-	void http_proxy_connection::async_send_data_to_client(const char* write_buffer, std::size_t offset, std::size_t size)
+	void http_proxy_connection::async_send_data_to_client(const unsigned char* write_buffer, std::size_t offset, std::size_t size)
+	{
+		async_send_data_to_client_impl(write_buffer, offset, size, size);
+	}
+	void http_proxy_connection::async_send_data_to_client_impl(const unsigned char* write_buffer, std::size_t offset, std::size_t remain_size, std::size_t total_size)
 	{
 		auto self(this->shared_from_this());
 		this->set_timer();
-		
-		this->client_socket.async_write_some(asio::buffer(write_buffer + offset, size),
-												   this->strand.wrap([this, self, write_buffer, offset, size](const error_code& error, std::size_t bytes_transferred)
+
+		this->client_socket.async_write_some(asio::buffer(write_buffer + offset, remain_size),
+			this->strand.wrap([this, self, write_buffer, offset, remain_size, total_size](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer())
 			{
 				if (!error)
 				{
-					if (bytes_transferred < size)
+					if (bytes_transferred < remain_size)
 					{
-						this->async_send_data_to_client(write_buffer, offset + bytes_transferred, size - bytes_transferred);
+						this->async_send_data_to_client(write_buffer, offset + bytes_transferred, remain_size - bytes_transferred);
 					}
 					else
 					{
-						this->on_client_data_send();
+						this->on_client_data_send(total_size);
 					}
 				}
 				else
@@ -446,7 +462,36 @@ namespace azure_proxy
 				}
 			}
 		})
-												   );
+		);
+
 	}
 
+	http_proxy_connection::~http_proxy_connection()
+	{
+		close_connection();
+	}
+	void http_proxy_connection::on_client_data_arrived(std::size_t bytes_transferred)
+	{
+		return;
+	}
+	void http_proxy_connection::on_server_data_arrived(std::size_t bytes_transferred)
+	{
+		return;
+	}
+	void http_proxy_connection::on_server_data_send(std::size_t bytes_transferred)
+	{
+		return;
+	}
+	void http_proxy_connection::on_client_data_send(std::size_t bytes_transferred)
+	{
+		return;
+	}
+	void http_proxy_connection::on_server_connected()
+	{
+		return;
+	}
+	void http_proxy_connection::start()
+	{
+		return;
+	}
 }

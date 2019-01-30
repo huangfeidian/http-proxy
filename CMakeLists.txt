@@ -12,9 +12,9 @@ find_package(nlohmann_json CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 INCLUDE_DIRECTORIES(${spdlog_include_dirs})
 
-# set(ASIO_DIR "C:\\Users\\hhln4510\\Documents\\Github\\asio\\asio\\include")
-set(ASIO_DIR "D:\\Github\\asio-1.10.6\\include")
-include_directories(${ASIO_DIR})
+
+# set(ASIO_DIR "D:\\Github\\asio-1.10.6\\include")
+# include_directories(${ASIO_DIR})
 add_definitions(-DASIO_STANDALONE)
 add_definitions(-DASIO_MSVC)
 
@@ -45,6 +45,7 @@ src/http_proxy_client_stat.cpp
 src/http_proxy_client_config.cpp 
 src/http_proxy_client_connection.cpp 
 src/http_proxy_connection.cpp
+src/http_proxy_session_manager.cpp
 src/http_proxy_client_session_manager.cpp
 src/http_proxy_client_session.cpp
 src/http_header_parser.cpp)
@@ -65,6 +66,7 @@ src/http_proxy_server_persist_main.cpp
 src/http_proxy_server_persist.cpp 
 src/http_proxy_server_config.cpp 
 src/http_proxy_connection.cpp
+src/http_proxy_server_connection.cpp
 src/http_proxy_server_session.cpp 
 src/http_proxy_server_session_manager.cpp
 src/http_proxy_session_manager.cpp

@@ -2,16 +2,16 @@
 
 namespace azure_proxy
 {
-    http_proxy_session_manager::http_proxy_session_manager(asio::io_service& _in_io_service, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, bool _in_is_downgoing):
-	http_proxy_connection(std::move(asio::ip::tcp::socket(_in_io_service)), std::move(asio::ip::tcp::socket(_in_io_service)), logger, in_connection_count, _in_timeout),
+    http_proxy_session_manager::http_proxy_session_manager(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing):
+	http_proxy_connection(std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count, _in_timeout, rsa_key),
 	is_downgoing(_in_is_downgoing)
 
 	{
 
 	}
-	static std::shared_ptr<http_proxy_session_manager> http_proxy_session_manager::create(asio::io_service& _in_io_service, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, bool _in_is_downgoing)
+	std::shared_ptr<http_proxy_session_manager> http_proxy_session_manager::create(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing)
 	{
-		return std::make_shared<http_proxy_session_manager>(_in_io_service, logger, in_connection_count, _in_timeout, _in_is_downgoing);
+		return std::make_shared<http_proxy_session_manager>(std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count, _in_timeout, rsa_key, _in_is_downgoing);
 	}
 	bool http_proxy_session_manager::post_send_task(std::uint32_t session_idx, const unsigned char* send_buffer, std::uint32_t buffer_size)
 	{
@@ -21,10 +21,10 @@ namespace azure_proxy
 	{
 		send_task_desc cur_task{session_idx, buffer_size, send_buffer, data_type};
 		std::unique_lock<std::mutex> queue_lock(_send_task_mutex);
-		queue_lock.lock()
+		queue_lock.lock();
 		bool send_in_progress = !send_task_queue.empty();
-		send_task_queue.push(cut_task);
-		queue_lock.unlock()
+		send_task_queue.push(cur_task);
+		queue_lock.unlock();
 		if(!send_in_progress)
 		{
 			do_send_one();
@@ -34,39 +34,40 @@ namespace azure_proxy
 	bool http_proxy_session_manager::post_read_task(std::shared_ptr<http_proxy_connection> _task_session, unsigned char* read_buffer, std::uint32_t min_read_size, std::uint32_t max_read_size)
 	{
 		read_task_desc cur_task{_task_session->connection_count, min_read_size, max_read_size, read_buffer, 0};
-		std::lock_guard<std::mutex> lock(_task_mutex);
+		std::lock_guard<std::mutex> lock(_read_task_mutex);
 		_read_tasks[_task_session->connection_count] = cur_task;
+		return true;
 	}
-	void do_send_one()
+	void http_proxy_session_manager::do_send_one()
 	{
 		auto cur_task = send_task_queue.front();
 		std::uint32_t send_size = 0;
-		char* buffer_begin = server_send_buffer.data();
+		unsigned char* buffer_begin = server_send_buffer.data();
 		if(is_downgoing)
 		{
 			buffer_begin = client_send_buffer.data();
 		}
 		send_size = cur_task.buffer_size;
 		network_utils::encode_network_int(buffer_begin, send_size);
-		network_utils::encode_network_int(buffer_begin + 4, cur_task.data_type);
+		network_utils::encode_network_int(buffer_begin + 4, static_cast<std::uint32_t>(cur_task.data_type));
 		network_utils::encode_network_int(buffer_begin + 8, cur_task.session_idx);
-		if(buffer_size)
+		if(send_size)
 		{
 			std::copy(cur_task.buffer, cur_task.buffer + cur_task.buffer_size, buffer_begin + 12);
-			if(encryptor && connection_context != proxy_connection_state::send_cipher_data)
+			if(encryptor && connection_state != proxy_connection_state::send_cipher_data)
 			{
-				encryptor->transform(std::reinterpret_cast<unsigned char *>(buffer_begin + 12), send_size, 128);
+				encryptor->transform(buffer_begin + 12, send_size, 128);
 			}
 
 		}
 		
 		if(is_downgoing)
 		{
-			async_write_data_to_client(0, send_size + 12);
+			async_send_data_to_client(buffer_begin, 0, send_size + 12);
 		}
 		else
 		{
-			async_send_data_to_server(0, send_size + 12);
+			async_send_data_to_server(buffer_begin, 0, send_size + 12);
 		}
 	}
 	void http_proxy_session_manager::on_client_data_send(std::uint32_t bytes_transferred)
@@ -74,7 +75,7 @@ namespace azure_proxy
 		bool remain_progress = false;
 		{
 			std::lock_guard<std::mutex> queue_lock(_send_task_mutex);
-			send_task_queue.pop_front();
+			send_task_queue.pop();
 			remain_progress = !send_task_queue.empty();
 		}
 		if(remain_progress)
@@ -87,7 +88,7 @@ namespace azure_proxy
 		bool remain_progress = false;
 		{
 			std::lock_guard<std::mutex> queue_lock(_send_task_mutex);
-			send_task_queue.pop_front();
+			send_task_queue.pop();
 			remain_progress = !send_task_queue.empty();
 		}
 		if(remain_progress)
@@ -95,25 +96,35 @@ namespace azure_proxy
 			do_send_one();
 		}
 	}
-	void add_session(std::shared_ptr<http_proxy_connection>&& _new_session)
+	void http_proxy_session_manager::add_session(std::shared_ptr<http_proxy_connection>&& _new_session)
 	{
 		std::uint32_t session_count = _new_session->connection_count;
 		{
 			std::lock_guard<std::mutex> session_guard(_session_mutex);
 			_sessions[_new_session->connection_count] = std::move(_new_session);
 		}
-		post_send_task(session_count, std::nullptr, 0, session_data_cmd::new_session)
+		post_send_task(session_count, nullptr, 0, session_data_cmd::new_session);
 		
 	}
-	void remove_session(std::uint32_t _session_idx)
+	bool http_proxy_session_manager::remove_session(std::uint32_t _session_idx)
 	{
+		std::uint32_t remove_count = 0;
 		{
 			std::lock_guard<std::mutex> session_guard(_session_mutex);
-			_sessions.erase(_session_idx);
+			remove_count = _sessions.erase(_session_idx);
 		}
-		post_send_task(_session_idx, std::nullptr, 0, session_data_cmd::remove_session)
+		if (remove_count >= 1)
+		{
+			post_send_task(_session_idx, nullptr, 0, session_data_cmd::remove_session);
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+		
 	}
-	void http_proxy_session_manager::on_data_arrived(std::uint32_t byte_transfered, const char* read_buffer)
+	void http_proxy_session_manager::on_data_arrived(std::uint32_t bytes_transferred, const unsigned char* read_buffer)
 	{
 		bytes_transferred += buffer_offset - read_offset;
 		buffer_offset += bytes_transferred;
@@ -134,16 +145,16 @@ namespace azure_proxy
 				
 				return;
 			}
-			std::uint32_t data_type = network_utils::decode_network_int(read_buffer + read_offset + 4);
+			session_data_cmd data_type = static_cast<session_data_cmd>(network_utils::decode_network_int(read_buffer + read_offset + 4));
 			std::uint32_t session_idx = network_utils::decode_network_int(read_buffer + read_offset + 8);
 
-			if(decryptor && connection_context != read_cipher_data)
+			if(decryptor && connection_state != proxy_connection_state::read_cipher_data)
 			{
 				decryptor->decrypt(read_buffer + read_offset + 12, _decrypt_buffer.data(), cur_parse_result.second);
 			}
 			else
 			{
-				std::copy(read_buffer + read_offset + 12, server_read_buffer.data() + read_offset + 12 + cur_parse_result.second, _decrypt_buffer.data());
+				std::copy(read_buffer + read_offset + 12, read_buffer + read_offset + 12 + cur_parse_result.second, _decrypt_buffer.data());
 			}
 			if(data_type != session_data_cmd::session_data)
 			{
@@ -152,11 +163,11 @@ namespace azure_proxy
 			read_offset += 12 + cur_parse_result.second;
 			std::shared_ptr<http_proxy_connection> _cur_session;
 			{
-				std::lock_guard<std::mutex> _session_guard;
+				std::lock_guard<std::mutex> _session_guard(_session_mutex);
 				auto cur_iter = _sessions.find(session_idx);
-				if(cur_iter)
+				if(cur_iter != _sessions.end())
 				{
-					_cur-session = cur_iter->second;
+					_cur_session = cur_iter->second;
 				}
 			}
 			if(!_cur_session)
@@ -166,11 +177,11 @@ namespace azure_proxy
 			std::uint32_t min_read_size = 1;
 			std::uint32_t already_read_size = 0;
 			std::uint32_t max_read_size = BUFFER_LENGTH;
-			char* session_read_buffer = nullptr;
+			unsigned char* session_read_buffer = nullptr;
 			{
-				std::lock_guard<std::mutex> _session_guard;
+				std::lock_guard<std::mutex> _session_guard(_session_mutex);
 				auto cur_iter = _read_tasks.find(session_idx);
-				if(cur_iter)
+				if(cur_iter != _read_tasks.end())
 				{
 					min_read_size = cur_iter->second.min_read_size;
 					already_read_size = cur_iter->second.already_read_size;
@@ -184,7 +195,7 @@ namespace azure_proxy
 				continue;
 			}
 			std::copy(_decrypt_buffer.data(), _decrypt_buffer.data() + cur_parse_result.second, session_read_buffer + already_read_size);
-			already_read_size += cur_parse_result.second
+			already_read_size += cur_parse_result.second;
 			if(already_read_size >= min_read_size)
 			{
 				if(is_downgoing)
@@ -276,7 +287,7 @@ namespace azure_proxy
 		);
 	}
 
-	std::pair<bool, std::uint32_t> http_proxy_session_manager::parse_data(const char* buffer, std::uint32_t buffer_size, std::uint32_t offset)
+	std::pair<bool, std::uint32_t> http_proxy_session_manager::parse_data(const unsigned char* buffer, std::uint32_t buffer_size, std::uint32_t offset)
 	// bool: get one complete packet
 	// uint32_t if bool is true represent the packet size else at least more size to read
 	{
@@ -288,8 +299,12 @@ namespace azure_proxy
 
 		if(buffer_size - offset < packet_size)
 		{
-			return std::make_pair(false, packet_size + offset - buffer_size)
+			return std::make_pair(false, packet_size + offset - buffer_size);
 		}
-		retutn std::make_pair(true, packet_size);
+		return std::make_pair(true, packet_size);
+	}
+	void http_proxy_session_manager::on_control_data_arrived(std::uint32_t connection_idx, session_data_cmd cmd_type, std::uint32_t data_size, const unsigned char* buffer)
+	{
+		return;
 	}
 }

@@ -1,22 +1,22 @@
 #include "http_proxy_client_session.hpp"
 #include "http_proxy_client_config.hpp"
-
+#include "http_proxy_client_session_manager.hpp"
 namespace azure_proxy
 {
     http_proxy_client_session::http_proxy_client_session(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, http_proxy_client_session_manager& in_session_manager)
-    :http_proxy_client_connection(std::move(ua_socket), std::move(_server_socket), in_connection_count), 
+    :http_proxy_client_connection(std::move(ua_socket), std::move(_server_socket), logger, in_connection_count), 
     _session_manager(in_session_manager)
     {
         
     }
 
-    static std::shared_ptr<http_proxy_client_session> http_proxy_client_session::create(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, http_proxy_client_session_manager& in_session_manager)
+   std::shared_ptr<http_proxy_client_session> http_proxy_client_session::create(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, http_proxy_client_session_manager& in_session_manager)
     {
         auto result = std::make_shared<http_proxy_client_session>(std::move(ua_socket), std::move(_server_socket), logger, in_connection_count, in_session_manager);
         in_session_manager.add_session(result);
 		return result;
     }
-    http_proxy_client_session::~http_proxy_client_session
+    http_proxy_client_session::~http_proxy_client_session()
     {
         _session_manager.remove_session(connection_count);
     }
@@ -31,7 +31,7 @@ namespace azure_proxy
 	void http_proxy_client_session::async_send_data_to_server(std::size_t offset, std::size_t size)
 	{
 		set_timer();
-		_session_manager.post_send_task(shared_from_this(), server_send_buffer.data(), offset, size);
+		_session_manager.post_send_task(connection_count, server_send_buffer.data() + offset, size);
 	}
 
 }

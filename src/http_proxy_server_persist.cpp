@@ -63,7 +63,7 @@ void http_proxy_server_persist::start_accept()
 	this->acceptor.async_accept(*socket, [socket, this](const error_code& error) {
 		if (!error) {
 
-			auto connection = http_proxy_server_session_manager::create(std::move(*socket), logger, connection_count++);
+			auto connection = http_proxy_server_session_manager::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_io_service())), logger, connection_count++);
 
 			connection->start();
 			this->start_accept();

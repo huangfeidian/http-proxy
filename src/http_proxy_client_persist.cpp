@@ -59,7 +59,7 @@ namespace azure_proxy
 		}
         for (auto i = 0; i < config.get_workers(); ++i)
         {
-            auto one_session_manager = http_proxy_client_session_manager::create(io_service, logger, connection_count++);
+            auto one_session_manager = http_proxy_client_session_manager::create(std::move(asio::ip::tcp::socket(io_service)), std::move(asio::ip::tcp::socket(io_service)), logger, connection_count++);
             _session_managers.push_back(one_session_manager);
             one_session_manager->start();
 
@@ -80,7 +80,7 @@ namespace azure_proxy
 			{
 				this->start_accept();
                 auto cur_connection_count = connection_count++;
-                auto cur_session = http_proxy_client_session::create(std::move(socket), std::move(asio::ip::tcp::socket(this->acceptor.get_io_service())), logger, cur_connection_count++, *_session_managers[cur_connection_count % _session_managers.size()]);
+                auto cur_session = http_proxy_client_session::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_io_service())), logger, cur_connection_count++, *_session_managers[cur_connection_count % _session_managers.size()]);
 				cur_session->start();
 			}
 		});

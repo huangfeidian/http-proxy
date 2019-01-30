@@ -4,14 +4,13 @@
 #include <memory>
 #include <assert.h>
 #include <unordered_set>
-#include "http_header_parser.hpp"
 #include <optional>
 #ifdef _MSC_VER
 #include <charconv>
 #else
 #include <exception>
 #endif 
-
+#include "http_header_parser.hpp"
 
 namespace azure_proxy
 {

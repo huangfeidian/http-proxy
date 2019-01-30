@@ -423,7 +423,7 @@ namespace azure_proxy
 			}
 		}
 
-		int decrypt(int flen, unsigned char* from, unsigned char* to, rsa_padding padding)
+		int decrypt(int flen, const unsigned char* from, unsigned char* to, rsa_padding padding)
 		{
 			assert(from && to);
 			int pad = this->rsa_padding2int(padding);
@@ -635,10 +635,10 @@ namespace azure_proxy
 		static uint32_t decode_network_int(const unsigned char* buffer)
 		{
 			std::uint32_t result = 0;
-			result = result << 8 + static_cast<uint8_t>(buffer[0]);
-			result = result << 8 + static_cast<uint8_t>(buffer[1]);
-			result = result << 8 + static_cast<uint8_t>(buffer[2]);
-			result = result << 8 + static_cast<uint8_t>(buffer[3]);
+			result = (result << 8) + static_cast<uint8_t>(buffer[0]);
+			result = (result << 8) + static_cast<uint8_t>(buffer[1]);
+			result = (result << 8) + static_cast<uint8_t>(buffer[2]);
+			result = (result << 8) + static_cast<uint8_t>(buffer[3]);
 			return result;
 		}
 	};

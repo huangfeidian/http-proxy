@@ -19,7 +19,7 @@ namespace azure_proxy
 {
 
 	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count):
-	http_proxy_connection(std::move(ua_socket), std::move(server_socket), in_logger, in_connection_count, http_proxy_client_config::get_instance().get_timeout())
+	http_proxy_connection(std::move(ua_socket), std::move(server_socket), in_logger, in_connection_count, http_proxy_client_config::get_instance().get_timeout(), http_proxy_client_config::get_instance().get_rsa_public_key())
 	{
 		_request_time = std::chrono::system_clock::now();
 		http_proxy_client_stat::get_instance().increase_current_connections();
@@ -33,7 +33,7 @@ namespace azure_proxy
 
 	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count)
 	{
-		return std::make_shared<http_proxy_client_connection>(std::move(ua_socket), std::move(_server_socket), in_connection_count);
+		return std::make_shared<http_proxy_client_connection>(std::move(ua_socket), std::move(_server_socket), in_logger,  in_connection_count);
 	}
 	
 	void http_proxy_client_connection::start()
@@ -51,8 +51,8 @@ namespace azure_proxy
 	void http_proxy_client_connection::on_server_connected()
 	{
 		logger->info("{} connected to proxy server established", logger_prefix);
-		std::copy(encrypted_cipher_info.data(), encrypted_cipher_info.end(), server_send_buffer.data());
-		this->async_send_data_to_server(0, this->encrypted_cipher_info.size());
+		std::copy(encrypted_cipher_info.begin(), encrypted_cipher_info.end(), server_send_buffer.data());
+		this->async_send_data_to_server(server_send_buffer.data(), 0, this->encrypted_cipher_info.size());
 		this->async_read_data_from_server(false);
 	}
 
@@ -60,16 +60,16 @@ namespace azure_proxy
 	void http_proxy_client_connection::on_server_data_arrived(std::size_t bytes_transferred)
 	{
 		http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
-		this->decryptor->decrypt(reinterpret_cast<const unsigned char*>(&this->server_read_buffer[0]), reinterpret_cast<unsigned char*>(&this->client_send_buffer[0]), bytes_transferred);
+		this->decryptor->decrypt(server_read_buffer.data(), client_send_buffer.data(), bytes_transferred);
 		logger->debug("{} decrypt server data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::checksum(client_send_buffer.data(), bytes_transferred));
 
 		logger->debug("{} on_server_data_arrived bytes {}", logger_prefix, bytes_transferred);
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
-			this->async_send_data_to_client(0, bytes_transferred);
+			this->async_send_data_to_client(client_send_buffer.data(), 0, bytes_transferred);
 			return;
 		}
-		if (!_response_parser.append_input(reinterpret_cast<const unsigned char*>(client_send_buffer.data()), bytes_transferred))
+		if (!_response_parser.append_input(client_send_buffer.data(), bytes_transferred))
 		{
 			report_error("400", "Bad request", "buffer overflow");
 			return;
@@ -127,7 +127,7 @@ namespace azure_proxy
 		}
 		if (send_buffer_size)
 		{
-			this->async_send_data_to_client(0, send_buffer_size);
+			this->async_send_data_to_client(client_send_buffer.data(), 0, send_buffer_size);
 		}
 		else
 		{
@@ -144,12 +144,12 @@ namespace azure_proxy
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
 			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::checksum(client_read_buffer.data(), bytes_transferred));
-			encryptor->encrypt(reinterpret_cast<const unsigned char*>(client_read_buffer.data()), reinterpret_cast<unsigned char*>(server_send_buffer.data()), bytes_transferred);
-			async_send_data_to_server(0, bytes_transferred);
+			encryptor->encrypt(client_read_buffer.data(), server_send_buffer.data(), bytes_transferred);
+			async_send_data_to_server(server_send_buffer.data(), 0, bytes_transferred);
 			return;
 
 		}
-		if (!_request_parser.append_input(reinterpret_cast<const unsigned char*>(&client_read_buffer[0]), bytes_transferred))
+		if (!_request_parser.append_input(client_read_buffer.data(), bytes_transferred))
 		{
 			report_error("400", "Bad request", "buffer overflow");
 			return;
@@ -192,8 +192,8 @@ namespace azure_proxy
 		if (send_buffer_size)
 		{
 			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, send_buffer_size, aes_generator::checksum(server_send_buffer.data(), send_buffer_size));
-			encryptor->transform(reinterpret_cast<unsigned char*>(server_send_buffer.data()), send_buffer_size, 256);
-			this->async_send_data_to_server(0, send_buffer_size);
+			encryptor->transform(server_send_buffer.data(), send_buffer_size, 256);
+			this->async_send_data_to_server(server_send_buffer.data(), 0, send_buffer_size);
 		}
 		else
 		{
@@ -201,11 +201,11 @@ namespace azure_proxy
 		}
 		
 	}
-	void http_proxy_client_connection::on_client_data_send()
+	void http_proxy_client_connection::on_client_data_send(std::size_t bytes_transferred)
 	{
 		async_read_data_from_server();
 	}
-	void http_proxy_client_connection::on_server_data_send()
+	void http_proxy_client_connection::on_server_data_send(std::size_t bytes_transferred)
 	{
 		async_read_data_from_client();
 	}
