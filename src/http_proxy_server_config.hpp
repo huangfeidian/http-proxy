@@ -14,12 +14,13 @@
 #include <string>
 #include <spdlog/spdlog.h>
 
-
+#include <atomic>
 namespace azure_proxy {
 
 class http_proxy_server_config {
 	std::map<std::string,int> config_map_int;
 	std::map<std::string, std::string> config_map_str;
+	std::atomic<std::uint32_t> connection_count;
 private:
 	template<typename T>
 	T get_config_value(const std::string& key) const;
@@ -39,6 +40,7 @@ public:
 	spdlog::level::level_enum get_console_log_level() const;
 	spdlog::level::level_enum get_file_log_level() const;
 	std::string get_log_file_name() const;
+	std::uint32_t increase_connection_count();
 	static http_proxy_server_config& get_instance();
 };
 

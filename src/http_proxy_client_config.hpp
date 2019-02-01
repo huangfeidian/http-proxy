@@ -6,6 +6,7 @@
 #include <string>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
+#include <atomic>
 
 namespace azure_proxy
 {
@@ -15,6 +16,7 @@ namespace azure_proxy
 	private:
 		std::map<std::string, int> config_map_int;
 		std::map<std::string, std::string> config_map_str;
+		std::atomic<std::uint32_t> connection_count = 0;
 
 	private:
 		template<typename T>
@@ -36,6 +38,7 @@ namespace azure_proxy
 		spdlog::level::level_enum get_console_log_level() const;
 		spdlog::level::level_enum get_file_log_level() const;
 		std::string get_log_file_name() const;
+		std::uint32_t increase_connection_count();
 		static http_proxy_client_config& get_instance();
 	};
 

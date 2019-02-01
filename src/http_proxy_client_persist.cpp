@@ -40,7 +40,6 @@ namespace azure_proxy
 		this->logger = std::make_shared<spdlog::logger>("ahpc_persist", spdlog::sinks_init_list{ console_sink, file_sink });
 		this->logger->set_level(config.get_log_level());
 		this->logger->info("http_proxy_client_persist runs with {} threads", config.get_workers());
-		connection_count = 0;
 		this->start_accept();
 		std::vector<std::thread> td_vec;
 		for (auto i = 0; i < config.get_workers(); ++i)
@@ -59,7 +58,7 @@ namespace azure_proxy
 		}
         for (auto i = 0; i < config.get_workers(); ++i)
         {
-            auto one_session_manager = http_proxy_client_session_manager::create(std::move(asio::ip::tcp::socket(io_service)), std::move(asio::ip::tcp::socket(io_service)), logger, connection_count++);
+            auto one_session_manager = http_proxy_client_session_manager::create(std::move(asio::ip::tcp::socket(io_service)), std::move(asio::ip::tcp::socket(io_service)), logger, http_proxy_client_config::get_instance().increase_connection_count());
             _session_managers.push_back(one_session_manager);
             one_session_manager->start();
 
@@ -79,8 +78,8 @@ namespace azure_proxy
 			if (!error)
 			{
 				this->start_accept();
-                auto cur_connection_count = connection_count++;
-                auto cur_session = http_proxy_client_session::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_io_service())), logger, cur_connection_count++, *_session_managers[cur_connection_count % _session_managers.size()]);
+                auto cur_connection_count = http_proxy_client_config::get_instance().increase_connection_count();
+                auto cur_session = http_proxy_client_session::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_io_service())), logger, cur_connection_count++, _session_managers[cur_connection_count % _session_managers.size()]);
 				cur_session->start();
 			}
 		});

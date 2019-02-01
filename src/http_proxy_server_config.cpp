@@ -238,4 +238,9 @@ namespace azure_proxy {
 		}
 	}
 
+	std::uint32_t http_proxy_server_config::increase_connection_count()
+	{
+		return connection_count++;
+	}
+
 } // namespace azure_proxy

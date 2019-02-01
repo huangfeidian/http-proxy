@@ -36,7 +36,6 @@ void http_proxy_server_persist::run()
 	file_sink->set_level(config.get_file_log_level());
 	this->logger = std::make_shared<spdlog::logger>(std::string("ahps_persist"), spdlog::sinks_init_list{ console_sink, file_sink });
 	this->logger->set_level(config.get_log_level());
-	connection_count = 0;
 
 	this->start_accept();
 	std::vector<std::thread> td_vec;
@@ -63,7 +62,7 @@ void http_proxy_server_persist::start_accept()
 	this->acceptor.async_accept(*socket, [socket, this](const error_code& error) {
 		if (!error) {
 
-			auto connection = http_proxy_server_session_manager::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_io_service())), logger, connection_count++);
+			auto connection = http_proxy_server_session_manager::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_io_service())), logger, http_proxy_server_config::get_instance().increase_connection_count());
 
 			connection->start();
 			this->start_accept();

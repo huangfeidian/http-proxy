@@ -40,7 +40,6 @@ namespace azure_proxy
 		this->logger = std::make_shared<spdlog::logger>("ahpc_basic", spdlog::sinks_init_list{ console_sink, file_sink });
 		this->logger->set_level(config.get_log_level());
 		this->logger->info("http_proxy_client runs with {} threads", config.get_workers());
-		connection_count = 0;
 		this->start_accept();
 		std::vector<std::thread> td_vec;
 		for (auto i = 0; i < config.get_workers(); ++i)
@@ -73,7 +72,7 @@ namespace azure_proxy
 			{
 				this->start_accept();
 
-				auto connection = http_proxy_client_connection::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_io_service())), this->logger, connection_count++);
+				auto connection = http_proxy_client_connection::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_io_service())), this->logger, http_proxy_client_config::get_instance().increase_connection_count());
 
 				connection->start();
 			}

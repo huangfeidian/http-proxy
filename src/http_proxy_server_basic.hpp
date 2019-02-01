@@ -12,7 +12,6 @@ namespace azure_proxy {
 		asio::io_service& io_service;
 		asio::ip::tcp::acceptor acceptor;
 		std::shared_ptr<spdlog::logger> logger;
-		std::atomic<std::uint32_t> connection_count;
 	public:
 
 		http_proxy_server_basic(asio::io_service& io_service);
