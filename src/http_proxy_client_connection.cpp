@@ -41,6 +41,7 @@ namespace azure_proxy
 
 		if(!init_cipher(http_proxy_client_config::get_instance().get_cipher(), http_proxy_client_config::get_instance().get_rsa_public_key()))
 		{
+			logger->warn("{} fail to start client connection init_cipher fail", logger_prefix);
 			return;
 		}
 		async_connect_to_server(http_proxy_client_config::get_instance().get_proxy_server_address(), http_proxy_client_config::get_instance().get_proxy_server_port());

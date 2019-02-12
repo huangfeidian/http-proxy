@@ -1,4 +1,4 @@
-#include "http_proxy_client_session.hpp"
+﻿#include "http_proxy_client_session.hpp"
 #include "http_proxy_client_config.hpp"
 #include "http_proxy_client_session_manager.hpp"
 namespace azure_proxy
@@ -15,6 +15,7 @@ namespace azure_proxy
 	   auto the_session_manager = in_session_manager.lock();
 	   if (!the_session_manager)
 	   {
+		   logger->warn("http_proxy_client_session::create with invalid session manager");
 		   return std::shared_ptr< http_proxy_client_session>();
 	   }
         auto result = std::make_shared<http_proxy_client_session>(std::move(ua_socket), std::move(_server_socket), logger, in_connection_count, in_session_manager);

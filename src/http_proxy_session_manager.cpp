@@ -1,10 +1,11 @@
-#include "http_proxy_session_manager.hpp"
+﻿#include "http_proxy_session_manager.hpp"
 
 namespace azure_proxy
 {
     http_proxy_session_manager::http_proxy_session_manager(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing):
 	http_proxy_connection(std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count, _in_timeout, rsa_key),
-	is_downgoing(_in_is_downgoing)
+	is_downgoing(_in_is_downgoing),
+		_session_task_state(session_task_state::idle)
 
 	{
 
@@ -19,12 +20,17 @@ namespace azure_proxy
 	}
 	bool http_proxy_session_manager::post_send_task(std::uint32_t sender_session_idx, std::uint32_t session_idx, const unsigned char* send_buffer, std::uint32_t buffer_size, session_data_cmd data_type)
 	{
-		send_task_desc cur_task{ sender_session_idx, session_idx,send_buffer, data_type, buffer_size, };
-		std::unique_lock<std::mutex> queue_lock(_send_task_mutex);
-		queue_lock.lock();
-		bool send_in_progress = !send_task_queue.empty();
-		send_task_queue.push(cur_task);
-		queue_lock.unlock();
+		
+		send_task_desc cur_task{ sender_session_idx, session_idx, buffer_size,send_buffer, data_type};
+		std::size_t queue_size = 0;
+		bool send_in_progress = _session_task_state != session_task_state::idle;
+		{
+			std::lock_guard<std::mutex> queue_lock(_send_task_mutex);
+			send_in_progress  = send_in_progress || !send_task_queue.empty();
+			send_task_queue.push(cur_task);
+			queue_size = send_task_queue.size();
+		}
+		logger->debug("{} post_send_task sender_session_idx {} session_idx {} data_type {} size {}  send_in_progress {} queue size {}", logger_prefix, sender_session_idx, session_idx, static_cast<std::uint32_t>(data_type), buffer_size, send_in_progress, queue_size);
 		if(!send_in_progress)
 		{
 			do_send_one();
@@ -45,15 +51,25 @@ namespace azure_proxy
 		bool valid_session = true;
 		{
 			std::lock_guard<std::mutex> the_session_lock(_session_mutex);
-			if (_sessions.find(cur_task.session_idx) == _sessions.end())
+			if (_sessions.find(cur_task.session_idx) == _sessions.end() && cur_task.session_idx != connection_count)
 			{
 				valid_session = false;
 			}
 		}
 		if (!valid_session)
 		{
-			on_client_data_send(0);
+			if(is_downgoing)
+			{
+				on_client_data_send(0);
+			}
+			else
+			{
+				on_server_data_send(0);
+			}
+			
+			return;
 		}
+		_session_task_state = session_task_state::sending;
 		unsigned char* buffer_begin = server_send_buffer.data();
 		if(is_downgoing)
 		{
@@ -65,27 +81,29 @@ namespace azure_proxy
 		network_utils::encode_network_int(buffer_begin + 8, cur_task.session_idx);
 		if(send_size)
 		{
-			std::copy(cur_task.buffer, cur_task.buffer + cur_task.buffer_size, buffer_begin + 12);
+			std::copy(cur_task.buffer, cur_task.buffer + cur_task.buffer_size, buffer_begin + DATA_HEADER_LEN);
 			if(encryptor && connection_state != proxy_connection_state::send_cipher_data)
 			{
-				encryptor->transform(buffer_begin + 12, send_size, 128);
+				encryptor->transform(buffer_begin + DATA_HEADER_LEN, send_size, 128);
 			}
 
 		}
 		
 		if(is_downgoing)
 		{
-			async_send_data_to_client(buffer_begin, 0, send_size + 12);
+			async_send_data_to_client(buffer_begin, 0, send_size + DATA_HEADER_LEN);
 		}
 		else
 		{
-			async_send_data_to_server(buffer_begin, 0, send_size + 12);
+			async_send_data_to_server(buffer_begin, 0, send_size + DATA_HEADER_LEN);
 		}
 	}
 	void http_proxy_session_manager::on_client_data_send(std::uint32_t bytes_transferred)
 	{
+
 		bool remain_progress = false;
 		send_task_desc cur_task;
+		logger->debug("{} http_proxy_session_manager::on_client_data_send bytes_transferred {}", logger_prefix, bytes_transferred);
 		{
 			std::lock_guard<std::mutex> queue_lock(_send_task_mutex);
 			cur_task = send_task_queue.front();
@@ -118,10 +136,11 @@ namespace azure_proxy
 	{
 		bool remain_progress = false;
 		send_task_desc cur_task;
+		logger->debug("{} http_proxy_session_manager::on_server_data_send bytes_transferred {}", logger_prefix, bytes_transferred);
 		{
 			std::lock_guard<std::mutex> queue_lock(_send_task_mutex);
-			send_task_queue.pop();
 			cur_task = send_task_queue.front();
+			send_task_queue.pop();
 			remain_progress = !send_task_queue.empty();
 		}
 		if (bytes_transferred && cur_task.sender_session_idx != connection_count)
@@ -153,6 +172,7 @@ namespace azure_proxy
 			std::lock_guard<std::mutex> session_guard(_session_mutex);
 			_sessions[session_count] = _new_session;
 		}
+		logger->debug("{} add session {}", logger_prefix, session_count);
 		post_send_task(session_count, session_count, nullptr, 0, session_data_cmd::new_session);
 		
 	}
@@ -170,6 +190,7 @@ namespace azure_proxy
 		if (remove_count >= 1)
 		{
 			post_send_task(_session_idx, _session_idx, nullptr, 0, session_data_cmd::remove_session);
+			logger->debug("{} remove session {}", logger_prefix, _session_idx);
 			return true;
 		}
 		else
@@ -180,6 +201,7 @@ namespace azure_proxy
 	}
 	void http_proxy_session_manager::on_data_arrived(std::uint32_t bytes_transferred, const unsigned char* read_buffer)
 	{
+		logger->debug("{} http_proxy_session_manager::on_data_arrived  size {}", logger_prefix, bytes_transferred);
 		bytes_transferred += buffer_offset - read_offset;
 		buffer_offset += bytes_transferred;
 		while(true)
@@ -204,17 +226,19 @@ namespace azure_proxy
 
 			if(decryptor && connection_state != proxy_connection_state::read_cipher_data)
 			{
-				decryptor->decrypt(read_buffer + read_offset + 12, _decrypt_buffer.data(), cur_parse_result.second);
+				decryptor->decrypt(read_buffer + read_offset + DATA_HEADER_LEN, _decrypt_buffer.data(), cur_parse_result.second);
 			}
 			else
 			{
-				std::copy(read_buffer + read_offset + 12, read_buffer + read_offset + 12 + cur_parse_result.second, _decrypt_buffer.data());
+				std::copy(read_buffer + read_offset + DATA_HEADER_LEN, read_buffer + read_offset + DATA_HEADER_LEN + cur_parse_result.second, _decrypt_buffer.data());
 			}
+			read_offset += DATA_HEADER_LEN + cur_parse_result.second;
 			if(data_type != session_data_cmd::session_data)
 			{
 				on_control_data_arrived(session_idx, data_type, cur_parse_result.second, _decrypt_buffer.data());
+				continue;
 			}
-			read_offset += 12 + cur_parse_result.second;
+			
 			std::shared_ptr<http_proxy_connection> _cur_session;
 			{
 				std::lock_guard<std::mutex> _session_guard(_session_mutex);
@@ -308,7 +332,7 @@ namespace azure_proxy
 	}
 	void http_proxy_session_manager::async_read_data_from_client(bool set_timer, std::uint32_t at_least_size, std::uint32_t at_most_size)
 	{
-		logger->debug("{} async_read_data_from_server begin", logger_prefix);
+		logger->debug("{} async_read_data_from_client begin", logger_prefix);
 		if(read_offset > BUFFER_LENGTH)
 		{
 			std::copy(client_read_buffer.data() + read_offset, client_read_buffer.data() + buffer_offset, client_read_buffer.data());
@@ -344,16 +368,17 @@ namespace azure_proxy
 	std::pair<bool, std::uint32_t> http_proxy_session_manager::parse_data(const unsigned char* buffer, std::uint32_t buffer_size, std::uint32_t offset)
 	// bool: get one complete packet
 	// uint32_t if bool is true represent the packet size else at least more size to read
+	// the packet size doesnt inlcude the DATA_HEADER_LEN bytes header 
 	{
-		if(buffer_size - offset < 12)
+		if(buffer_size - offset < DATA_HEADER_LEN)
 		{
-			return std::make_pair(false, 12 + offset - buffer_size);
+			return std::make_pair(false, DATA_HEADER_LEN + offset - buffer_size);
 		}
 		std::uint32_t packet_size = network_utils::decode_network_int(buffer + offset);
 
-		if(buffer_size - offset < packet_size)
+		if(buffer_size - offset < packet_size + DATA_HEADER_LEN)
 		{
-			return std::make_pair(false, packet_size + offset - buffer_size);
+			return std::make_pair(false, packet_size + DATA_HEADER_LEN + offset - buffer_size);
 		}
 		return std::make_pair(true, packet_size);
 	}

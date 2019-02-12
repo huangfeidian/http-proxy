@@ -793,7 +793,7 @@ namespace azure_proxy
 			{
 				return std::make_pair(http_parser_result::reading_header, std::string_view());
 			}
-			for (int i = parser_idx; i <= buffer_size - 4; i++)
+			for (std::uint32_t i = parser_idx; i <= buffer_size - 4; i++)
 			{
 				if (buffer[i] == '\r' && buffer[i + 1] == '\n' && buffer[i + 2] == '\r' && buffer[i + 3] == '\n')
 				{
@@ -871,8 +871,9 @@ namespace azure_proxy
 			if ((buffer_size - parser_idx) >= (total_content_length - read_content_length))
 			{
 				_status = http_parser_status::read_header;
-				auto cur_result_buffer = std::string_view(buffer + parser_idx, total_content_length - read_content_length);
-				parser_idx += total_content_length - read_content_length;
+				auto cur_content_length = static_cast<std::size_t>(total_content_length - read_content_length);
+				auto cur_result_buffer = std::string_view(buffer + parser_idx, cur_content_length);
+				parser_idx += cur_content_length;
 				return std::make_pair(http_parser_result::read_content_end, cur_result_buffer);
 			}
 			else
@@ -946,7 +947,7 @@ namespace azure_proxy
 			{
 				return std::make_pair(http_parser_result::reading_header, std::string_view());
 			}
-			for (int i = parser_idx; i <= buffer_size - 4; i++)
+			for (std::uint32_t i = parser_idx; i <= buffer_size - 4; i++)
 			{
 				if (buffer[i] == '\r' && buffer[i + 1] == '\n' && buffer[i + 2] == '\r' && buffer[i + 3] == '\n')
 				{
@@ -1033,8 +1034,9 @@ namespace azure_proxy
 					return std::make_pair(http_parser_result::pipeline_not_supported, std::string_view());
 				}
 				_status = http_parser_status::read_header;
-				auto cur_result_buffer = std::string_view(buffer + parser_idx, total_content_length - read_content_length);
-				parser_idx += total_content_length - read_content_length;
+				auto cur_content_length = static_cast<std::size_t>(total_content_length - read_content_length);
+				auto cur_result_buffer = std::string_view(buffer + parser_idx, cur_content_length);
+				parser_idx += cur_content_length;
 				return std::make_pair(http_parser_result::read_content_end, cur_result_buffer);
 			}
 			else

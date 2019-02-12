@@ -1,4 +1,4 @@
-
+﻿
 
 #include <iostream>
 #include <string>
@@ -41,6 +41,14 @@ namespace azure_proxy
 		this->logger->set_level(config.get_log_level());
 		this->logger->info("http_proxy_client_persist runs with {} threads", config.get_workers());
 		this->start_accept();
+		for (auto i = 0; i < config.get_workers(); ++i)
+		{
+			auto one_session_manager = http_proxy_client_session_manager::create(std::move(asio::ip::tcp::socket(io_service)), std::move(asio::ip::tcp::socket(io_service)), logger, http_proxy_client_config::get_instance().increase_connection_count());
+			_session_managers.push_back(one_session_manager);
+			one_session_manager->start();
+
+		}
+
 		std::vector<std::thread> td_vec;
 		for (auto i = 0; i < config.get_workers(); ++i)
 		{
@@ -49,6 +57,7 @@ namespace azure_proxy
 				try
 				{
 					this->io_service.run();
+					std::cout << "io service run end with thread " << std::this_thread::get_id() << std::endl;
 				}
 				catch (const std::exception& e)
 				{
@@ -56,16 +65,11 @@ namespace azure_proxy
 				}
 			});
 		}
-        for (auto i = 0; i < config.get_workers(); ++i)
-        {
-            auto one_session_manager = http_proxy_client_session_manager::create(std::move(asio::ip::tcp::socket(io_service)), std::move(asio::ip::tcp::socket(io_service)), logger, http_proxy_client_config::get_instance().increase_connection_count());
-            _session_managers.push_back(one_session_manager);
-            one_session_manager->start();
 
-        }
 		for (auto& td : td_vec)
 		{
 			td.join();
+			std::cout << " thread join finished " << td.get_id() << std::endl;
 		}
         _session_managers.clear();
 	}

@@ -13,8 +13,8 @@ namespace azure_proxy
 	timeout(std::chrono::seconds(in_timeout)),
 	logger(in_logger),
 	connection_count(in_connection_count),
-	logger_prefix("connection " +std::to_string(connection_count) + ": "),
-	rsa_key(rsa_key)
+	logger_prefix("connection " +std::to_string(in_connection_count) + ": "),
+	rsa_key(in_rsa_key)
 	{
 
 	}
@@ -395,6 +395,7 @@ namespace azure_proxy
 
 	void http_proxy_connection::async_send_data_to_server(const unsigned char* write_buffer, std::size_t offset, std::size_t size)
 	{
+		logger->debug("{} async_send_data_to_server with data size {}", logger_prefix, size);
 		async_send_data_to_server_impl(write_buffer, offset, size, size);
 	}
 	void http_proxy_connection::async_send_data_to_server_impl(const unsigned char* write_buffer, std::size_t offset, std::size_t remain_size, std::size_t total_size)
@@ -412,11 +413,12 @@ namespace azure_proxy
 					this->connection_context.reconnect_on_error = false;
 					if (bytes_transferred < remain_size)
 					{
-						this->async_send_data_to_server(write_buffer, offset + bytes_transferred, remain_size - bytes_transferred);
+						logger->debug("{} send to server with bytes transferred {}", logger_prefix, bytes_transferred);
+						this->async_send_data_to_server_impl(write_buffer, offset + bytes_transferred, remain_size - bytes_transferred, total_size);
 					}
 					else
 					{
-						logger->debug("{} send to server with size {}", logger_prefix, offset + bytes_transferred);
+						logger->debug("{} send to server with size {}", logger_prefix, total_size);
 						this->on_server_data_send(total_size);
 					}
 				}
@@ -448,10 +450,12 @@ namespace azure_proxy
 				{
 					if (bytes_transferred < remain_size)
 					{
-						this->async_send_data_to_client(write_buffer, offset + bytes_transferred, remain_size - bytes_transferred);
+						logger->debug("{} send to client with bytes transferred {}", logger_prefix, bytes_transferred);
+						this->async_send_data_to_client_impl(write_buffer, offset + bytes_transferred, remain_size - bytes_transferred, total_size);
 					}
 					else
 					{
+						logger->debug("{} send to client with size {}", logger_prefix, total_size);
 						this->on_client_data_send(total_size);
 					}
 				}

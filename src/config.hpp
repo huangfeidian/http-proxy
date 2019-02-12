@@ -4,4 +4,5 @@
 	static const std::size_t MAX_RESPONSE_HEADER_LENGTH = 10240;
 	static const std::size_t BUFFER_LENGTH = 4096;
 	static const std::size_t MAX_HTTP_BUFFER_LENGTH = 10240;
+	static const std::size_t DATA_HEADER_LEN = 12; // packet_size + data_type + session_idx
 }
