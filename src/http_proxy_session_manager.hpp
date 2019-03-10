@@ -28,12 +28,6 @@ namespace azure_proxy
             unsigned char* buffer;
 			std::uint32_t already_read_size;
 		};
-		enum class session_task_state
-		{
-			idle,
-			sending,
-			receiving
-		};
     public:
         http_proxy_session_manager(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing);
         static std::shared_ptr<http_proxy_session_manager> create(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing);
@@ -52,7 +46,6 @@ namespace azure_proxy
 		std::uint32_t buffer_offset;
 		std::uint32_t read_offset;
 		std::array<unsigned char, MAX_HTTP_BUFFER_LENGTH> _decrypt_buffer;
-		session_task_state _session_task_state;
 		
     public:
 		

@@ -1,4 +1,4 @@
-#include "http_proxy_server_session.hpp"
+﻿#include "http_proxy_server_session.hpp"
 #include "http_proxy_server_config.hpp"
 #include "http_proxy_server_session_manager.hpp"
 
@@ -29,7 +29,7 @@ namespace azure_proxy
 		}
         if (set_timer)
 		{
-			this->set_timer();
+			this->set_timer(timer_type::down_read);
 		}
 		the_session_manager->post_read_task(shared_from_this(), server_read_buffer.data(), at_least_size, at_most_size);
     }
@@ -41,7 +41,7 @@ namespace azure_proxy
 			logger->warn("{} async_send_data_to_client but session_manager expire", logger_prefix);
 			return;
 		}
-		set_timer();
+		set_timer(timer_type::down_send);
 		the_session_manager->post_send_task(connection_count, client_session_count, server_send_buffer.data() + offset, size);
 	}
 	void http_proxy_server_session::close_connection()

@@ -56,4 +56,15 @@ struct http_proxy_server_connection_read_response_context {
 	bool is_origin_server_keep_alive;
 };
 
+enum class timer_type
+{
+	global_timer = 0,
+	connect,
+	resolve,
+	up_send,
+	up_read,
+	down_read,
+	down_send,
+	max,
+};
 } // namespace azure_proxy

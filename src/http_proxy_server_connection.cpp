@@ -69,13 +69,13 @@ namespace azure_proxy
 			asio::ip::tcp::resolver::query query(server_host, std::to_string(server_port));
 			auto self(this->shared_from_this());
 			this->connection_context.connection_state = proxy_connection_state::resolve_origin_server_address;
-			this->set_timer();
+			this->set_timer(timer_type::resolve);
 			
 			logger->info("{} connect to {}:{}", logger_prefix, server_host, server_port);
 			this->resolver.async_resolve(query,
 										 this->strand.wrap([this, self](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
 			{
-				if (this->cancel_timer())
+				if (this->cancel_timer(timer_type::resolve))
 				{
 					if (!error)
 					{
@@ -175,29 +175,6 @@ namespace azure_proxy
 		this->async_send_data_to_client(reinterpret_cast<unsigned char*>(this->modified_response_data.data()), 0, this->modified_response_data.size());
 	}
 
-	void http_proxy_server_connection::set_timer()
-	{
-		if (this->timer.expires_from_now(std::chrono::seconds(http_proxy_server_config::get_instance().get_timeout())) != 0)
-		{
-			assert(false);
-		}
-		auto self(this->shared_from_this());
-		this->timer.async_wait(this->strand.wrap([this, self](const error_code& error)
-		{
-			if (error != asio::error::operation_aborted)
-			{
-				this->on_timeout();
-			}
-		}));
-	}
-
-	bool http_proxy_server_connection::cancel_timer()
-	{
-		std::size_t ret = this->timer.cancel();
-		assert(ret <= 1);
-		return ret == 1;
-	}
-
 	void http_proxy_server_connection::on_resolved(asio::ip::tcp::resolver::iterator endpoint_iterator)
 	{
 		if (this->server_socket.is_open())
@@ -218,11 +195,11 @@ namespace azure_proxy
 		this->connection_context.origin_server_endpoint = std::make_unique<asio::ip::tcp::endpoint>(endpoint_iterator->endpoint());
 		auto self(this->shared_from_this());
 		this->connection_context.connection_state = proxy_connection_state::connect_to_origin_server;
-		this->set_timer();
+		this->set_timer(timer_type::connect);
 		this->server_socket.async_connect(endpoint_iterator->endpoint(),
 												 this->strand.wrap([this, self, endpoint_iterator](const error_code& error) mutable
 		{
-			if (this->cancel_timer())
+			if (this->cancel_timer(timer_type::connect))
 			{
 				if (!error)
 				{
@@ -561,10 +538,11 @@ namespace azure_proxy
 		}
 	}
 
-	void http_proxy_server_connection::on_timeout()
+	void http_proxy_server_connection::on_timeout(timer_type _cur_timer_type)
 	{
-		logger->warn("{} connection to {} timeout", logger_prefix, _request_parser._header.host());
+		logger->info("{} on_timeout for timer {}", logger_prefix, static_cast<uint32_t>(_cur_timer_type));
 		close_connection();
 	}
+
 
 } // namespace azure_proxy

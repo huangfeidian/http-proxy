@@ -34,10 +34,6 @@ protected:
 	void report_error(http_parser_result _parser_result) override;
 	void report_authentication_failed();
 
-	void set_timer();
-
-	bool cancel_timer();
-
 	void on_resolved(asio::ip::tcp::resolver::iterator endpoint_iterator);
 	void on_server_connected() override;
 	void on_client_data_arrived(std::size_t bytes_transferred) override;
@@ -45,7 +41,7 @@ protected:
 	void on_client_data_send(std::size_t bytes_transferred) override;
 	void on_server_data_send(std::size_t bytes_transferred) override;
 	void on_error(const error_code & error) override;
-	void on_timeout() override;
+	void on_timeout(timer_type _cur_timer_type) override;
 };
 
 } // namespace azure_proxy

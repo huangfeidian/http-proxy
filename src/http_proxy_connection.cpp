@@ -7,16 +7,19 @@ namespace azure_proxy
 	strand(in_client_socket.get_io_service()),
 	client_socket(std::move(in_client_socket)),
 	server_socket(std::move(in_server_socket)),
+	
 	resolver(this->client_socket.get_io_service()),
 	connection_state(proxy_connection_state::ready),
-	timer(this->client_socket.get_io_service()),
 	timeout(std::chrono::seconds(in_timeout)),
 	logger(in_logger),
 	connection_count(in_connection_count),
 	logger_prefix("connection " +std::to_string(in_connection_count) + ": "),
 	rsa_key(in_rsa_key)
 	{
-
+		for (int i = 0; i < static_cast<uint32_t>(timer_type::max); i++)
+		{
+			timers.push_back(std::make_shared< asio::basic_waitable_timer<std::chrono::steady_clock>>(client_socket.get_io_service()));
+		}
 	}
 	std::shared_ptr<http_proxy_connection> http_proxy_connection::create(asio::ip::tcp::socket&& _in_client_socket, asio::ip::tcp::socket&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout, const std::string& in_rsa_key)
 	{
@@ -47,9 +50,9 @@ namespace azure_proxy
 		logger->warn("{} report error status_code {} status_description {} error_message {}", logger_prefix, status_code, status_description, error_message);
 		close_connection();
 	}
-	void http_proxy_connection::on_timeout()
+	void http_proxy_connection::on_timeout(timer_type _cur_timer_type)
 	{
-		
+		logger->info("{} on_timeout for timer {}", logger_prefix, static_cast<uint32_t>(_cur_timer_type));
 		if (this->connection_state == proxy_connection_state::resolve_proxy_server_address)
 		{
 			this->resolver.cancel();
@@ -63,27 +66,40 @@ namespace azure_proxy
 	void http_proxy_connection::on_error(const error_code& error)
 	{
 		logger->warn("{} error shutdown connection {}", logger_prefix, error.message());
-		this->cancel_timer();
+		this->cancel_all_timers();
 		close_connection();
 	}
-	bool http_proxy_connection::cancel_timer()
+	void http_proxy_connection::cancel_all_timers()
 	{
-		std::size_t ret = this->timer.cancel();
+		logger->warn("{} cancel all timers", logger_prefix);
+		for (auto& one_timer : timers)
+		{
+			std::size_t ret = one_timer->cancel();
+			assert(ret <= 1);
+		}
+		return;
+	}
+	bool http_proxy_connection::cancel_timer(timer_type _cur_timer_type)
+	{
+		logger->debug("{} cancel_timer {}", logger_prefix, static_cast<uint32_t>(_cur_timer_type));
+		std::size_t ret = this->timers[static_cast<uint32_t>(_cur_timer_type)]->cancel();
 		assert(ret <= 1);
 		return ret == 1;
 	}
-	void http_proxy_connection::set_timer()
+	void http_proxy_connection::set_timer(timer_type _cur_timer_type)
 	{
-		if (this->timer.expires_from_now(this->timeout) != 0)
+		logger->debug("{} set_timer {}", logger_prefix, static_cast<uint32_t>(_cur_timer_type));
+		auto& cur_timer = this->timers[static_cast<uint32_t>(_cur_timer_type)];
+		if (cur_timer->expires_from_now(this->timeout) != 0)
 		{
 			assert(false);
 		}
 		auto self(this->shared_from_this());
-		this->timer.async_wait(this->strand.wrap([this, self](const error_code& error)
+		cur_timer->async_wait(this->strand.wrap([this, self, _cur_timer_type](const error_code& error)
 		{
 			if (error != asio::error::operation_aborted)
 			{
-				this->on_timeout();
+				this->on_timeout(_cur_timer_type);
 			}
 		}));
 	}
@@ -92,10 +108,10 @@ namespace azure_proxy
 		auto self(this->shared_from_this());
 		asio::ip::tcp::resolver::query query(server_host, std::to_string(server_port));
 		this->connection_state = proxy_connection_state::resolve_proxy_server_address;
-		this->set_timer();
+		this->set_timer(timer_type::resolve);
 		this->resolver.async_resolve(query, [this, self](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
 		{
-			if (this->cancel_timer())
+			if (this->cancel_timer(timer_type::resolve))
 			{
 				if (!error)
 				{
@@ -113,10 +129,10 @@ namespace azure_proxy
 	{
 		auto self = shared_from_this();
 		this->connection_state = proxy_connection_state::connecte_to_proxy_server;
-		this->set_timer();
+		this->set_timer(timer_type::connect);
 		this->server_socket.async_connect(*endpoint_iterator, this->strand.wrap([this, self, host = endpoint_iterator->host_name()](const error_code& error)
 		{
-			if (this->cancel_timer())
+			if (this->cancel_timer(timer_type::connect))
 			{
 				if (!error)
 				{
@@ -340,14 +356,14 @@ namespace azure_proxy
 		auto self(this->shared_from_this());
 		if (set_timer)
 		{
-			this->set_timer();
+			this->set_timer(timer_type::up_read);
 		}
 		asio::async_read(this->server_socket,
 								asio::buffer(&this->server_read_buffer[0], at_most_size),
 								asio::transfer_at_least(at_least_size),
 								this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
 		{
-			if (this->cancel_timer())
+			if (this->cancel_timer(timer_type::up_read))
 			{
 				if (!error)
 				{
@@ -370,14 +386,14 @@ namespace azure_proxy
 		if(set_timer)
 		{
 		}
-		this->set_timer();
+		this->set_timer(timer_type::down_read);
 		
 		asio::async_read(this->client_socket,
 								asio::buffer(&this->client_read_buffer[0], at_most_size),
 								asio::transfer_at_least(at_least_size),
 								this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
 		{
-			if (this->cancel_timer())
+			if (this->cancel_timer(timer_type::down_read))
 			{
 				if (!error)
 				{
@@ -401,12 +417,12 @@ namespace azure_proxy
 	void http_proxy_connection::async_send_data_to_server_impl(const unsigned char* write_buffer, std::size_t offset, std::size_t remain_size, std::size_t total_size)
 	{
 		auto self(this->shared_from_this());
-		this->set_timer();
+		this->set_timer(timer_type::up_send);
 
 		this->server_socket.async_write_some(asio::buffer(write_buffer + offset, remain_size),
 			this->strand.wrap([this, self, write_buffer, offset, remain_size, total_size](const error_code& error, std::size_t bytes_transferred)
 		{
-			if (this->cancel_timer())
+			if (this->cancel_timer(timer_type::up_send))
 			{
 				if (!error)
 				{
@@ -439,12 +455,12 @@ namespace azure_proxy
 	void http_proxy_connection::async_send_data_to_client_impl(const unsigned char* write_buffer, std::size_t offset, std::size_t remain_size, std::size_t total_size)
 	{
 		auto self(this->shared_from_this());
-		this->set_timer();
+		this->set_timer(timer_type::down_send);
 
 		this->client_socket.async_write_some(asio::buffer(write_buffer + offset, remain_size),
 			this->strand.wrap([this, self, write_buffer, offset, remain_size, total_size](const error_code& error, std::size_t bytes_transferred)
 		{
-			if (this->cancel_timer())
+			if (this->cancel_timer(timer_type::down_send))
 			{
 				if (!error)
 				{

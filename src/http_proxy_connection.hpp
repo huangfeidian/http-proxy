@@ -27,7 +27,7 @@ class http_proxy_connection : public std::enable_shared_from_this <http_proxy_co
 		asio::ip::tcp::resolver resolver;
 		proxy_connection_state connection_state;
 		http_proxy_connection_context connection_context;
-		asio::basic_waitable_timer<std::chrono::steady_clock> timer;
+		std::vector<std::shared_ptr<asio::basic_waitable_timer<std::chrono::steady_clock>>> timers;
 		std::vector<unsigned char> encrypted_cipher_info;
 		std::array<unsigned char, MAX_HTTP_BUFFER_LENGTH> client_read_buffer;
 		std::array<unsigned char, MAX_HTTP_BUFFER_LENGTH> server_send_buffer;
@@ -62,13 +62,13 @@ class http_proxy_connection : public std::enable_shared_from_this <http_proxy_co
 		virtual void async_send_data_to_server(const unsigned char* write_buffer, std::size_t offset, std::size_t size);
 		virtual void async_send_data_to_server_impl(const unsigned char* write_buffer, std::size_t offset, std::size_t remain_size, std::size_t total_size);
 		virtual void async_connect_to_server(std::string server_ip, std::uint32_t server_port);
-		void set_timer();
-		bool cancel_timer();
-
+		void set_timer(timer_type _cur_timer);
+		bool cancel_timer(timer_type _cur_timer);
+		void cancel_all_timers();
 		virtual void on_server_connected();
 		virtual void on_resolved(asio::ip::tcp::resolver::iterator endpoint_iterator);
 		virtual void on_error(const error_code& error);
-		virtual void on_timeout();
+		virtual void on_timeout(timer_type _cur_timer_type);
 	protected:
 		// trace header
 		virtual void on_client_data_arrived(std::size_t bytes_transfered);

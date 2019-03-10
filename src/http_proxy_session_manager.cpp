@@ -4,8 +4,7 @@ namespace azure_proxy
 {
     http_proxy_session_manager::http_proxy_session_manager(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing):
 	http_proxy_connection(std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count, _in_timeout, rsa_key),
-	is_downgoing(_in_is_downgoing),
-		_session_task_state(session_task_state::idle)
+	is_downgoing(_in_is_downgoing)
 
 	{
 
@@ -23,10 +22,10 @@ namespace azure_proxy
 		
 		send_task_desc cur_task{ sender_session_idx, session_idx, buffer_size,send_buffer, data_type};
 		std::size_t queue_size = 0;
-		bool send_in_progress = _session_task_state != session_task_state::idle;
+		bool send_in_progress = false;
 		{
 			std::lock_guard<std::mutex> queue_lock(_send_task_mutex);
-			send_in_progress  = send_in_progress || !send_task_queue.empty();
+			send_in_progress  = !send_task_queue.empty();
 			send_task_queue.push(cur_task);
 			queue_size = send_task_queue.size();
 		}
@@ -69,7 +68,6 @@ namespace azure_proxy
 			
 			return;
 		}
-		_session_task_state = session_task_state::sending;
 		unsigned char* buffer_begin = server_send_buffer.data();
 		if(is_downgoing)
 		{
@@ -308,7 +306,7 @@ namespace azure_proxy
 		auto self(this->shared_from_this());
 		if (set_timer)
 		{
-			this->set_timer();
+			this->set_timer(timer_type::up_read);
 		}
 		
 		asio::async_read(this->server_socket,
@@ -316,7 +314,7 @@ namespace azure_proxy
 			asio::transfer_at_least(at_least_size),
 			this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
 		{
-			if (this->cancel_timer())
+			if (this->cancel_timer(timer_type::up_read))
 			{
 				if (!error)
 				{
@@ -342,7 +340,7 @@ namespace azure_proxy
 		auto self(this->shared_from_this());
 		if (set_timer)
 		{
-			this->set_timer();
+			this->set_timer(timer_type::down_read);
 		}
 		
 		asio::async_read(this->client_socket,
@@ -350,7 +348,7 @@ namespace azure_proxy
 			asio::transfer_at_least(at_least_size),
 			this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
 		{
-			if (this->cancel_timer())
+			if (this->cancel_timer(timer_type::down_read))
 			{
 				if (!error)
 				{

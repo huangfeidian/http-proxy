@@ -42,7 +42,7 @@ namespace azure_proxy
 		}
         if (set_timer)
 		{
-			this->set_timer();
+			this->set_timer(timer_type::up_read);
 		}
 		the_session_manager->post_read_task(shared_from_this(), server_read_buffer.data(), at_least_size, at_most_size);
     }
@@ -55,7 +55,7 @@ namespace azure_proxy
 			close_connection();
 			return;
 		}
-		set_timer();
+		set_timer(timer_type::up_send);
 		the_session_manager->post_send_task(connection_count, connection_count, server_send_buffer.data() + offset, size);
 	}
 	void http_proxy_client_session::close_connection()
