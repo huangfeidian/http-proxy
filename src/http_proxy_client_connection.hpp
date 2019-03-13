@@ -20,11 +20,11 @@ namespace azure_proxy
 	{
 
 	public:
-		http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
+		http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::string log_pre = "connection");
 		virtual ~http_proxy_client_connection();
 		static std::shared_ptr<http_proxy_client_connection> create(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
-		virtual void start();
-		void on_server_connected();
+		virtual void start() override;
+		void on_server_connected() override;
 	protected:
 		virtual void on_server_data_arrived(std::size_t bytes_transferred) override;
 		virtual void on_client_data_arrived(std::size_t bytes_transferred) override;

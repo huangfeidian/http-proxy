@@ -2,7 +2,7 @@
 
 namespace azure_proxy
 {
-	http_proxy_connection::http_proxy_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::uint32_t in_timeout, const std::string& in_rsa_key)
+	http_proxy_connection::http_proxy_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::uint32_t in_timeout, const std::string& in_rsa_key, std::string log_pre)
 	:
 	strand(in_client_socket.get_io_service()),
 	client_socket(std::move(in_client_socket)),
@@ -13,7 +13,7 @@ namespace azure_proxy
 	timeout(std::chrono::seconds(in_timeout)),
 	logger(in_logger),
 	connection_count(in_connection_count),
-	logger_prefix("connection " +std::to_string(in_connection_count) + ": "),
+	logger_prefix(log_pre + " " +std::to_string(in_connection_count) + ": "),
 	rsa_key(in_rsa_key)
 	{
 		for (int i = 0; i < static_cast<uint32_t>(timer_type::max); i++)
@@ -81,14 +81,14 @@ namespace azure_proxy
 	}
 	bool http_proxy_connection::cancel_timer(timer_type _cur_timer_type)
 	{
-		logger->debug("{} cancel_timer {}", logger_prefix, static_cast<uint32_t>(_cur_timer_type));
+		logger->debug("{} cancel_timer {}", logger_prefix, timer_type_to_string::cast(_cur_timer_type));
 		std::size_t ret = this->timers[static_cast<uint32_t>(_cur_timer_type)]->cancel();
 		assert(ret <= 1);
 		return ret == 1;
 	}
 	void http_proxy_connection::set_timer(timer_type _cur_timer_type)
 	{
-		logger->debug("{} set_timer {}", logger_prefix, static_cast<uint32_t>(_cur_timer_type));
+		logger->debug("{} set_timer {}", logger_prefix, timer_type_to_string::cast(_cur_timer_type));
 		auto& cur_timer = this->timers[static_cast<uint32_t>(_cur_timer_type)];
 		if (cur_timer->expires_from_now(this->timeout) != 0)
 		{

@@ -21,7 +21,7 @@ protected:
 	http_proxy_server_connection_read_request_context read_request_context;
 	http_proxy_server_connection_read_response_context read_response_context;
 public:
-	http_proxy_server_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count);
+	http_proxy_server_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::string log_pre = "connection");
 	~http_proxy_server_connection();
 
 	static std::shared_ptr<http_proxy_server_connection> create(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count);

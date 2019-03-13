@@ -5,7 +5,7 @@
 namespace azure_proxy
 {
     http_proxy_server_session::http_proxy_server_session(asio::ip::tcp::socket&& _client_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::shared_ptr<http_proxy_server_session_manager> in_session_manager, std::uint32_t in_client_session_count)
-    :http_proxy_server_connection(std::move(_client_socket), std::move(_server_socket), logger, in_connection_count), 
+    :http_proxy_server_connection(std::move(_client_socket), std::move(_server_socket), logger, in_connection_count, "session"), 
     _session_manager(in_session_manager),
 	client_session_count(in_client_session_count)
     {
@@ -18,6 +18,15 @@ namespace azure_proxy
         in_session_manager->add_session(result);
 		return result;
     }
+
+	void http_proxy_server_session::start()
+	{
+		logger->info("{} start", logger_prefix);
+		encryptor = std::make_unique<copy_encryptor>();
+		decryptor = std::make_unique<copy_decryptor>();
+		this->connection_context.connection_state = proxy_connection_state::read_http_request_header;
+		this->async_read_data_from_client();
+	}
 
     void http_proxy_server_session::async_read_data_from_client(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
     {
@@ -33,7 +42,7 @@ namespace azure_proxy
 		}
 		the_session_manager->post_read_task(shared_from_this(), server_read_buffer.data(), at_least_size, at_most_size);
     }
-	void http_proxy_server_session::async_send_data_to_client(std::size_t offset, std::size_t size)
+	void http_proxy_server_session::async_send_data_to_client(const unsigned char* write_buffer, std::size_t offset, std::size_t size)
 	{
 		auto the_session_manager = _session_manager.lock();
 		if (!the_session_manager)
@@ -42,7 +51,17 @@ namespace azure_proxy
 			return;
 		}
 		set_timer(timer_type::down_send);
-		the_session_manager->post_send_task(connection_count, client_session_count, server_send_buffer.data() + offset, size);
+		the_session_manager->post_send_task(connection_count, client_session_count, write_buffer + offset, size);
+	}
+	void http_proxy_server_session::on_client_data_arrived(std::size_t bytes_transferred)
+	{
+		cancel_timer(timer_type::down_read);
+		http_proxy_server_connection::on_client_data_arrived(bytes_transferred);
+	}
+	void http_proxy_server_session::on_client_data_send(std::size_t bytes_transferred)
+	{
+		cancel_timer(timer_type::down_send);
+		http_proxy_server_connection::on_client_data_send(bytes_transferred);
 	}
 	void http_proxy_server_session::close_connection()
 	{

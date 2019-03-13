@@ -14,9 +14,11 @@ namespace azure_proxy
     public:
         http_proxy_server_session(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::shared_ptr<http_proxy_server_session_manager> in_session_manager, std::uint32_t in_client_session_count);
         static std::shared_ptr<http_proxy_server_session> create(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::shared_ptr<http_proxy_server_session_manager> in_session_manager, std::uint32_t in_client_session_count);
-
-		void async_read_data_from_client(bool set_timer, std::size_t at_least_size, std::size_t at_most_size);
-		void async_send_data_to_client(std::size_t offset, std::size_t size);
+		void start() override;
+		void async_read_data_from_client(bool set_timer = true, std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH)override;
+		void async_send_data_to_client(const unsigned char* write_buffer, std::size_t offset, std::size_t size) override;
+		void on_client_data_arrived(std::size_t bytes_transferred) override;
+		void on_client_data_send(std::size_t bytes_transferred) override;
     private:
 		std::weak_ptr<http_proxy_server_session_manager> _session_manager;
 	protected:

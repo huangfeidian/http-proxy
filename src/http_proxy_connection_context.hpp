@@ -67,4 +67,41 @@ enum class timer_type
 	down_send,
 	max,
 };
+class timer_type_to_string
+{
+public:
+	static std::string cast(timer_type _cur_type)
+	{
+		switch (_cur_type)
+		{
+		case azure_proxy::timer_type::global_timer:
+			return "global_timer";
+			break;
+		case azure_proxy::timer_type::connect:
+			return "connect";
+			break;
+		case azure_proxy::timer_type::resolve:
+			return "resolve";
+			break;
+		case azure_proxy::timer_type::up_send:
+			return "up_send";
+			break;
+		case azure_proxy::timer_type::up_read:
+			return "up_read";
+			break;
+		case azure_proxy::timer_type::down_read:
+			return "down_read";
+			break;
+		case azure_proxy::timer_type::down_send:
+			return "down_send";
+			break;
+		case azure_proxy::timer_type::max:
+			return "max";
+			break;
+		default:
+			return "invalid";
+			break;
+		}
+	}
+};
 } // namespace azure_proxy

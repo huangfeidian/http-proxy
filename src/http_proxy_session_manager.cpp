@@ -3,7 +3,7 @@
 namespace azure_proxy
 {
     http_proxy_session_manager::http_proxy_session_manager(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing):
-	http_proxy_connection(std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count, _in_timeout, rsa_key),
+	http_proxy_connection(std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count, _in_timeout, rsa_key, "session_manager"),
 	is_downgoing(_in_is_downgoing)
 
 	{
@@ -199,13 +199,14 @@ namespace azure_proxy
 	}
 	void http_proxy_session_manager::on_data_arrived(std::uint32_t bytes_transferred, const unsigned char* read_buffer)
 	{
-		logger->debug("{} http_proxy_session_manager::on_data_arrived  size {}", logger_prefix, bytes_transferred);
-		bytes_transferred += buffer_offset - read_offset;
+		logger->debug("{} http_proxy_session_manager::on_data_arrived  size {} buffer_offset {} read_offset {}", logger_prefix, bytes_transferred, buffer_offset, read_offset);
 		buffer_offset += bytes_transferred;
+		bytes_transferred = buffer_offset - read_offset;
 		while(true)
 		{
 			std::uint32_t offset = 0;
 			auto cur_parse_result = parse_data(read_buffer, bytes_transferred, read_offset);
+			logger->debug("{} parse result first {} second {}", logger_prefix, cur_parse_result.first, cur_parse_result.second);
 			if(!cur_parse_result.first)
 			{
 				if(is_downgoing)
@@ -221,7 +222,7 @@ namespace azure_proxy
 			}
 			session_data_cmd data_type = static_cast<session_data_cmd>(network_utils::decode_network_int(read_buffer + read_offset + 4));
 			std::uint32_t session_idx = network_utils::decode_network_int(read_buffer + read_offset + 8);
-
+			logger->debug("{} http_proxy_session_manager::after parse data_type {} session_idx {}  size {}", logger_prefix, static_cast<std::uint32_t>(data_type), session_idx, cur_parse_result.second);
 			if(decryptor && connection_state != proxy_connection_state::read_cipher_data)
 			{
 				decryptor->decrypt(read_buffer + read_offset + DATA_HEADER_LEN, _decrypt_buffer.data(), cur_parse_result.second);
@@ -373,7 +374,7 @@ namespace azure_proxy
 			return std::make_pair(false, DATA_HEADER_LEN + offset - buffer_size);
 		}
 		std::uint32_t packet_size = network_utils::decode_network_int(buffer + offset);
-
+		logger->debug("{} parse_data packet_size {} buffer_size {} offset {}", logger_prefix, packet_size, buffer_size, offset);
 		if(buffer_size - offset < packet_size + DATA_HEADER_LEN)
 		{
 			return std::make_pair(false, packet_size + DATA_HEADER_LEN + offset - buffer_size);

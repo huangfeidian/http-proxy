@@ -18,8 +18,8 @@
 namespace azure_proxy
 {
 
-	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count):
-	http_proxy_connection(std::move(ua_socket), std::move(server_socket), in_logger, in_connection_count, http_proxy_client_config::get_instance().get_timeout(), http_proxy_client_config::get_instance().get_rsa_public_key())
+	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::string log_pre):
+	http_proxy_connection(std::move(ua_socket), std::move(server_socket), in_logger, in_connection_count, http_proxy_client_config::get_instance().get_timeout(), http_proxy_client_config::get_instance().get_rsa_public_key(), log_pre)
 	{
 		_request_time = std::chrono::system_clock::now();
 		http_proxy_client_stat::get_instance().increase_current_connections();
@@ -62,6 +62,7 @@ namespace azure_proxy
 	{
 		http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
 		this->decryptor->decrypt(server_read_buffer.data(), client_send_buffer.data(), bytes_transferred);
+		
 		logger->debug("{} decrypt server data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::checksum(client_send_buffer.data(), bytes_transferred));
 
 		logger->debug("{} on_server_data_arrived bytes {}", logger_prefix, bytes_transferred);
@@ -193,7 +194,9 @@ namespace azure_proxy
 		if (send_buffer_size)
 		{
 			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, send_buffer_size, aes_generator::checksum(server_send_buffer.data(), send_buffer_size));
+
 			encryptor->transform(server_send_buffer.data(), send_buffer_size, 256);
+
 			this->async_send_data_to_server(server_send_buffer.data(), 0, send_buffer_size);
 		}
 		else
