@@ -46,6 +46,7 @@ namespace azure_proxy
     }
 	void http_proxy_client_session_manager::start_ping_timer()
 	{
+		return;
 		if (this->_ping_timer.expires_from_now(std::chrono::seconds(10)) != 0)
 		{
 			assert(false);

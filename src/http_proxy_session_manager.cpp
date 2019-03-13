@@ -202,10 +202,11 @@ namespace azure_proxy
 		logger->debug("{} http_proxy_session_manager::on_data_arrived  size {} buffer_offset {} read_offset {}", logger_prefix, bytes_transferred, buffer_offset, read_offset);
 		buffer_offset += bytes_transferred;
 		bytes_transferred = buffer_offset - read_offset;
+		logger->debug("{} buffer_offset {} read_offset {}", logger_prefix, buffer_offset, read_offset);
 		while(true)
 		{
 			std::uint32_t offset = 0;
-			auto cur_parse_result = parse_data(read_buffer, bytes_transferred, read_offset);
+			auto cur_parse_result = parse_data(read_buffer, buffer_offset, read_offset);
 			logger->debug("{} parse result first {} second {}", logger_prefix, cur_parse_result.first, cur_parse_result.second);
 			if(!cur_parse_result.first)
 			{

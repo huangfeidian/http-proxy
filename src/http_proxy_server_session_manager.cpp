@@ -39,7 +39,6 @@ namespace azure_proxy
 			auto& the_io_service = client_socket.get_io_service();
 			auto cur_connection_count = http_proxy_server_config::get_instance().increase_connection_count();
 			auto new_session = http_proxy_server_session::create(std::move(asio::ip::tcp::socket(the_io_service)), std::move(asio::ip::tcp::socket(the_io_service)), logger, cur_connection_count, std::dynamic_pointer_cast<http_proxy_server_session_manager>(shared_from_this()), connection_idx);
-			add_session(new_session);
 			mapped_session[connection_idx] = cur_connection_count;
 			new_session->start();
 		}
