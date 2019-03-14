@@ -26,11 +26,12 @@ namespace azure_proxy
    {
 	   encryptor = std::make_unique<copy_encryptor>();
 	   decryptor = std::make_unique<copy_decryptor>();
+	   on_server_connected();
    }
    void http_proxy_client_session::on_server_connected()
    {
-	   // session doesn't need to on_server_connected
 	   logger->info("{} on_server_connected", logger_prefix);
+	   async_read_data_from_server(false);
 	   return;
    }
     http_proxy_client_session::~http_proxy_client_session()
@@ -72,7 +73,7 @@ namespace azure_proxy
 	void http_proxy_client_session::on_server_data_arrived(std::size_t bytes_transferred)
 	{
 		cancel_timer(timer_type::up_read);
-		http_proxy_client_connection::on_client_data_arrived(bytes_transferred);
+		http_proxy_client_connection::on_server_data_arrived(bytes_transferred);
 	}
 	void http_proxy_client_session::on_server_data_send(std::size_t bytes_transferred)
 	{

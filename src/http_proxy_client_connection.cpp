@@ -61,9 +61,11 @@ namespace azure_proxy
 	void http_proxy_client_connection::on_server_data_arrived(std::size_t bytes_transferred)
 	{
 		http_proxy_client_stat::get_instance().on_downgoing_recv(static_cast<std::uint32_t>(bytes_transferred));
+		logger->debug("{} before decrypt hash is {}", logger_prefix, aes_generator::checksum(server_read_buffer.data(), bytes_transferred));
 		this->decryptor->decrypt(server_read_buffer.data(), client_send_buffer.data(), bytes_transferred);
 		
 		logger->debug("{} decrypt server data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::checksum(client_send_buffer.data(), bytes_transferred));
+		logger->trace("{} data is {}", logger_prefix, std::string_view(reinterpret_cast<const char*>(client_send_buffer.data()), bytes_transferred));
 
 		logger->debug("{} on_server_data_arrived bytes {}", logger_prefix, bytes_transferred);
 		if (connection_state == proxy_connection_state::tunnel_transfer)
@@ -146,7 +148,9 @@ namespace azure_proxy
 		if (connection_state == proxy_connection_state::tunnel_transfer)
 		{
 			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, bytes_transferred, aes_generator::checksum(client_read_buffer.data(), bytes_transferred));
+			logger->trace("{} data is {}", logger_prefix, std::string_view(reinterpret_cast<const char*>(client_read_buffer.data()), bytes_transferred));
 			encryptor->encrypt(client_read_buffer.data(), server_send_buffer.data(), bytes_transferred);
+			logger->debug("{} after encrypt  hash value {}", logger_prefix, aes_generator::checksum(server_send_buffer.data(), bytes_transferred));
 			async_send_data_to_server(server_send_buffer.data(), 0, bytes_transferred);
 			return;
 
@@ -194,8 +198,9 @@ namespace azure_proxy
 		if (send_buffer_size)
 		{
 			logger->debug("{} encrypt data size {} hash value {}", logger_prefix, send_buffer_size, aes_generator::checksum(server_send_buffer.data(), send_buffer_size));
-
+			logger->trace("{} data is {}", logger_prefix, std::string_view(reinterpret_cast<const char*>(server_send_buffer.data()), send_buffer_size));
 			encryptor->transform(server_send_buffer.data(), send_buffer_size, 256);
+			logger->debug("{} after encrypt  hash value {}", logger_prefix, aes_generator::checksum(server_send_buffer.data(), send_buffer_size));
 
 			this->async_send_data_to_server(server_send_buffer.data(), 0, send_buffer_size);
 		}

@@ -17,7 +17,7 @@ namespace azure_proxy
 		void start() override;
 		void on_server_connected() override;
 		~http_proxy_client_session();
-		void async_read_data_from_server(bool set_timer, std::size_t at_least_size, std::size_t at_most_size) override;
+		void async_read_data_from_server(bool set_timer = true, std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH) override;
 		void async_send_data_to_server(const unsigned char* write_buffer, std::size_t offset, std::size_t size) override;
 		void on_server_data_arrived(std::size_t bytes_transferred) override;
 		void on_server_data_send(std::size_t bytes_transferred) override;

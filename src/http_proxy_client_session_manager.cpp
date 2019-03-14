@@ -30,7 +30,7 @@ namespace azure_proxy
 		connection_state = proxy_connection_state::send_cipher_data;
 		post_send_task(connection_count, connection_count, encrypted_cipher_info.data(), encrypted_cipher_info.size(), session_data_cmd::authenticate);
 		connection_state = proxy_connection_state::session_tranfer;
-		this->async_read_data_from_server(false);
+		this->async_read_data_from_server(true);
 		std::memset(ping_buffer.data(), 0, ping_buffer.size());
 		this->start_ping_timer();
 	}

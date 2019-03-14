@@ -38,6 +38,7 @@ namespace azure_proxy
 	}
 	bool http_proxy_session_manager::post_read_task(std::shared_ptr<http_proxy_connection> _task_session, unsigned char* read_buffer, std::uint32_t min_read_size, std::uint32_t max_read_size)
 	{
+		logger->debug("{} post_read_task  session {} min_read_size {} max_read_size {}", logger_prefix, _task_session->connection_count, min_read_size, max_read_size);
 		read_task_desc cur_task{_task_session->connection_count, min_read_size, max_read_size, read_buffer, 0};
 		std::lock_guard<std::mutex> lock(_read_task_mutex);
 		_read_tasks[_task_session->connection_count] = cur_task;
@@ -82,7 +83,9 @@ namespace azure_proxy
 			std::copy(cur_task.buffer, cur_task.buffer + cur_task.buffer_size, buffer_begin + DATA_HEADER_LEN);
 			if(encryptor && connection_state != proxy_connection_state::send_cipher_data)
 			{
+				logger->debug("{} before encrypt data hash is {}", logger_prefix, aes_generator::checksum(buffer_begin + DATA_HEADER_LEN, send_size));
 				encryptor->transform(buffer_begin + DATA_HEADER_LEN, send_size, 128);
+				logger->debug("{} after encrypt data hash is {}", logger_prefix, aes_generator::checksum(buffer_begin + DATA_HEADER_LEN, send_size));
 			}
 
 		}
@@ -226,7 +229,9 @@ namespace azure_proxy
 			logger->debug("{} http_proxy_session_manager::after parse data_type {} session_idx {}  size {}", logger_prefix, static_cast<std::uint32_t>(data_type), session_idx, cur_parse_result.second);
 			if(decryptor && connection_state != proxy_connection_state::read_cipher_data)
 			{
+				logger->debug("{} before decrypt hash is {}", logger_prefix, aes_generator::checksum(read_buffer + read_offset + DATA_HEADER_LEN, cur_parse_result.second));
 				decryptor->decrypt(read_buffer + read_offset + DATA_HEADER_LEN, _decrypt_buffer.data(), cur_parse_result.second);
+				logger->debug("{} after decrypt hash is {}", logger_prefix, aes_generator::checksum(_decrypt_buffer.data(), cur_parse_result.second));
 			}
 			else
 			{
@@ -266,12 +271,17 @@ namespace azure_proxy
 					cur_iter->second.already_read_size += cur_parse_result.second;
 					max_read_size = cur_iter->second.max_read_size;
 					session_read_buffer = cur_iter->second.buffer;
+					if (cur_iter->second.already_read_size > cur_iter->second.min_read_size)
+					{
+						_read_tasks.erase(cur_iter);
+					}
 				}
 			}
 			if(!session_read_buffer)
 			{
 				continue;
 			}
+			logger->debug("{} send data size {} to session {} with offset {}", logger_prefix, cur_parse_result.second, session_idx, already_read_size);
 			std::copy(_decrypt_buffer.data(), _decrypt_buffer.data() + cur_parse_result.second, session_read_buffer + already_read_size);
 			already_read_size += cur_parse_result.second;
 			if(already_read_size >= min_read_size)

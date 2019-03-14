@@ -227,7 +227,7 @@ namespace azure_proxy
 
 	void http_proxy_server_connection::on_server_connected()
 	{
-		logger->info("{} connect to server {} suc", logger_prefix, _request_parser._header.host());
+		logger->info("{} connect to server {} suc method {}", logger_prefix, _request_parser._header.host(), _request_parser._header.method());
 		if (_request_parser._header.method() == "CONNECT")
 		{
 			const unsigned char response_message[] = "HTTP/1.1 200 Connection Established\r\nConnection: Close\r\n\r\n";
@@ -269,9 +269,10 @@ namespace azure_proxy
 			return;
 		}
 		assert(this->encryptor != nullptr && this->decryptor != nullptr);
+		logger->debug("{} before decrypt hash is {}", logger_prefix, aes_generator::checksum(client_read_buffer.data(), bytes_transferred));
 		this->decryptor->decrypt(client_read_buffer.data(), server_send_buffer.data(), bytes_transferred);
 		logger->debug("{} decrypt client data size {} hash {}", logger_prefix, bytes_transferred, aes_generator::checksum(server_send_buffer.data(), bytes_transferred));
-		//logger->trace("{} data is {}", logger_prefix, std::string(reinterpret_cast<const char*>(server_send_buffer.data()), bytes_transferred));
+		logger->trace("{} data is {}", logger_prefix, std::string(reinterpret_cast<const char*>(server_send_buffer.data()), bytes_transferred));
 		if (this->connection_context.connection_state == proxy_connection_state::tunnel_transfer)
 		{
 			this->async_send_data_to_server(server_send_buffer.data(), 0, bytes_transferred);
@@ -374,7 +375,9 @@ namespace azure_proxy
 		if (this->connection_context.connection_state == proxy_connection_state::tunnel_transfer)
 		{
 			logger->debug("{} encrypt origin server data size {} hash {}", logger_prefix, bytes_transferred, aes_generator::checksum(server_read_buffer.data(), bytes_transferred));
+			logger->trace("{} data is {}", logger_prefix, std::string_view(reinterpret_cast<const char*>(server_read_buffer.data()), bytes_transferred));
 			this->encryptor->encrypt(server_read_buffer.data(), client_send_buffer.data(), bytes_transferred);
+			logger->debug("{} after encrypt hash is {}", logger_prefix, aes_generator::checksum(client_send_buffer.data(), bytes_transferred));
 			this->async_send_data_to_client(client_send_buffer.data(), 0, bytes_transferred);
 			return;
 		}
@@ -437,7 +440,9 @@ namespace azure_proxy
 		if (send_buffer_size)
 		{
 			logger->debug("{} encrypt origin server data size {} hash {}", logger_prefix, send_buffer_size, aes_generator::checksum(client_send_buffer.data(), send_buffer_size));
+			logger->trace("{} data is {}", logger_prefix, std::string_view(reinterpret_cast<const char*>(client_send_buffer.data()), send_buffer_size));
 			this->encryptor->encrypt(client_send_buffer.data(), client_send_buffer.data(), send_buffer_size);
+			logger->debug("{} after encrypt hash is {}", logger_prefix, aes_generator::checksum(client_send_buffer.data(), bytes_transferred));
 			this->async_send_data_to_client(this->client_send_buffer.data(), 0, send_buffer_size);
 		}
 		else

@@ -84,7 +84,7 @@ namespace azure_proxy
 		logger->debug("{} cancel_timer {}", logger_prefix, timer_type_to_string::cast(_cur_timer_type));
 		std::size_t ret = this->timers[static_cast<uint32_t>(_cur_timer_type)]->cancel();
 		assert(ret <= 1);
-		return ret == 1;
+		return ret <= 1;
 	}
 	void http_proxy_connection::set_timer(timer_type _cur_timer_type)
 	{
@@ -353,6 +353,7 @@ namespace azure_proxy
 
 	void http_proxy_connection::async_read_data_from_server(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
 	{
+		logger->debug("{} async_read_data_from_server at_least_size {} at_most_size {}", logger_prefix, at_least_size, at_most_size);
 		auto self(this->shared_from_this());
 		if (set_timer)
 		{
@@ -381,6 +382,7 @@ namespace azure_proxy
 
 	void http_proxy_connection::async_read_data_from_client(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
 	{
+		logger->debug("{} async_read_data_from_client at_least_size {} at_most_size {}", logger_prefix, at_least_size, at_most_size);
 		assert(at_least_size <= at_most_size && at_most_size <= BUFFER_LENGTH);
 		auto self(this->shared_from_this());
 		if(set_timer)
