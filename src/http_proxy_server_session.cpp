@@ -40,7 +40,7 @@ namespace azure_proxy
 		{
 			this->set_timer(timer_type::down_read);
 		}
-		the_session_manager->post_read_task(shared_from_this(), client_read_buffer.data(), at_least_size, at_most_size);
+		the_session_manager->post_read_task(shared_from_this(), at_least_size, at_most_size);
     }
 	void http_proxy_server_session::async_send_data_to_client(const unsigned char* write_buffer, std::size_t offset, std::size_t size)
 	{
