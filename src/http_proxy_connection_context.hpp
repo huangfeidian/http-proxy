@@ -1,7 +1,8 @@
 ﻿#pragma once
 
 #include <cstdint>
-
+#include <unordered_map>
+#include <vector>
 #include <asio.hpp>
 using error_code = asio::error_code;
 

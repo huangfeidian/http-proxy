@@ -29,7 +29,6 @@ namespace azure_proxy
 		logger->info("{} connected to proxy server established", logger_prefix);
 		connection_state = proxy_connection_state::send_cipher_data;
 		post_send_task(connection_count, connection_count, encrypted_cipher_info.data(), encrypted_cipher_info.size(), session_data_cmd::authenticate);
-		connection_state = proxy_connection_state::session_tranfer;
 		this->async_read_data_from_server(true);
 		std::memset(ping_buffer.data(), 0, ping_buffer.size());
 		this->start_ping_timer();
@@ -49,6 +48,7 @@ namespace azure_proxy
 		return;
 		if (this->_ping_timer.expires_from_now(std::chrono::seconds(10)) != 0)
 		{
+			logger->error("{} start_ping_timer fail", logger_prefix);
 			assert(false);
 		}
 		auto self = std::dynamic_pointer_cast<http_proxy_client_session_manager>(this->shared_from_this());

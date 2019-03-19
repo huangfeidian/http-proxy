@@ -75,6 +75,7 @@ namespace azure_proxy
 		for (auto& one_timer : timers)
 		{
 			std::size_t ret = one_timer->cancel();
+			logger->error("{} cancel_timer {}", logger_prefix);
 			assert(ret <= 1);
 		}
 		return;
@@ -83,6 +84,7 @@ namespace azure_proxy
 	{
 		logger->debug("{} cancel_timer {}", logger_prefix, timer_type_to_string::cast(_cur_timer_type));
 		std::size_t ret = this->timers[static_cast<uint32_t>(_cur_timer_type)]->cancel();
+		logger->error("{} cancel_timer {} fail", logger_prefix, timer_type_to_string::cast(_cur_timer_type));
 		assert(ret <= 1);
 		return ret <= 1;
 	}
@@ -92,6 +94,7 @@ namespace azure_proxy
 		auto& cur_timer = this->timers[static_cast<uint32_t>(_cur_timer_type)];
 		if (cur_timer->expires_from_now(this->timeout) != 0)
 		{
+			logger->error("{} set_timer {} fail", logger_prefix, timer_type_to_string::cast(_cur_timer_type));
 			assert(false);
 		}
 		auto self(this->shared_from_this());

@@ -8,6 +8,8 @@
 #include <asio.hpp>
 using error_code = asio::error_code;
 
+#include <iostream>
+
 #include <spdlog/spdlog.h>
 #include "http_header_parser.hpp"
 #include "http_proxy_connection_context.hpp"

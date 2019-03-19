@@ -272,7 +272,7 @@ namespace azure_proxy
 		logger->debug("{} before decrypt hash is {}", logger_prefix, aes_generator::checksum(client_read_buffer.data(), bytes_transferred));
 		this->decryptor->decrypt(client_read_buffer.data(), server_send_buffer.data(), bytes_transferred);
 		logger->debug("{} decrypt client data size {} hash {}", logger_prefix, bytes_transferred, aes_generator::checksum(server_send_buffer.data(), bytes_transferred));
-		logger->trace("{} data is {}", logger_prefix, std::string(reinterpret_cast<const char*>(server_send_buffer.data()), bytes_transferred));
+		logger->trace("{} data is {}", logger_prefix, std::string_view(reinterpret_cast<const char*>(server_send_buffer.data()), bytes_transferred));
 		if (this->connection_context.connection_state == proxy_connection_state::tunnel_transfer)
 		{
 			this->async_send_data_to_server(server_send_buffer.data(), 0, bytes_transferred);

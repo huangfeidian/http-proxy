@@ -39,6 +39,7 @@ namespace azure_proxy
 		file_sink->set_level(config.get_file_log_level());
 		this->logger = std::make_shared<spdlog::logger>("ahpc_basic", spdlog::sinks_init_list{ console_sink, file_sink });
 		this->logger->set_level(config.get_log_level());
+		this->logger->flush_on(spdlog::level::warn);
 		this->logger->info("http_proxy_client runs with {} threads", config.get_workers());
 		this->start_accept();
 		std::vector<std::thread> td_vec;

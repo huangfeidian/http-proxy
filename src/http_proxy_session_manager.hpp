@@ -26,8 +26,8 @@ namespace azure_proxy
 			std::uint32_t min_read_size;
             std::uint32_t max_read_size;
             unsigned char* buffer;
-			std::uint32_t already_read_size;	// sometime this is the buffer len sometimes this is window buffer len
-			std::uint32_t window_buffer_index; // sometimes the default buffer is full so we must use the 64k window buffer to cache the incomming data
+			std::uint32_t already_read_size;	
+			std::vector<std::pair<unsigned char*, std::uint32_t>> receive_buffers; // buffer vector with capacity BUFFER_LENGTH
 		};
     public:
         http_proxy_session_manager(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing);
@@ -41,13 +41,10 @@ namespace azure_proxy
         std::unordered_map<std::uint32_t, std::shared_ptr<http_proxy_connection>> _sessions;
         std::unordered_map<std::uint32_t, read_task_desc> _read_tasks;
         std::queue<send_task_desc> send_task_queue;
-		const bool is_downgoing; // true if income connection is ua else false for server side session manager
+		const bool is_server_side; // false if income connection is ua else true for server side session manager
 		std::uint32_t buffer_offset;
 		std::uint32_t read_offset;
 		std::array<unsigned char, MAX_HTTP_BUFFER_LENGTH> _decrypt_buffer;
-
-		std::array<unsigned char, BUFFER_WINDOW_LENGTH * BUFFER_WINDOW_CAPACITY> read_window_buffer;
-		std::array<unsigned int, BUFFER_WINDOW_CAPACITY> used_buffer_window;
 		
     public:
 		
