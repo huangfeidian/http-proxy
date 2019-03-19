@@ -72,10 +72,15 @@ namespace azure_proxy
 	void http_proxy_connection::cancel_all_timers()
 	{
 		logger->warn("{} cancel all timers", logger_prefix);
+		int i = 0;
 		for (auto& one_timer : timers)
 		{
 			std::size_t ret = one_timer->cancel();
-			logger->error("{} cancel_timer {}", logger_prefix);
+			if (ret > 1)
+			{
+				logger->error("{} cancel_timer {} fail", logger_prefix, timer_type_to_string::cast(static_cast<timer_type>(static_cast<std::uint32_t>(timer_type::connect) + i)));
+			}
+			
 			assert(ret <= 1);
 		}
 		return;
@@ -84,7 +89,10 @@ namespace azure_proxy
 	{
 		logger->debug("{} cancel_timer {}", logger_prefix, timer_type_to_string::cast(_cur_timer_type));
 		std::size_t ret = this->timers[static_cast<uint32_t>(_cur_timer_type)]->cancel();
-		logger->error("{} cancel_timer {} fail", logger_prefix, timer_type_to_string::cast(_cur_timer_type));
+		if (ret > 1)
+		{
+			logger->error("{} cancel_timer {} fail", logger_prefix, timer_type_to_string::cast(_cur_timer_type));
+		}
 		assert(ret <= 1);
 		return ret <= 1;
 	}
