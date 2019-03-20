@@ -24,7 +24,6 @@ namespace azure_proxy
 	protected:
 		void close_connection();
 		const std::uint32_t client_session_count;
-
 	};
     
 }

@@ -73,7 +73,7 @@ namespace azure_proxy
 			
 			logger->info("{} connect to {}:{}", logger_prefix, server_host, server_port);
 			this->resolver.async_resolve(query,
-										 this->strand.wrap([this, self](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
+										 this->strand.wrap([this, self, server_host](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
 			{
 				if (this->cancel_timer(timer_type::resolve))
 				{
@@ -83,7 +83,7 @@ namespace azure_proxy
 					}
 					else
 					{
-						logger->error("{} cant connect to host {}", logger_prefix, iterator->host_name());
+						logger->error("{} cant connect to host {}", logger_prefix, server_host);
 						this->on_error(error);
 					}
 				}

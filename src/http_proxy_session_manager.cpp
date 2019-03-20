@@ -126,8 +126,9 @@ namespace azure_proxy
 		send_task_queue.pop();
 		remain_progress = !send_task_queue.empty();
 
-		if (bytes_transferred && cur_task.sender_session_idx != connection_count)
+		if (bytes_transferred && cur_task.sender_session_idx != connection_count && cur_task.data_type == session_data_cmd::session_data)
 		{
+
 			std::shared_ptr<http_proxy_connection> cur_session;
 			auto the_session_iter = _sessions.find(cur_task.sender_session_idx);
 			if (the_session_iter != _sessions.end())
