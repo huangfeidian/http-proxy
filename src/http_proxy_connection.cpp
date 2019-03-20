@@ -120,7 +120,7 @@ namespace azure_proxy
 		asio::ip::tcp::resolver::query query(server_host, std::to_string(server_port));
 		this->connection_state = proxy_connection_state::resolve_proxy_server_address;
 		this->set_timer(timer_type::resolve);
-		this->resolver.async_resolve(query, [this, self](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
+		this->resolver.async_resolve(query, [this, self, server_host](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
 		{
 			if (this->cancel_timer(timer_type::resolve))
 			{
@@ -130,7 +130,7 @@ namespace azure_proxy
 				}
 				else
 				{
-					logger->warn("{} fail to resolve server {}", logger_prefix, iterator->host_name());
+					logger->warn("{} fail to resolve server {}", logger_prefix, server_host);
 					this->on_error(error);
 				}
 			}
