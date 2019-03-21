@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "http_proxy_server_connection.hpp"
-namespace azure_proxy
+namespace http_proxy
 {
     class http_proxy_server_session_manager;
     class http_proxy_server_session: public http_proxy_server_connection

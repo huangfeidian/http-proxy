@@ -8,7 +8,7 @@
 #include <spdlog/spdlog.h>
 #include <atomic>
 
-namespace azure_proxy
+namespace http_proxy
 {
 	using json = nlohmann::json;
 	class http_proxy_client_config
@@ -42,4 +42,4 @@ namespace azure_proxy
 		static http_proxy_client_config& get_instance();
 	};
 
-} // namespace azure_proxy
+} // namespace http_proxy

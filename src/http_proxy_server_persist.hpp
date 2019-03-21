@@ -5,7 +5,7 @@
 #include <asio.hpp>
 using error_code = asio::error_code;
 
-namespace azure_proxy {
+namespace http_proxy {
 
 	class http_proxy_server_persist {
 		asio::io_service& io_service;
@@ -21,5 +21,5 @@ namespace azure_proxy {
 		void start_accept();
 	};
 
-} // namespace azure_proxy
+} // namespace http_proxy
 

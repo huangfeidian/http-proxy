@@ -1,9 +1,4 @@
-﻿/*
- *    http_proxy_client_connection.cpp:
- *
- *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
+﻿
 
 #include <algorithm>
 #include <cstring>
@@ -15,7 +10,7 @@
 #include "key_generator.hpp"
 
 
-namespace azure_proxy
+namespace http_proxy
 {
 
 	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::string log_pre):
@@ -218,4 +213,4 @@ namespace azure_proxy
 	{
 		async_read_data_from_client();
 	}
-} // namespace azure_proxy
+} // namespace http_proxy

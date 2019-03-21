@@ -16,7 +16,7 @@ using error_code = asio::error_code;
 #include "encrypt.hpp"
 
 
-namespace azure_proxy
+namespace http_proxy
 {
 
 class http_proxy_connection : public std::enable_shared_from_this <http_proxy_connection>
@@ -87,4 +87,4 @@ class http_proxy_connection : public std::enable_shared_from_this <http_proxy_co
 		friend class http_proxy_session_manager;
 	};
 
-} // namespace azure_proxy
+} // namespace http_proxy

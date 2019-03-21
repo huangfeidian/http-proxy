@@ -5,7 +5,7 @@
 #include <iterator>
 #include <type_traits>
 
-namespace azure_proxy
+namespace http_proxy
 {
 
 	enum class http_chunk_check_state
@@ -155,4 +155,4 @@ namespace azure_proxy
 		}
 	};
 
-} // namespace azure_proxy
+} // namespace http_proxy

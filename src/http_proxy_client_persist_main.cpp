@@ -35,11 +35,11 @@ int main(int argc, char** argv)
 		}
 		
 	}
-	using namespace azure_proxy;
+	using namespace http_proxy;
 	try {
 		auto& config = http_proxy_client_config::get_instance();
 		if (config.load_config(config_filename)) {
-			std::cout << "Azure Http Proxy Client" << std::endl;
+			std::cout << "Http Proxy Client" << std::endl;
 			std::cout << "server address: " << config.get_proxy_server_address() << ':' << config.get_proxy_server_port() << std::endl;
 			std::cout << "local address: " << config.get_bind_address() << ':' << config.get_listen_port() << std::endl;
 			std::cout << "cipher: " << config.get_cipher() << std::endl;

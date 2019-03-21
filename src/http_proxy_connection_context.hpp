@@ -8,7 +8,7 @@ using error_code = asio::error_code;
 
 #include "http_chunk_checker.hpp"
 
-namespace azure_proxy {
+namespace http_proxy {
 
 enum class proxy_connection_state {
 	ready,
@@ -75,28 +75,28 @@ public:
 	{
 		switch (_cur_type)
 		{
-		case azure_proxy::timer_type::global_timer:
+		case http_proxy::timer_type::global_timer:
 			return "global_timer";
 			break;
-		case azure_proxy::timer_type::connect:
+		case http_proxy::timer_type::connect:
 			return "connect";
 			break;
-		case azure_proxy::timer_type::resolve:
+		case http_proxy::timer_type::resolve:
 			return "resolve";
 			break;
-		case azure_proxy::timer_type::up_send:
+		case http_proxy::timer_type::up_send:
 			return "up_send";
 			break;
-		case azure_proxy::timer_type::up_read:
+		case http_proxy::timer_type::up_read:
 			return "up_read";
 			break;
-		case azure_proxy::timer_type::down_read:
+		case http_proxy::timer_type::down_read:
 			return "down_read";
 			break;
-		case azure_proxy::timer_type::down_send:
+		case http_proxy::timer_type::down_send:
 			return "down_send";
 			break;
-		case azure_proxy::timer_type::max:
+		case http_proxy::timer_type::max:
 			return "max";
 			break;
 		default:
@@ -105,4 +105,4 @@ public:
 		}
 	}
 };
-} // namespace azure_proxy
+} // namespace http_proxy

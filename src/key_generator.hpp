@@ -6,7 +6,7 @@
 #include <chrono>
 #include <mutex>
 
-namespace azure_proxy
+namespace http_proxy
 {
 
 	class key_generator

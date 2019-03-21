@@ -12,7 +12,7 @@
 #endif 
 #include "http_header_parser.hpp"
 
-namespace azure_proxy
+namespace http_proxy
 {
 	const int tokens[128] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1144,4 +1144,4 @@ namespace azure_proxy
 		total_content_length = 0;
 		read_content_length = 0;
 	}
-}; // namespace azure_proxy
+}; // namespace http_proxy

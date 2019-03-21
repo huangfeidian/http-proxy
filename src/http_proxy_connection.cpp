@@ -1,6 +1,6 @@
 ﻿#include "http_proxy_connection.hpp"
 
-namespace azure_proxy
+namespace http_proxy
 {
 	http_proxy_connection::http_proxy_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::uint32_t in_timeout, const std::string& in_rsa_key, std::string log_pre)
 	:

@@ -1,15 +1,10 @@
-﻿/*
- *    http_proxy_client_stat.cpp:
- *
- *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
+﻿
 
 #include <numeric>
 
 #include "http_proxy_client_stat.hpp"
 
-namespace azure_proxy {
+namespace http_proxy {
 
 http_proxy_client_stat::http_proxy_client_stat() :
     upgoing_bytes_in(0),
@@ -194,4 +189,4 @@ http_proxy_client_stat& http_proxy_client_stat::get_instance()
     return instance;
 }
 
-} // namespace azure_proxy
+} // namespace http_proxy

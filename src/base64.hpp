@@ -4,7 +4,7 @@
 #include <iterator>
 #include <string>
 
-namespace azure_proxy
+namespace http_proxy
 {
 	namespace encoding
 	{
@@ -112,4 +112,4 @@ namespace azure_proxy
 		}
 
 	} // namespace encoding
-} // namespace azure_proxy
+} // namespace http_proxy

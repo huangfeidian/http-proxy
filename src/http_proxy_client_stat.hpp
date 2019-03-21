@@ -9,7 +9,7 @@
 using error_code = asio::error_code;
 
 
-namespace azure_proxy {
+namespace http_proxy {
 
 class http_proxy_client_stat {
 private:
@@ -72,5 +72,5 @@ public:
     static http_proxy_client_stat& get_instance();
 };
 
-} // namespace azure_proxy
+} // namespace http_proxy
 

@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 
-using namespace azure_proxy;
+using namespace http_proxy;
 using namespace std;
 
 vector<string> get_request_test_cases()

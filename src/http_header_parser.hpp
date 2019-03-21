@@ -10,7 +10,7 @@
 #include "config.hpp"
 #include "http_chunk_checker.hpp"
 
-namespace azure_proxy
+namespace http_proxy
 {
 	enum http_parser_status: uint16_t
 	{
@@ -178,4 +178,4 @@ namespace azure_proxy
 		http_parser_status status() const;
 		void reset();
 	};
-}; // namespace azure_proxy
+}; // namespace http_proxy

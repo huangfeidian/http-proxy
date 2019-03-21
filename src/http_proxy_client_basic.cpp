@@ -13,7 +13,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
-namespace azure_proxy
+namespace http_proxy
 {
 	using std::cerr;
 	using namespace std;
@@ -80,4 +80,4 @@ namespace azure_proxy
 		});
 	}
 
-} // namespace azure_proxy
+} // namespace http_proxy

@@ -13,7 +13,7 @@ extern "C" {
 #include <openssl/pem.h>
 }
 
-namespace azure_proxy
+namespace http_proxy
 {
 
 	class stream_encryptor
@@ -642,5 +642,5 @@ namespace azure_proxy
 			return result;
 		}
 	};
-} // namespace azure_proxy
+} // namespace http_proxy
 

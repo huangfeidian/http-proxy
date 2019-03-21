@@ -1,12 +1,7 @@
-﻿/*
- *    http_proxy_server_config.hpp:
- *
- *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
+﻿
 
-#ifndef AZURE_HTTP_PROXY_SERVER_CONFIG_HPP
-#define AZURE_HTTP_PROXY_SERVER_CONFIG_HPP
+#ifndef HTTP_PROXY_SERVER_CONFIG_HPP
+#define HTTP_PROXY_SERVER_CONFIG_HPP
 
 #include <cassert>
 #include <map>
@@ -15,7 +10,7 @@
 #include <spdlog/spdlog.h>
 
 #include <atomic>
-namespace azure_proxy {
+namespace http_proxy {
 
 class http_proxy_server_config {
 	std::map<std::string,int> config_map_int;
@@ -44,6 +39,6 @@ public:
 	static http_proxy_server_config& get_instance();
 };
 
-} // namespace azure_proxy
+} // namespace http_proxy
 
 #endif

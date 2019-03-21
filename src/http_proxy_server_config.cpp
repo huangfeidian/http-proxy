@@ -1,9 +1,4 @@
-﻿/*
- *    http_proxy_server_config.cpp:
- *
- *    copyright (c) 2013-2015 limhiaoing <blog.poxiao.me> all rights reserved.
- *
- */
+﻿
 
 #include <memory>
 #include <fstream>
@@ -14,7 +9,7 @@
 #include "http_proxy_server_config.hpp"
 
 #include <nlohmann/json.hpp>
-namespace azure_proxy {
+namespace http_proxy {
 	using json = nlohmann::json;
 	using std::cerr;
 	http_proxy_server_config::http_proxy_server_config()
@@ -243,4 +238,4 @@ namespace azure_proxy {
 		return connection_count++;
 	}
 
-} // namespace azure_proxy
+} // namespace http_proxy

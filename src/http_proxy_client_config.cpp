@@ -1,9 +1,4 @@
-﻿/*
- *    http_proxy_client_config.cpp:
- *
- *    Copyright (C) 2013-2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
+﻿
 
 #include <algorithm>
 #include <cctype>
@@ -15,7 +10,7 @@
 #include "http_proxy_client_config.hpp"
 
 
-namespace azure_proxy
+namespace http_proxy
 {
 	using std::cerr;
 	using namespace std;
@@ -292,4 +287,4 @@ namespace azure_proxy
 	{
 		return connection_count++;
 	}
-} // namespace azure_proxy
+} // namespace http_proxy

@@ -4,7 +4,7 @@
 #include "authentication.hpp"
 #include "base64.hpp"
 
-namespace azure_proxy {
+namespace http_proxy {
 
 authentication::authentication()
 {
@@ -14,9 +14,9 @@ auth_result authentication::auth_basic(const std::string::const_iterator begin, 
 {
     std::string authorization;
     try {
-        azure_proxy::encoding::base64_decode(begin, end, std::back_inserter(authorization));
+        http_proxy::encoding::base64_decode(begin, end, std::back_inserter(authorization));
     }
-    catch (const azure_proxy::encoding::decode_base64_error&) {
+    catch (const http_proxy::encoding::decode_base64_error&) {
         return auth_result::error;
     }
     auto colon_pos = authorization.find(':');
@@ -58,4 +58,4 @@ authentication& authentication::get_instance()
     return instance;
 }
 
-} // namespace azure_proxy
+} // namespace http_proxy

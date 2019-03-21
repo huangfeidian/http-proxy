@@ -1,13 +1,7 @@
-/*
- *    base64.cpp:
- *
- *    Copyright (C) 2015 limhiaoing <blog.poxiao.me> All Rights Reserved.
- *
- */
 
 #include "base64.hpp"
 
-namespace azure_proxy {
+namespace http_proxy {
 namespace encoding {
 
 const char base64_encode_table[64] = {
@@ -40,4 +34,4 @@ const int base64_decode_table[128] = {
 };
 
 } // namespace encoding
-} // namespace azure_proxy
+} // namespace http_proxy

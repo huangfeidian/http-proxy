@@ -14,7 +14,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
-namespace azure_proxy {
+namespace http_proxy {
 
 using std::cerr;
 http_proxy_server_basic::http_proxy_server_basic(asio::io_service& io_service) :
@@ -70,4 +70,4 @@ void http_proxy_server_basic::start_accept()
 	});
 }
 
-} //namespace azure_proxy
+} //namespace http_proxy

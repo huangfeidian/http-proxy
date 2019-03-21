@@ -2,7 +2,7 @@
 #include "http_proxy_session_manager.hpp"
 
 
-namespace azure_proxy
+namespace http_proxy
 {
     class http_proxy_server_session_manager: public http_proxy_session_manager
     {

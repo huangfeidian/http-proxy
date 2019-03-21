@@ -3,7 +3,7 @@
 #include <map>
 #include <string>
 
-namespace azure_proxy {
+namespace http_proxy {
 
 enum class auth_result {
     ok,
@@ -24,4 +24,4 @@ public:
     static authentication& get_instance();
 };
 
-} // namespace azure_proxy
+} // namespace http_proxy

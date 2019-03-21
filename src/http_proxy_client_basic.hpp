@@ -6,7 +6,7 @@ using error_code = asio::error_code;
 
 #include <spdlog/spdlog.h>
 
-namespace azure_proxy
+namespace http_proxy
 {
 
 	class http_proxy_client_basic
@@ -23,5 +23,5 @@ namespace azure_proxy
 		void start_accept();
 	};
 
-} // namespace azure_proxy
+} // namespace http_proxy
 

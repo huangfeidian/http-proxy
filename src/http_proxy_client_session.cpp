@@ -1,7 +1,7 @@
 ﻿#include "http_proxy_client_session.hpp"
 #include "http_proxy_client_config.hpp"
 #include "http_proxy_client_session_manager.hpp"
-namespace azure_proxy
+namespace http_proxy
 {
     http_proxy_client_session::http_proxy_client_session(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::weak_ptr< http_proxy_client_session_manager> in_session_manager)
     :http_proxy_client_connection(std::move(ua_socket), std::move(_server_socket), logger, in_connection_count, "session"), 

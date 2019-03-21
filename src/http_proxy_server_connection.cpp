@@ -13,7 +13,7 @@ using error_code = asio::error_code;
 
 
 
-namespace azure_proxy
+namespace http_proxy
 {
 
 	http_proxy_server_connection::http_proxy_server_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket,std::shared_ptr<spdlog::logger> in_logger, std::uint32_t _connection_count, std::string log_pre):
@@ -115,7 +115,7 @@ namespace azure_proxy
 		}
 		this->modified_response_data += "\r\n";
 		this->modified_response_data += "Content-Type: text/html\r\n";
-		this->modified_response_data += "Server: AzureHttpProxy\r\n";
+		this->modified_response_data += "Server: HttpProxy\r\n";
 		this->modified_response_data += "Content-Length: ";
 
 		std::string response_content;
@@ -135,7 +135,7 @@ namespace azure_proxy
 			response_content += "</center>";
 		}
 		response_content += "<hr><center>";
-		response_content += "azure http proxy server";
+		response_content += "Http Proxy server";
 		response_content += "</center></body></html>";
 		this->modified_response_data += std::to_string(response_content.size());
 		this->modified_response_data += "\r\n";
@@ -161,10 +161,10 @@ namespace azure_proxy
 	{
 		logger->warn("{} report_authentication_failed with info {}", logger_prefix, _request_parser._header.proxy_authorization());
 		std::string content = "<!DOCTYPE html><html><head><title>407 Proxy Authentication Required</title></head>";
-		content += "<body bgcolor=\"white\"><center><h1>407 Proxy Authentication Required</h1></center><hr><center>azure http proxy server</center></body></html>";
+		content += "<body bgcolor=\"white\"><center><h1>407 Proxy Authentication Required</h1></center><hr><center>Http Proxy server</center></body></html>";
 		this->modified_response_data = "HTTP/1.1 407 Proxy Authentication Required\r\n";
-		this->modified_response_data += "Server: AzureHttpProxy\r\n";
-		this->modified_response_data += "Proxy-Authenticate: Basic realm=\"AzureHttpProxy\"\r\n";
+		this->modified_response_data += "Server: HttpProxy\r\n";
+		this->modified_response_data += "Proxy-Authenticate: Basic realm=\"HttpProxy\"\r\n";
 		this->modified_response_data += "Content-Type: text/html\r\n";
 		this->modified_response_data += "Connection: Close\r\n";
 		this->modified_response_data += "Content-Length: ";
@@ -551,4 +551,4 @@ namespace azure_proxy
 	}
 
 
-} // namespace azure_proxy
+} // namespace http_proxy

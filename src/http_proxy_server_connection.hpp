@@ -11,7 +11,7 @@ using error_code = asio::error_code;
 #include "http_proxy_connection_context.hpp"
 #include "http_proxy_connection.hpp"
 
-namespace azure_proxy {
+namespace http_proxy {
 
 class http_proxy_server_connection : public http_proxy_connection
 {
@@ -44,4 +44,4 @@ protected:
 	void on_timeout(timer_type _cur_timer_type) override;
 };
 
-} // namespace azure_proxy
+} // namespace http_proxy

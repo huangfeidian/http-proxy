@@ -32,11 +32,11 @@ int main(int argc, char** argv)
 		}
 
 	}
-	using namespace azure_proxy;
+	using namespace http_proxy;
 	try {
 		auto& config = http_proxy_server_config::get_instance();
 		if (config.load_config(config_filename)) {
-			std::cout << "Azure Http Proxy Server" << std::endl;
+			std::cout << "Http Proxy Server" << std::endl;
 			std::cout << "bind address: " << config.get_bind_address() << ':' << config.get_listen_port() << std::endl;
 			asio::io_service io_service;
 			http_proxy_server_basic server(io_service);

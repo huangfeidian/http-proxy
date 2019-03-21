@@ -6,7 +6,7 @@
 #include "http_proxy_connection_context.hpp"
 #include "http_proxy_connection.hpp"
 
-namespace azure_proxy
+namespace http_proxy
 {
     class http_proxy_session_manager: public http_proxy_connection
     {
