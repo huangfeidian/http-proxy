@@ -388,7 +388,7 @@ namespace http_proxy
 			}
 			else
 			{
-				throw std::invalid_argument("invalid argument");
+				return;
 			}
 
 			auto bio_handle = std::shared_ptr<BIO>(BIO_new_mem_buf(const_cast<char*>(key.data()), key.size()), BIO_free);

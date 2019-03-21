@@ -276,7 +276,7 @@ namespace http_proxy
 		auto file_iter = config_map_str.find("log_file");
 		if (file_iter == config_map_str.end())
 		{
-			return "ahpc_log.txt";
+			return "client_log.txt";
 		}
 		else
 		{

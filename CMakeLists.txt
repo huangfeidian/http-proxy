@@ -74,21 +74,33 @@ src/http_header_parser.cpp
 src/base64.cpp 
 src/authentication.cpp )
 
+add_executable(relay
+src/http_proxy_relay.cpp
+src/http_proxy_relay_connection.cpp
+src/http_proxy_relay_main.cpp
+src/http_proxy_relay_config.cpp
+src/http_header_parser.cpp
+src/http_proxy_connection.cpp
+)
+
 target_link_libraries(server_basic  ${OPENSSL_LIBRARIES})
 target_link_libraries(client_basic  ${OPENSSL_LIBRARIES})
 target_link_libraries(server_persist  ${OPENSSL_LIBRARIES})
 target_link_libraries(client_persist  ${OPENSSL_LIBRARIES})
+target_link_libraries(relay  ${OPENSSL_LIBRARIES})
 
 target_link_libraries(server_basic PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(client_basic PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(server_persist PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(client_persist PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(relay PRIVATE nlohmann_json::nlohmann_json)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_link_libraries(client_basic atomic)
   target_link_libraries(server_basic atomic)
   target_link_libraries(client_persist atomic)
   target_link_libraries(server_persist atomic)
+  target_link_libraries(relay atomic)
 endif()
 
 if(UNIX)
@@ -96,6 +108,7 @@ if(UNIX)
   target_link_libraries(server_basic pthread)
   target_link_libraries(client_persist pthread)
   target_link_libraries(server_persist pthread)
+  target_link_libraries(relay pthread)
 endif()
 
 if(WIN32)
@@ -104,5 +117,6 @@ if(WIN32)
     target_link_libraries(server_basic ws2_32 wsock32)
     target_link_libraries(client_persist ws2_32 wsock32)
     target_link_libraries(server_persist ws2_32 wsock32)
+	target_link_libraries(relay ws2_32 wsock32)
   endif()
 endif()
