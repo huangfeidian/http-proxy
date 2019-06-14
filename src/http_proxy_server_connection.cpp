@@ -145,8 +145,11 @@ namespace http_proxy
 		{
 			this->modified_response_data += response_content;
 		}
-
-		this->encryptor->transform(reinterpret_cast<unsigned char*>(&modified_response_data[0]), modified_response_data.size(), 16);
+		if(this->encryptor)
+		{
+			this->encryptor->transform(reinterpret_cast<unsigned char*>(&modified_response_data[0]), modified_response_data.size(), 16);
+		}
+		
 		this->connection_context.connection_state = proxy_connection_state::report_error;
 		auto self(this->shared_from_this());
 		this->async_send_data_to_client(reinterpret_cast<unsigned char*>(this->modified_response_data.data()), 0, this->modified_response_data.size());
