@@ -17,9 +17,9 @@ namespace http_proxy
 {
 	using std::cerr;
 	using namespace std;
-	http_proxy_client_basic::http_proxy_client_basic(asio::io_service& io_service) :
-		io_service(io_service),
-		acceptor(io_service)
+	http_proxy_client_basic::http_proxy_client_basic(asio::io_context& io_context) :
+		io_context(io_context),
+		acceptor(io_context)
 
 
 	{
@@ -49,7 +49,7 @@ namespace http_proxy
 			{
 				try
 				{
-					this->io_service.run();
+					this->io_context.run();
 				}
 				catch (const std::exception& e)
 				{
@@ -66,14 +66,14 @@ namespace http_proxy
 
 	void http_proxy_client_basic::start_accept()
 	{
-		auto socket = std::make_shared<asio::ip::tcp::socket>(this->acceptor.get_io_service());
+		auto socket = std::make_shared<asio::ip::tcp::socket>(this->acceptor.get_executor());
 		this->acceptor.async_accept(*socket, [socket, this](const error_code& error)
 		{
 			if (!error)
 			{
 				this->start_accept();
 
-				auto connection = http_proxy_client_connection::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_io_service())), this->logger, http_proxy_client_config::get_instance().increase_connection_count());
+				auto connection = http_proxy_client_connection::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_executor())), this->logger, http_proxy_client_config::get_instance().increase_connection_count());
 
 				connection->start();
 			}

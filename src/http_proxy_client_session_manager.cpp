@@ -4,7 +4,7 @@ namespace http_proxy
 {
     http_proxy_client_session_manager::http_proxy_client_session_manager(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count):
     http_proxy_session_manager(std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count, http_proxy_client_config::get_instance().get_timeout(), http_proxy_client_config::get_instance().get_rsa_public_key(), false),
-		_ping_timer(client_socket.get_io_service())
+		_ping_timer(client_socket.get_executor())
     {
 
     }
@@ -52,7 +52,7 @@ namespace http_proxy
 			assert(false);
 		}
 		auto self = std::dynamic_pointer_cast<http_proxy_client_session_manager>(this->shared_from_this());
-		this->_ping_timer.async_wait(this->strand.wrap([this, self](const error_code& error)
+		this->_ping_timer.async_wait(asio::bind_executor(this->strand, [this, self](const error_code& error)
 		{
 			if (error != asio::error::operation_aborted)
 			{

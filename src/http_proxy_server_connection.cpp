@@ -73,7 +73,7 @@ namespace http_proxy
 			
 			logger->info("{} connect to {}:{}", logger_prefix, server_host, server_port);
 			this->resolver.async_resolve(query,
-										 this->strand.wrap([this, self, server_host](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
+										 asio::bind_executor(this->strand, [this, self, server_host](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
 			{
 				if (this->cancel_timer(timer_type::resolve))
 				{
@@ -201,7 +201,7 @@ namespace http_proxy
 		this->connection_context.connection_state = proxy_connection_state::connect_to_origin_server;
 		this->set_timer(timer_type::connect);
 		this->server_socket.async_connect(endpoint_iterator->endpoint(),
-												 this->strand.wrap([this, self, endpoint_iterator](const error_code& error) mutable
+												 asio::bind_executor(this->strand, [this, self, endpoint_iterator](const error_code& error) mutable
 		{
 			if (this->cancel_timer(timer_type::connect))
 			{

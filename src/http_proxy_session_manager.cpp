@@ -33,7 +33,7 @@ namespace http_proxy
 			{
 				do_send_one();
 			}
-		});
+		}, asio::get_associated_allocator(strand));
 		
 	}
 	void http_proxy_session_manager::post_read_task(std::shared_ptr<http_proxy_connection> _task_session, std::uint32_t min_read_size, std::uint32_t max_read_size)
@@ -51,7 +51,7 @@ namespace http_proxy
 			cur_read_task.min_read_size = min_read_size;
 			cur_read_task.max_read_size = max_read_size;
 			try_handle_packet_read(cur_read_task);
-		});
+		}, asio::get_associated_allocator(strand));
 	}
 
 	void http_proxy_session_manager::prepare_read_buffer(std::shared_ptr<http_proxy_connection> _task_session, unsigned char* read_buffer, std::uint32_t max_read_size)
@@ -396,13 +396,14 @@ namespace http_proxy
 		{
 			_cur_session->strand.post([=]() {
 				_cur_session->on_client_data_arrived(read_size);
-			});
+			}, asio::get_associated_allocator(_cur_session->strand));
 		}
 		else
 		{
-			_cur_session->strand.post([=]() {
-				_cur_session->on_server_data_arrived(read_size);
-			});
+			_cur_session->strand.post([=]()
+				{
+					_cur_session->on_server_data_arrived(read_size);
+				}, asio::get_associated_allocator(_cur_session->strand));
 		}
 		
 
@@ -433,7 +434,7 @@ namespace http_proxy
 		asio::async_read(this->server_socket,
 			asio::buffer(server_read_buffer.data() + buffer_offset, at_most_size),
 			asio::transfer_at_least(at_least_size),
-			this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
+			asio::bind_executor(this->strand, [this, self](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer(timer_type::up_read))
 			{
@@ -467,7 +468,7 @@ namespace http_proxy
 		asio::async_read(this->client_socket,
 			asio::buffer(client_read_buffer.data() + buffer_offset, at_most_size),
 			asio::transfer_at_least(at_least_size),
-			this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
+			asio::bind_executor(this->strand, [this, self](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer(timer_type::down_read))
 			{

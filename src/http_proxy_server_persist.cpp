@@ -17,9 +17,9 @@
 namespace http_proxy {
 
 using std::cerr;
-http_proxy_server_persist::http_proxy_server_persist(asio::io_service& io_service) :
-	io_service(io_service),
-	acceptor(io_service)
+http_proxy_server_persist::http_proxy_server_persist(asio::io_context& in_io_context) :
+	io_context(in_io_context),
+	acceptor(in_io_context)
 {}
 
 void http_proxy_server_persist::run()
@@ -43,7 +43,7 @@ void http_proxy_server_persist::run()
 	for (auto i = 0; i < config.get_workers(); ++i) {
 		td_vec.emplace_back([this]() {
 			try {
-				this->io_service.run();
+				this->io_context.run();
 			}
 			catch (const std::exception& e) {
 				std::cerr << e.what() << std::endl;
@@ -58,11 +58,11 @@ void http_proxy_server_persist::run()
 
 void http_proxy_server_persist::start_accept()
 {
-	auto socket = std::make_shared<asio::ip::tcp::socket>(this->acceptor.get_io_service());
+	auto socket = std::make_shared<asio::ip::tcp::socket>(this->acceptor.get_executor());
 	this->acceptor.async_accept(*socket, [socket, this](const error_code& error) {
 		if (!error) {
 
-			auto connection = http_proxy_server_session_manager::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_io_service())), logger, http_proxy_server_config::get_instance().increase_connection_count());
+			auto connection = http_proxy_server_session_manager::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_executor())), logger, http_proxy_server_config::get_instance().increase_connection_count());
 
 			connection->start();
 			this->start_accept();

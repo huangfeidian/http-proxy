@@ -125,9 +125,9 @@ std::uint32_t http_proxy_client_stat::get_current_connections() const
     return this->current_connections.load(std::memory_order_acquire);
 }
 
-void http_proxy_client_stat::start_stat(asio::io_service& io_service)
+void http_proxy_client_stat::start_stat(asio::io_context& io_context)
 {
-    auto sp_timer = std::make_shared<asio::basic_waitable_timer<std::chrono::steady_clock>>(io_service);
+    auto sp_timer = std::make_shared<asio::basic_waitable_timer<std::chrono::steady_clock>>(io_context);
     sp_timer->expires_from_now(std::chrono::seconds(1));
     sp_timer->async_wait([this, sp_timer](const error_code& error) {
         this->callback(error, sp_timer);

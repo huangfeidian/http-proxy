@@ -23,7 +23,7 @@ class http_proxy_connection : public std::enable_shared_from_this <http_proxy_co
 	{
 
 	protected:
-		asio::io_service::strand strand;
+		asio::strand<asio::executor> strand;
 		asio::ip::tcp::socket client_socket;
 		asio::ip::tcp::socket server_socket;
 		asio::ip::tcp::resolver resolver;

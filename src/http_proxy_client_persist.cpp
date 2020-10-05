@@ -17,9 +17,9 @@ namespace http_proxy
 {
 	using std::cerr;
 	using namespace std;
-	http_proxy_client_persist::http_proxy_client_persist(asio::io_service& io_service) :
-		io_service(io_service),
-		acceptor(io_service)
+	http_proxy_client_persist::http_proxy_client_persist(asio::io_context& in_io_context) :
+		io_context(in_io_context),
+		acceptor(in_io_context)
 
 
 	{
@@ -44,7 +44,7 @@ namespace http_proxy
 		this->start_accept();
 		for (auto i = 0; i < config.get_workers(); ++i)
 		{
-			auto one_session_manager = http_proxy_client_session_manager::create(std::move(asio::ip::tcp::socket(io_service)), std::move(asio::ip::tcp::socket(io_service)), logger, http_proxy_client_config::get_instance().increase_connection_count());
+			auto one_session_manager = http_proxy_client_session_manager::create(std::move(asio::ip::tcp::socket(io_context)), std::move(asio::ip::tcp::socket(io_context)), logger, http_proxy_client_config::get_instance().increase_connection_count());
 			_session_managers.push_back(one_session_manager);
 			one_session_manager->start();
 
@@ -57,7 +57,7 @@ namespace http_proxy
 			{
 				try
 				{
-					this->io_service.run();
+					this->io_context.run();
 					std::cout << "io service run end with thread " << std::this_thread::get_id() << std::endl;
 				}
 				catch (const std::exception& e)
@@ -77,14 +77,14 @@ namespace http_proxy
 
 	void http_proxy_client_persist::start_accept()
 	{
-		auto socket = std::make_shared<asio::ip::tcp::socket>(this->acceptor.get_io_service());
+		auto socket = std::make_shared<asio::ip::tcp::socket>(this->acceptor.get_executor());
 		this->acceptor.async_accept(*socket, [socket, this](const error_code& error)
 		{
 			if (!error)
 			{
 				this->start_accept();
                 auto cur_connection_count = http_proxy_client_config::get_instance().increase_connection_count();
-                auto cur_session = http_proxy_client_session::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_io_service())), logger, cur_connection_count++, _session_managers[cur_connection_count % _session_managers.size()]);
+                auto cur_session = http_proxy_client_session::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_executor())), logger, cur_connection_count++, _session_managers[cur_connection_count % _session_managers.size()]);
 				cur_session->start();
 			}
 		});

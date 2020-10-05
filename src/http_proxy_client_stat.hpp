@@ -40,7 +40,7 @@ private:
 
     std::atomic<std::uint32_t> current_connections;
 public:
-    void start_stat(asio::io_service& io_service);
+    void start_stat(asio::io_context& io_context);
 private:
     http_proxy_client_stat();
     void callback(const error_code& error, std::shared_ptr<asio::basic_waitable_timer<std::chrono::steady_clock>> sp_timer);

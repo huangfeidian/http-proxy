@@ -38,8 +38,8 @@ int main(int argc, char** argv)
 		if (config.load_config(config_filename)) {
 			std::cout << "Http Proxy Server" << std::endl;
 			std::cout << "bind address: " << config.get_bind_address() << ':' << config.get_listen_port() << std::endl;
-			asio::io_service io_service;
-			http_proxy_server_persist server(io_service);
+			asio::io_context io_context;
+			http_proxy_server_persist server(io_context);
 
 			server.run();
 		}

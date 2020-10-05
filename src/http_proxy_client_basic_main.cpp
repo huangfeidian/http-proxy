@@ -44,10 +44,10 @@ int main(int argc, char** argv)
 			std::cout << "server address: " << config.get_proxy_server_address() << ':' << config.get_proxy_server_port() << std::endl;
 			std::cout << "local address: " << config.get_bind_address() << ':' << config.get_listen_port() << std::endl;
 			std::cout << "cipher: " << config.get_cipher() << std::endl;
-			asio::io_service io_service;
-			http_proxy_client_stat::get_instance().start_stat(io_service);
+			asio::io_context io_context;
+			http_proxy_client_stat::get_instance().start_stat(io_context);
 
-			http_proxy_client_basic client(io_service);
+			http_proxy_client_basic client(io_context);
 
 			client.run();
 		}

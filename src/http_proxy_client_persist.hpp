@@ -12,13 +12,13 @@ namespace http_proxy
 
 	class http_proxy_client_persist
 	{
-		asio::io_service& io_service;
+		asio::io_context& io_context;
 		asio::ip::tcp::acceptor acceptor;
 		std::shared_ptr<spdlog::logger> logger;
         std::vector<std::shared_ptr<http_proxy_client_session_manager>> _session_managers;
 	public:
 
-		http_proxy_client_persist(asio::io_service& io_service);
+		http_proxy_client_persist(asio::io_context& io_context);
 
 		void run();
 	private:

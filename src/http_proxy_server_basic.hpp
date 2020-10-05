@@ -9,12 +9,12 @@ using error_code = asio::error_code;
 namespace http_proxy {
 
 	class http_proxy_server_basic {
-		asio::io_service& io_service;
+		asio::io_context& io_context;
 		asio::ip::tcp::acceptor acceptor;
 		std::shared_ptr<spdlog::logger> logger;
 	public:
 
-		http_proxy_server_basic(asio::io_service& io_service);
+		http_proxy_server_basic(asio::io_context& io_context);
 
 		
 		void run();

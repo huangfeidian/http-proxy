@@ -3,12 +3,11 @@
 namespace http_proxy
 {
 	http_proxy_connection::http_proxy_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::uint32_t in_timeout, const std::string& in_rsa_key, std::string log_pre)
-	:
-	strand(in_client_socket.get_io_service()),
+	:strand(in_client_socket.get_executor()),
 	client_socket(std::move(in_client_socket)),
 	server_socket(std::move(in_server_socket)),
 	
-	resolver(this->client_socket.get_io_service()),
+	resolver(this->client_socket.get_executor()),
 	connection_state(proxy_connection_state::ready),
 	timeout(std::chrono::seconds(in_timeout)),
 	logger(in_logger),
@@ -18,7 +17,7 @@ namespace http_proxy
 	{
 		for (int i = 0; i < static_cast<uint32_t>(timer_type::max); i++)
 		{
-			timers.push_back(std::make_shared< asio::basic_waitable_timer<std::chrono::steady_clock>>(client_socket.get_io_service()));
+			timers.push_back(std::make_shared< asio::basic_waitable_timer<std::chrono::steady_clock>>(client_socket.get_executor()));
 		}
 	}
 	std::shared_ptr<http_proxy_connection> http_proxy_connection::create(asio::ip::tcp::socket&& _in_client_socket, asio::ip::tcp::socket&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout, const std::string& in_rsa_key)
@@ -106,7 +105,7 @@ namespace http_proxy
 			assert(false);
 		}
 		auto self(this->shared_from_this());
-		cur_timer->async_wait(this->strand.wrap([this, self, _cur_timer_type](const error_code& error)
+		cur_timer->async_wait(asio::bind_executor(this->strand, [this, self, _cur_timer_type](const error_code& error)
 		{
 			if (error != asio::error::operation_aborted)
 			{
@@ -141,7 +140,7 @@ namespace http_proxy
 		auto self = shared_from_this();
 		this->connection_state = proxy_connection_state::connecte_to_proxy_server;
 		this->set_timer(timer_type::connect);
-		this->server_socket.async_connect(*endpoint_iterator, this->strand.wrap([this, self, host = endpoint_iterator->host_name()](const error_code& error)
+		this->server_socket.async_connect(*endpoint_iterator, asio::bind_executor(this->strand, [this, self, host = endpoint_iterator->host_name()](const error_code& error)
 		{
 			if (this->cancel_timer(timer_type::connect))
 			{
@@ -373,7 +372,7 @@ namespace http_proxy
 		asio::async_read(this->server_socket,
 								asio::buffer(&this->server_read_buffer[0], at_most_size),
 								asio::transfer_at_least(at_least_size),
-								this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
+								asio::bind_executor(this->strand, [this, self](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer(timer_type::up_read))
 			{
@@ -404,7 +403,7 @@ namespace http_proxy
 		asio::async_read(this->client_socket,
 								asio::buffer(&this->client_read_buffer[0], at_most_size),
 								asio::transfer_at_least(at_least_size),
-								this->strand.wrap([this, self](const error_code& error, std::size_t bytes_transferred)
+								asio::bind_executor(this->strand, [this, self](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer(timer_type::down_read))
 			{
@@ -433,7 +432,7 @@ namespace http_proxy
 		this->set_timer(timer_type::up_send);
 
 		this->server_socket.async_write_some(asio::buffer(write_buffer + offset, remain_size),
-			this->strand.wrap([this, self, write_buffer, offset, remain_size, total_size](const error_code& error, std::size_t bytes_transferred)
+			asio::bind_executor(this->strand, [this, self, write_buffer, offset, remain_size, total_size](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer(timer_type::up_send))
 			{
@@ -471,7 +470,7 @@ namespace http_proxy
 		this->set_timer(timer_type::down_send);
 
 		this->client_socket.async_write_some(asio::buffer(write_buffer + offset, remain_size),
-			this->strand.wrap([this, self, write_buffer, offset, remain_size, total_size](const error_code& error, std::size_t bytes_transferred)
+			asio::bind_executor(this->strand, [this, self, write_buffer, offset, remain_size, total_size](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer(timer_type::down_send))
 			{
