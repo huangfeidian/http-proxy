@@ -73,7 +73,7 @@ namespace http_proxy
 			{
 				this->start_accept();
 
-				auto connection = http_proxy_client_connection::create(std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_executor())), this->logger, http_proxy_client_config::get_instance().increase_connection_count());
+				auto connection = http_proxy_client_connection::create(io_context, std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_executor())), this->logger, http_proxy_client_config::get_instance().increase_connection_count());
 
 				connection->start();
 			}

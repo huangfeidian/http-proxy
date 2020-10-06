@@ -2,8 +2,9 @@
 
 namespace http_proxy
 {
-	http_proxy_connection::http_proxy_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::uint32_t in_timeout, const std::string& in_rsa_key, std::string log_pre)
-	:strand(in_client_socket.get_executor()),
+	http_proxy_connection::http_proxy_connection(asio::io_context& in_io, asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::uint32_t in_timeout, const std::string& in_rsa_key, std::string log_pre)
+	:io(in_io),
+	strand(asio::make_strand(io)),
 	client_socket(std::move(in_client_socket)),
 	server_socket(std::move(in_server_socket)),
 	
@@ -20,9 +21,9 @@ namespace http_proxy
 			timers.push_back(std::make_shared< asio::basic_waitable_timer<std::chrono::steady_clock>>(client_socket.get_executor()));
 		}
 	}
-	std::shared_ptr<http_proxy_connection> http_proxy_connection::create(asio::ip::tcp::socket&& _in_client_socket, asio::ip::tcp::socket&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout, const std::string& in_rsa_key)
+	std::shared_ptr<http_proxy_connection> http_proxy_connection::create(asio::io_context& in_io, asio::ip::tcp::socket&& _in_client_socket, asio::ip::tcp::socket&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout, const std::string& in_rsa_key)
 	{
-		return std::make_shared<http_proxy_connection>(std::move(_in_client_socket), std::move(_in_server_socket), logger, in_connection_idx, _in_timeout, in_rsa_key);
+		return std::make_shared<http_proxy_connection>(in_io, std::move(_in_client_socket), std::move(_in_server_socket), logger, in_connection_idx, _in_timeout, in_rsa_key);
 	}
 
 	void http_proxy_connection::report_error(http_parser_result _status)

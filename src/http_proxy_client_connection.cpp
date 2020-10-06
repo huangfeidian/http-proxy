@@ -13,8 +13,8 @@
 namespace http_proxy
 {
 
-	http_proxy_client_connection::http_proxy_client_connection(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::string log_pre):
-	http_proxy_connection(std::move(ua_socket), std::move(server_socket), in_logger, in_connection_count, http_proxy_client_config::get_instance().get_timeout(), http_proxy_client_config::get_instance().get_rsa_public_key(), log_pre)
+	http_proxy_client_connection::http_proxy_client_connection(asio::io_context& in_io, asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::string log_pre):
+	http_proxy_connection(in_io, std::move(ua_socket), std::move(server_socket), in_logger, in_connection_count, http_proxy_client_config::get_instance().get_timeout(), http_proxy_client_config::get_instance().get_rsa_public_key(), log_pre)
 	{
 		_request_time = std::chrono::system_clock::now();
 		http_proxy_client_stat::get_instance().increase_current_connections();
@@ -26,9 +26,9 @@ namespace http_proxy
 		http_proxy_client_stat::get_instance().decrease_current_connections();
 	}
 
-	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count)
+	std::shared_ptr<http_proxy_client_connection> http_proxy_client_connection::create(asio::io_context& in_io, asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count)
 	{
-		return std::make_shared<http_proxy_client_connection>(std::move(ua_socket), std::move(_server_socket), in_logger,  in_connection_count);
+		return std::make_shared<http_proxy_client_connection>(in_io, std::move(ua_socket), std::move(_server_socket), in_logger,  in_connection_count);
 	}
 	
 	void http_proxy_client_connection::start()

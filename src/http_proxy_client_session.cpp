@@ -3,14 +3,14 @@
 #include "http_proxy_client_session_manager.hpp"
 namespace http_proxy
 {
-    http_proxy_client_session::http_proxy_client_session(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::weak_ptr< http_proxy_client_session_manager> in_session_manager)
-    :http_proxy_client_connection(std::move(ua_socket), std::move(_server_socket), logger, in_connection_count, "session"),
+    http_proxy_client_session::http_proxy_client_session(asio::io_context& in_io, asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::weak_ptr< http_proxy_client_session_manager> in_session_manager)
+    :http_proxy_client_connection(in_io, std::move(ua_socket), std::move(_server_socket), logger, in_connection_count, "session"),
     _session_manager(in_session_manager)
     {
         
     }
 
-   std::shared_ptr<http_proxy_client_session> http_proxy_client_session::create(asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::weak_ptr< http_proxy_client_session_manager> in_session_manager)
+   std::shared_ptr<http_proxy_client_session> http_proxy_client_session::create(asio::io_context& in_io, asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::weak_ptr< http_proxy_client_session_manager> in_session_manager)
     {
 	   auto the_session_manager = in_session_manager.lock();
 	   if (!the_session_manager)
@@ -18,7 +18,7 @@ namespace http_proxy
 		   logger->warn("http_proxy_client_session::create with invalid session manager");
 		   return std::shared_ptr< http_proxy_client_session>();
 	   }
-        auto result = std::make_shared<http_proxy_client_session>(std::move(ua_socket), std::move(_server_socket), logger, in_connection_count, in_session_manager);
+        auto result = std::make_shared<http_proxy_client_session>(in_io, std::move(ua_socket), std::move(_server_socket), logger, in_connection_count, in_session_manager);
 		the_session_manager->add_session(result);
 		return result;
     }

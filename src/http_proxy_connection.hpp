@@ -23,7 +23,8 @@ class http_proxy_connection : public std::enable_shared_from_this <http_proxy_co
 	{
 
 	protected:
-		asio::strand<asio::executor> strand;
+		asio::io_context& io;
+		asio::strand<asio::io_context::executor_type> strand;
 		asio::ip::tcp::socket client_socket;
 		asio::ip::tcp::socket server_socket;
 		asio::ip::tcp::resolver resolver;
@@ -53,8 +54,8 @@ class http_proxy_connection : public std::enable_shared_from_this <http_proxy_co
 		http_response_parser _response_parser;
 	public:
 		virtual ~http_proxy_connection();
-		static std::shared_ptr<http_proxy_connection> create(asio::ip::tcp::socket&& _in_client_socket, asio::ip::tcp::socket&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout, const std::string& rsa_key);
-		http_proxy_connection(asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t in_timeout, const std::string& rsa_key, std::string log_pre = "connection");
+		static std::shared_ptr<http_proxy_connection> create(asio::io_context& in_io, asio::ip::tcp::socket&& _in_client_socket, asio::ip::tcp::socket&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout, const std::string& rsa_key);
+		http_proxy_connection(asio::io_context& in_io, asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t in_timeout, const std::string& rsa_key, std::string log_pre = "connection");
 		virtual void start();
 	protected:
 		virtual void async_read_data_from_client(bool set_timer = true, std::size_t at_least_size = 1, std::size_t at_most_size = BUFFER_LENGTH);
