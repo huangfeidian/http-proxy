@@ -25,9 +25,11 @@ AHP使用了部分C++11/14/17特性，所以对编译器的版本有较高要求
  - MinGW >= 4.9
 09b7a6004ed6eeb90b27d5f4da7fc682bcc2c023 这个版本不需要c++17，如果编译器无法升级的话，请checkout这个版本。
 参考：http://en.cppreference.com/w/cpp/compiler_support
-###本版本修改
+### 本版本修改
 我的版本将原始版本对boost::any boost::optional的依赖都去除了，同时将原来的json依赖替换为了nlohmann 的json，https://github.com/nlohmann/json。
+
 引入spdlog进行log追踪，系统自带的spdlog 版本是master版，与当前代码所用spdlog不匹配，需要使用者自行去github下载对应的develop版本 https://github.com/gabime/spdlog
+
 stand_alone的asio 也可以去github下载，https://github.com/chriskohlhoff/asio
 ### 安装依赖
 
