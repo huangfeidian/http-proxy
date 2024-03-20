@@ -14,9 +14,9 @@ INCLUDE_DIRECTORIES(${spdlog_include_dirs})
 
 
 # set(ASIO_DIR "D:\\Github\\asio-1.10.6\\include")
-# include_directories(${ASIO_DIR})
+include_directories(${ASIO_DIR})
 add_definitions(-DASIO_STANDALONE)
-add_definitions(-DASIO_MSVC)
+
 
 
 set(CMAKE_CXX_STANDARD 17)
@@ -24,6 +24,7 @@ set(CMAKE_CXX_STANDARD 17)
 if(MSVC)
 add_definitions(-DBOOST_ASIO_HAS_MOVE)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest")
+add_definitions(-DASIO_MSVC)
 endif(MSVC)
 
 add_executable(parser_test src/http_header_parser.cpp src/http_parser_test.cpp)

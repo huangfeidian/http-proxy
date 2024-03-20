@@ -4,7 +4,7 @@
 #include <cctype>
 #include <iterator>
 #include <type_traits>
-
+#include <cstdint>
 namespace http_proxy
 {
 

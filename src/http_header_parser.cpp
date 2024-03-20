@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <unordered_set>
 #include <optional>
+#include <limits>
 #ifdef _MSC_VER
 #include <charconv>
 #else

@@ -367,7 +367,7 @@ namespace http_proxy
 	{
 		pkcs1_padding,
 		pkcs1_oaep_padding,
-		sslv23_padding,
+		// sslv23_padding,
 		no_padding
 	};
 
@@ -452,9 +452,9 @@ namespace http_proxy
 			case rsa_padding::pkcs1_oaep_padding:
 				return RSA_PKCS1_OAEP_PADDING;
 				break;
-			case rsa_padding::sslv23_padding:
-				return RSA_SSLV23_PADDING;
-				break;
+			// case rsa_padding::sslv23_padding:
+			// 	return RSA_SSLV23_PADDING;
+			// 	break;
 			default:
 				return RSA_NO_PADDING;
 			}
