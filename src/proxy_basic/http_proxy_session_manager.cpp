@@ -2,14 +2,14 @@
 
 namespace http_proxy
 {
-    http_proxy_session_manager::http_proxy_session_manager(asio::io_context& in_io, asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing):
+    http_proxy_session_manager::http_proxy_session_manager(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& in_client_socket, std::shared_ptr<socket_wrapper>&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing):
 	http_proxy_connection(in_io, std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count, _in_timeout, rsa_key, "session_manager"),
 	is_server_side(_in_is_downgoing)
 
 	{
 
 	}
-	std::shared_ptr<http_proxy_session_manager> http_proxy_session_manager::create(asio::io_context& in_io, asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing)
+	std::shared_ptr<http_proxy_session_manager> http_proxy_session_manager::create(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& in_client_socket, std::shared_ptr<socket_wrapper>&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing)
 	{
 		return std::make_shared<http_proxy_session_manager>(in_io, std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count, _in_timeout, rsa_key, _in_is_downgoing);
 	}
@@ -36,9 +36,9 @@ namespace http_proxy
 		}, asio::get_associated_allocator(strand));
 		
 	}
-	void http_proxy_session_manager::post_read_task(std::shared_ptr<http_proxy_connection> _task_session, std::uint32_t min_read_size, std::uint32_t max_read_size)
+	void http_proxy_session_manager::post_read_task(std::shared_ptr<http_proxy_connection> _task_session)
 	{
-		logger->debug("{} post_read_task  session {} min_read_size {} max_read_size {}", logger_prefix, _task_session->connection_count, min_read_size, max_read_size);
+		logger->debug("{} post_read_task  session {} ", logger_prefix, _task_session->connection_count);
 		auto session_idx = _task_session->connection_count;
 		strand.post([=, self = shared_from_this()]() {
 			auto task_iter = _read_tasks.find(session_idx);
@@ -48,8 +48,6 @@ namespace http_proxy
 				return;
 			}
 			auto& cur_read_task = task_iter->second;
-			cur_read_task.min_read_size = min_read_size;
-			cur_read_task.max_read_size = max_read_size;
 			try_handle_packet_read(cur_read_task);
 		}, asio::get_associated_allocator(strand));
 	}
@@ -431,9 +429,8 @@ namespace http_proxy
 			this->set_timer(timer_type::up_read);
 		}
 		
-		asio::async_read(this->server_socket,
+		this->server_socket->async_read_some(
 			asio::buffer(server_read_buffer.data() + buffer_offset, at_most_size),
-			asio::transfer_at_least(at_least_size),
 			asio::bind_executor(this->strand, [this, self](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer(timer_type::up_read))
@@ -465,9 +462,8 @@ namespace http_proxy
 			this->set_timer(timer_type::down_read);
 		}
 		
-		asio::async_read(this->client_socket,
+		this->client_socket->async_read_some(
 			asio::buffer(client_read_buffer.data() + buffer_offset, at_most_size),
-			asio::transfer_at_least(at_least_size),
 			asio::bind_executor(this->strand, [this, self](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer(timer_type::down_read))

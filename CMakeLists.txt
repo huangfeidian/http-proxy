@@ -17,6 +17,8 @@ INCLUDE_DIRECTORIES(${spdlog_include_dirs})
 include_directories(${ASIO_DIR})
 add_definitions(-DASIO_STANDALONE)
 
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
 
 
 set(CMAKE_CXX_STANDARD 17)
@@ -27,97 +29,51 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest")
 add_definitions(-DASIO_MSVC)
 endif(MSVC)
 
-add_executable(parser_test src/http_header_parser.cpp src/http_parser_test.cpp)
-target_link_libraries(parser_test ${OPENSSL_LIBRARIES})
-
-add_executable(client_basic 
-src/http_proxy_client_basic_main.cpp 
-src/http_proxy_client_basic.cpp 
-src/http_proxy_client_stat.cpp 
-src/http_proxy_client_config.cpp 
-src/http_proxy_client_connection.cpp 
-src/http_proxy_connection.cpp
-src/http_header_parser.cpp)
-
-add_executable(client_persist 
-src/http_proxy_client_persist_main.cpp 
-src/http_proxy_client_persist.cpp 
-src/http_proxy_client_stat.cpp 
-src/http_proxy_client_config.cpp 
-src/http_proxy_client_connection.cpp 
-src/http_proxy_connection.cpp
-src/http_proxy_session_manager.cpp
-src/http_proxy_client_session_manager.cpp
-src/http_proxy_client_session.cpp
-src/http_header_parser.cpp)
 
 
-add_executable(server_basic
-src/http_proxy_server_basic_main.cpp 
-src/http_proxy_server_basic.cpp 
-src/http_proxy_server_config.cpp 
-src/http_proxy_connection.cpp
-src/http_proxy_server_connection.cpp 
-src/http_header_parser.cpp 
-src/base64.cpp 
-src/authentication.cpp )
+file(GLOB_RECURSE PROXY_BASIC_SRCS ${CMAKE_SOURCE_DIR}/src/proxy_basic/*.cpp)
+file(GLOB_RECURSE CLIENT_BASIC_SRCS ${CMAKE_SOURCE_DIR}/src/client_basic/*.cpp)
+file(GLOB_RECURSE SERVER_BASIC_SRCS ${CMAKE_SOURCE_DIR}/src/server_basic/*.cpp)
+file(GLOB_RECURSE CLIENT_PERSIST_SRCS ${CMAKE_SOURCE_DIR}/src/client_persist/*.cpp)
+file(GLOB_RECURSE SERVER_PERSIST_SRCS ${CMAKE_SOURCE_DIR}/src/server_persist/*.cpp)
+file(GLOB_RECURSE RELAY_SRCS ${CMAKE_SOURCE_DIR}/src/relay/*.cpp)
 
-add_executable(server_persist
-src/http_proxy_server_persist_main.cpp 
-src/http_proxy_server_persist.cpp 
-src/http_proxy_server_config.cpp 
-src/http_proxy_connection.cpp
-src/http_proxy_server_connection.cpp
-src/http_proxy_server_session.cpp 
-src/http_proxy_server_session_manager.cpp
-src/http_proxy_session_manager.cpp
-src/http_header_parser.cpp 
-src/base64.cpp 
-src/authentication.cpp )
+add_library(proxy_basic_lib ${PROXY_BASIC_SRCS})
+target_link_libraries(proxy_basic_lib nlohmann_json::nlohmann_json 	spdlog::spdlog ${OPENSSL_LIBRARIES})
 
-add_executable(relay
-src/http_proxy_relay.cpp
-src/http_proxy_relay_connection.cpp
-src/http_proxy_relay_main.cpp
-src/http_proxy_relay_config.cpp
-src/http_header_parser.cpp
-src/http_proxy_connection.cpp
-)
+add_library(client_basic_lib ${CLIENT_BASIC_SRCS})
+target_link_libraries(client_basic_lib proxy_basic_lib)
 
-target_link_libraries(server_basic  ${OPENSSL_LIBRARIES})
-target_link_libraries(client_basic  ${OPENSSL_LIBRARIES})
-target_link_libraries(server_persist  ${OPENSSL_LIBRARIES})
-target_link_libraries(client_persist  ${OPENSSL_LIBRARIES})
-target_link_libraries(relay  ${OPENSSL_LIBRARIES})
+add_library(server_basic_lib ${SERVER_BASIC_SRCS})
+target_link_libraries(server_basic_lib proxy_basic_lib)
 
-target_link_libraries(server_basic PRIVATE nlohmann_json::nlohmann_json 	spdlog::spdlog)
-target_link_libraries(client_basic PRIVATE nlohmann_json::nlohmann_json 	spdlog::spdlog)
-target_link_libraries(server_persist PRIVATE nlohmann_json::nlohmann_json 	spdlog::spdlog)
-target_link_libraries(client_persist PRIVATE nlohmann_json::nlohmann_json 	spdlog::spdlog)
-target_link_libraries(relay PRIVATE nlohmann_json::nlohmann_json 	spdlog::spdlog)
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  target_link_libraries(client_basic atomic)
-  target_link_libraries(server_basic atomic)
-  target_link_libraries(client_persist atomic)
-  target_link_libraries(server_persist atomic)
-  target_link_libraries(relay atomic)
-endif()
+add_library(client_persist_lib ${CLIENT_PERSIST_SRCS})
 
-if(UNIX)
-  target_link_libraries(client_basic pthread)
-  target_link_libraries(server_basic pthread)
-  target_link_libraries(client_persist pthread)
-  target_link_libraries(server_persist pthread)
-  target_link_libraries(relay pthread)
-endif()
+target_link_libraries(client_persist_lib client_basic_lib)
 
-if(WIN32)
-  if(MINGW)
-    target_link_libraries(client_basic ws2_32 wsock32)
-    target_link_libraries(server_basic ws2_32 wsock32)
-    target_link_libraries(client_persist ws2_32 wsock32)
-    target_link_libraries(server_persist ws2_32 wsock32)
-	target_link_libraries(relay ws2_32 wsock32)
-  endif()
-endif()
+add_library(server_persist_lib ${SERVER_PERSIST_SRCS})
+target_link_libraries(server_persist_lib server_basic_lib)
+
+add_library(relay_lib ${RELAY_SRCS})
+target_link_libraries(relay_lib proxy_basic_lib)
+
+
+add_executable(client_basic test/http_proxy_client_basic_main.cpp )
+target_link_libraries(client_basic client_basic_lib)
+
+add_executable(server_basic test/http_proxy_server_basic_main.cpp )
+target_link_libraries(server_basic server_basic_lib)
+
+add_executable(client_persist test/http_proxy_client_persist_main.cpp )
+target_link_libraries(client_persist client_persist_lib)
+
+add_executable(server_persist test/http_proxy_server_persist_main.cpp )
+target_link_libraries(server_persist server_persist_lib)
+
+add_executable(relay test/http_proxy_relay_main.cpp )
+target_link_libraries(relay relay_lib)
+
+add_executable(parser_test  test/http_parser_test.cpp)
+target_link_libraries(parser_test proxy_basic_lib)
+

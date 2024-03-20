@@ -20,9 +20,9 @@ namespace http_proxy
 	{
 
 	public:
-		http_proxy_client_connection(asio::io_context& in_io, asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::string log_pre = "connection");
+		http_proxy_client_connection(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& ua_socket, std::shared_ptr<socket_wrapper>&& _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::string log_pre = "connection");
 		virtual ~http_proxy_client_connection();
-		static std::shared_ptr<http_proxy_client_connection> create(asio::io_context& in_io, asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
+		static std::shared_ptr<http_proxy_client_connection> create(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& ua_socket, std::shared_ptr<socket_wrapper>&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
 		virtual void start() override;
 		void on_server_connected() override;
 	protected:

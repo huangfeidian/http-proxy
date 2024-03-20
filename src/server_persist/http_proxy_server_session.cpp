@@ -4,7 +4,7 @@
 
 namespace http_proxy
 {
-    http_proxy_server_session::http_proxy_server_session(asio::io_context& in_io, asio::ip::tcp::socket&& _client_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::shared_ptr<http_proxy_server_session_manager> in_session_manager, std::uint32_t in_client_session_count)
+    http_proxy_server_session::http_proxy_server_session(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& _client_socket, std::shared_ptr<socket_wrapper>&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::shared_ptr<http_proxy_server_session_manager> in_session_manager, std::uint32_t in_client_session_count)
     :http_proxy_server_connection(in_io, std::move(_client_socket), std::move(_server_socket), logger, in_connection_count, "session"), 
     _session_manager(in_session_manager),
 	client_session_count(in_client_session_count)
@@ -12,7 +12,7 @@ namespace http_proxy
         
     }
 
-    std::shared_ptr<http_proxy_server_session> http_proxy_server_session::create(asio::io_context& in_io, asio::ip::tcp::socket&& _client_socket, asio::ip::tcp::socket&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::shared_ptr<http_proxy_server_session_manager> in_session_manager, std::uint32_t in_client_session_count)
+    std::shared_ptr<http_proxy_server_session> http_proxy_server_session::create(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& _client_socket, std::shared_ptr<socket_wrapper>&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::shared_ptr<http_proxy_server_session_manager> in_session_manager, std::uint32_t in_client_session_count)
     {
         auto result = std::make_shared<http_proxy_server_session>(in_io, std::move(_client_socket), std::move(_server_socket), logger, in_connection_count, in_session_manager, in_client_session_count);
         in_session_manager->add_session(result);
@@ -28,7 +28,7 @@ namespace http_proxy
 		this->async_read_data_from_client();
 	}
 
-    void http_proxy_server_session::async_read_data_from_client(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
+    void http_proxy_server_session::async_read_data_from_client(bool set_timer)
     {
 		auto the_session_manager = _session_manager.lock();
 		if (!the_session_manager)
@@ -40,7 +40,7 @@ namespace http_proxy
 		{
 			this->set_timer(timer_type::down_read);
 		}
-		the_session_manager->post_read_task(shared_from_this(), at_least_size, at_most_size);
+		the_session_manager->post_read_task(shared_from_this());
     }
 	void http_proxy_server_session::async_send_data_to_client(const unsigned char* write_buffer, std::size_t offset, std::size_t size)
 	{

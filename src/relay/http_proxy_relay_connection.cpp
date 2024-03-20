@@ -11,12 +11,12 @@
 
 namespace http_proxy
 {
-	http_proxy_relay_connection::http_proxy_relay_connection(asio::io_context& in_io, asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count)
+	http_proxy_relay_connection::http_proxy_relay_connection(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& ua_socket, std::shared_ptr<socket_wrapper>&& _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count)
 		: http_proxy_connection(in_io, std::move(ua_socket), std::move(_server_socket), logger, in_connection_count, http_proxy_relay_config::get_instance().get_timeout(), "", "relay_connection")
 	{
-		logger->info("{} new connection come from {}", logger_prefix, client_socket.remote_endpoint().address().to_string());
+		logger->info("{} new connection come from {}", logger_prefix, client_socket->remote_endpoint_address());
 	}
-	std::shared_ptr<http_proxy_relay_connection> http_proxy_relay_connection::create(asio::io_context& in_io, asio::ip::tcp::socket && ua_socket, asio::ip::tcp::socket && _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count)
+	std::shared_ptr<http_proxy_relay_connection> http_proxy_relay_connection::create(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& ua_socket, std::shared_ptr<socket_wrapper>&& _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count)
 	{
 		return std::make_shared<http_proxy_relay_connection>(in_io, std::move(ua_socket), std::move(_server_socket), logger, in_connection_count);
 	}

@@ -16,7 +16,7 @@ using error_code = asio::error_code;
 namespace http_proxy
 {
 
-	http_proxy_server_connection::http_proxy_server_connection(asio::io_context& in_io, asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket,std::shared_ptr<spdlog::logger> in_logger, std::uint32_t _connection_count, std::string log_pre):
+	http_proxy_server_connection::http_proxy_server_connection(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& in_client_socket, std::shared_ptr<socket_wrapper>&& in_server_socket,std::shared_ptr<spdlog::logger> in_logger, std::uint32_t _connection_count, std::string log_pre):
 	http_proxy_connection(in_io, std::move(in_client_socket), std::move(in_server_socket), in_logger, _connection_count, http_proxy_server_config::get_instance().get_timeout(), http_proxy_server_config::get_instance().get_rsa_private_key(), log_pre)
 	{
 
@@ -27,7 +27,7 @@ namespace http_proxy
 
 	}
 
-	std::shared_ptr<http_proxy_server_connection> http_proxy_server_connection::create(asio::io_context& in_io, asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t connection_count)
+	std::shared_ptr<http_proxy_server_connection> http_proxy_server_connection::create(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& in_client_socket, std::shared_ptr<socket_wrapper>&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t connection_count)
 	{
 		return std::make_shared<http_proxy_server_connection>(in_io, std::move(in_client_socket), std::move(in_server_socket), in_logger, connection_count);
 	}
@@ -35,7 +35,7 @@ namespace http_proxy
 	void http_proxy_server_connection::start()
 	{
 		this->connection_context.connection_state = proxy_connection_state::read_cipher_data;
-		this->async_read_data_from_client(1, std::min<std::size_t>(this->rsa_key.modulus_size(), BUFFER_LENGTH));
+		this->async_read_data_from_client(true);
 		logger->info("{} new connection start", logger_prefix);
 	}
 
@@ -45,17 +45,12 @@ namespace http_proxy
 	void http_proxy_server_connection::async_connect_to_server(std::string server_host, std::uint32_t server_port)
 	{
 		this->connection_context.reconnect_on_error = false;
-		if (this->server_socket.is_open())
+		if (_request_parser._header.method() == "CONNECT")
 		{
-			if (_request_parser._header.method() == "CONNECT")
-			{
-				error_code ec;
-				this->server_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-				this->server_socket.close(ec);
-			}
+			this->server_socket->shutdown();
 		}
 
-		if (this->server_socket.is_open() &&
+		if (this->server_socket->is_open() &&
 			server_host == this->connection_context.origin_server_name &&
 			server_port == this->connection_context.origin_server_port)
 		{
@@ -64,31 +59,16 @@ namespace http_proxy
 		}
 		else
 		{
+			if(this->server_socket->is_open())
+			{
+				this->server_socket->shutdown();
+			}
 			this->connection_context.origin_server_name = server_host;
 			this->connection_context.origin_server_port = server_port;
-			asio::ip::tcp::resolver::query query(server_host, std::to_string(server_port));
-			auto self(this->shared_from_this());
-			this->connection_context.connection_state = proxy_connection_state::resolve_origin_server_address;
-			this->set_timer(timer_type::resolve);
-			
+
+			this->connection_context.connection_state = proxy_connection_state::resolve_server_address;
 			logger->info("{} connect to {}:{}", logger_prefix, server_host, server_port);
-			this->resolver.async_resolve(query,
-										 asio::bind_executor(this->strand, [this, self, server_host](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
-			{
-				if (this->cancel_timer(timer_type::resolve))
-				{
-					if (!error)
-					{
-						this->on_resolved(iterator);
-					}
-					else
-					{
-						logger->error("{} cant connect to host {}", logger_prefix, server_host);
-						this->on_error(error);
-					}
-				}
-			})
-										 );
+			this->server_socket->async_connect(server_host, server_port);
 		}
 	}
 
@@ -179,55 +159,6 @@ namespace http_proxy
 		this->async_send_data_to_client(reinterpret_cast<unsigned char*>(this->modified_response_data.data()), 0, this->modified_response_data.size());
 	}
 
-	void http_proxy_server_connection::on_resolved(asio::ip::tcp::resolver::iterator endpoint_iterator)
-	{
-		if (this->server_socket.is_open())
-		{
-			for (auto iter = endpoint_iterator; iter != asio::ip::tcp::resolver::iterator(); ++iter)
-			{
-				if (*(this->connection_context.origin_server_endpoint) == iter->endpoint())
-				{
-					this->connection_context.reconnect_on_error = true;
-					this->on_server_connected();
-					return;
-				}
-				error_code ec;
-				this->server_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-				this->server_socket.close(ec);
-			}
-		}
-		this->connection_context.origin_server_endpoint = std::make_unique<asio::ip::tcp::endpoint>(endpoint_iterator->endpoint());
-		auto self(this->shared_from_this());
-		this->connection_context.connection_state = proxy_connection_state::connect_to_origin_server;
-		this->set_timer(timer_type::connect);
-		this->server_socket.async_connect(endpoint_iterator->endpoint(),
-												 asio::bind_executor(this->strand, [this, self, endpoint_iterator](const error_code& error) mutable
-		{
-			if (this->cancel_timer(timer_type::connect))
-			{
-				if (!error)
-				{
-					this->on_server_connected();
-				}
-				else
-				{
-					error_code ec;
-					this->server_socket.close(ec);
-					if (++endpoint_iterator != asio::ip::tcp::resolver::iterator())
-					{
-						this->on_resolved(endpoint_iterator);
-					}
-					else
-					{
-						logger->warn("{} fail to connect origin server {}", logger_prefix, _request_parser._header.host());
-						this->on_error(error);
-					}
-				}
-			}
-		})
-												 );
-	}
-
 	void http_proxy_server_connection::on_server_connected()
 	{
 		logger->info("{} connect to server {} suc method {}", logger_prefix, _request_parser._header.host(), _request_parser._header.method());
@@ -256,7 +187,7 @@ namespace http_proxy
 			std::copy(this->client_read_buffer.begin(), this->client_read_buffer.begin() + bytes_transferred, std::back_inserter(this->encrypted_cipher_info));
 			if(encrypted_cipher_info.size() < rsa_key.modulus_size())
 			{
-				this->async_read_data_from_client(1, std::min(static_cast<std::size_t>(this->rsa_key.modulus_size()) - encrypted_cipher_info.size(), BUFFER_LENGTH));
+				this->async_read_data_from_client(true);
 				return;
 			}
 			if (!accept_cipher(encrypted_cipher_info.data(), encrypted_cipher_info.size()))
@@ -469,8 +400,7 @@ namespace http_proxy
 				error_code ec;
 				if (!this->read_response_context.is_origin_server_keep_alive)
 				{
-					this->server_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-					this->server_socket.close(ec);
+					this->server_socket->shutdown();
 				}
 				if (this->read_request_context.is_proxy_client_keep_alive)
 				{
@@ -479,8 +409,7 @@ namespace http_proxy
 				}
 				else
 				{
-					this->client_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-					this->client_socket.close(ec);
+					this->client_socket->shutdown();
 				}
 			}
 			else
@@ -523,20 +452,18 @@ namespace http_proxy
 
 	void http_proxy_server_connection::on_error(const error_code& error)
 	{
-		if (this->connection_context.connection_state == proxy_connection_state::resolve_origin_server_address)
+		if (this->connection_context.connection_state == proxy_connection_state::resolve_server_address)
 		{
 			this->report_error("504", "Gateway Timeout", "Failed to resolve the hostname");
 		}
-		else if (this->connection_context.connection_state == proxy_connection_state::connect_to_origin_server)
+		else if (this->connection_context.connection_state == proxy_connection_state::connect_to_server)
 		{
 			this->report_error("502", "Bad Gateway", "Failed to connect to origin server");
 		}
 		else if (this->connection_context.connection_state == proxy_connection_state::write_http_request_header && this->connection_context.reconnect_on_error)
 		{
 			logger->warn("{} reconnect to origin server by error", logger_prefix);
-			error_code ec;
-			this->server_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-			this->server_socket.close(ec);
+			server_socket->shutdown();
 			this->async_connect_to_server(_request_parser._header.host(), _request_parser._header.port());
 		}
 		else

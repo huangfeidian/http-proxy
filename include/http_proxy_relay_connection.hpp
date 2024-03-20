@@ -13,9 +13,9 @@ namespace http_proxy
 	class http_proxy_relay_connection : public http_proxy_connection
 	{
 	public:
-		http_proxy_relay_connection(asio::io_context& in_io, asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
+		http_proxy_relay_connection(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& ua_socket, std::shared_ptr<socket_wrapper>&& _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
 
-		static std::shared_ptr<http_proxy_relay_connection> create(asio::io_context& in_io, asio::ip::tcp::socket&& ua_socket, asio::ip::tcp::socket&& _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
+		static std::shared_ptr<http_proxy_relay_connection> create(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& ua_socket, std::shared_ptr<socket_wrapper>&& _server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count);
 		virtual void start() override;
 		void on_server_connected() override;
 	protected:

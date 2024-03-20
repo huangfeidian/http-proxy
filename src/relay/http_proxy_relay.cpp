@@ -12,6 +12,7 @@
 
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include "tcp_socker_wrapper.hpp"
 
 namespace http_proxy
 {
@@ -66,16 +67,15 @@ namespace http_proxy
 
 	void http_proxy_relay::start_accept()
 	{
-		auto socket = std::make_shared<asio::ip::tcp::socket>(this->acceptor.get_executor());
-		this->acceptor.async_accept(*socket, [socket, this](const error_code& error)
+		auto socket = std::make_shared<tcp_socket_wrapper>(asio::ip::tcp::socket(this->acceptor.get_executor()));
+		this->acceptor.async_accept(socket->get_socket(), [socket, this](const error_code& error)
 		{
 			if (!error)
 			{
-				this->start_accept();
-
-				auto connection = http_proxy_relay_connection::create(io_context, std::move(*socket), std::move(asio::ip::tcp::socket(this->acceptor.get_executor())), this->logger, http_proxy_relay_config::get_instance().increase_connection_count());
-
+				auto other_socket = std::make_shared<tcp_socket_wrapper>(asio::ip::tcp::socket(this->acceptor.get_executor()));
+				auto connection = http_proxy_relay_connection::create(io_context, std::move(socket), std::move(other_socket), this->logger, http_proxy_relay_config::get_instance().increase_connection_count());
 				connection->start();
+				this->start_accept();
 			}
 		});
 	}

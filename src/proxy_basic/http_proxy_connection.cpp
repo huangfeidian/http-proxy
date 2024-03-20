@@ -2,13 +2,11 @@
 
 namespace http_proxy
 {
-	http_proxy_connection::http_proxy_connection(asio::io_context& in_io, asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::uint32_t in_timeout, const std::string& in_rsa_key, std::string log_pre)
+	http_proxy_connection::http_proxy_connection(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& in_client_socket, std::shared_ptr<socket_wrapper>&& in_server_socket, std::shared_ptr<spdlog::logger> in_logger, std::uint32_t in_connection_count, std::uint32_t in_timeout, const std::string& in_rsa_key, std::string log_pre)
 	:io(in_io),
 	strand(asio::make_strand(io)),
 	client_socket(std::move(in_client_socket)),
 	server_socket(std::move(in_server_socket)),
-	
-	resolver(this->client_socket.get_executor()),
 	connection_state(proxy_connection_state::ready),
 	timeout(std::chrono::seconds(in_timeout)),
 	logger(in_logger),
@@ -16,12 +14,14 @@ namespace http_proxy
 	logger_prefix(log_pre + " " +std::to_string(in_connection_count) + ": "),
 	rsa_key(in_rsa_key)
 	{
+		client_socket->init(this);
+		server_socket->init(this);
 		for (int i = 0; i < static_cast<uint32_t>(timer_type::max); i++)
 		{
-			timers.push_back(std::make_shared< asio::basic_waitable_timer<std::chrono::steady_clock>>(client_socket.get_executor()));
+			timers.push_back(std::make_shared< asio::basic_waitable_timer<std::chrono::steady_clock>>(in_io.get_executor()));
 		}
 	}
-	std::shared_ptr<http_proxy_connection> http_proxy_connection::create(asio::io_context& in_io, asio::ip::tcp::socket&& _in_client_socket, asio::ip::tcp::socket&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout, const std::string& in_rsa_key)
+	std::shared_ptr<http_proxy_connection> http_proxy_connection::create(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& _in_client_socket, std::shared_ptr<socket_wrapper>&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout, const std::string& in_rsa_key)
 	{
 		return std::make_shared<http_proxy_connection>(in_io, std::move(_in_client_socket), std::move(_in_server_socket), logger, in_connection_idx, _in_timeout, in_rsa_key);
 	}
@@ -33,17 +33,8 @@ namespace http_proxy
 	}
 	void http_proxy_connection::close_connection()
 	{
-		error_code ec;
-		if (this->server_socket.is_open())
-		{
-			this->server_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-			this->server_socket.close(ec);
-		}
-		if (this->client_socket.is_open())
-		{
-			this->client_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-			this->client_socket.close(ec);
-		}
+		this->server_socket->shutdown();
+		this->client_socket->shutdown();
 	}
 	void http_proxy_connection::report_error(const std::string& status_code, const std::string& status_description, const std::string& error_message)
 	{
@@ -53,15 +44,16 @@ namespace http_proxy
 	void http_proxy_connection::on_timeout(timer_type _cur_timer_type)
 	{
 		logger->info("{} on_timeout for timer {}", logger_prefix, static_cast<uint32_t>(_cur_timer_type));
-		if (this->connection_state == proxy_connection_state::resolve_proxy_server_address)
-		{
-			this->resolver.cancel();
-		}
-		else
-		{
-			logger->warn("{} on_timeout shutdown connection", logger_prefix);
-			close_connection();
-		}
+		logger->warn("{} on_timeout shutdown connection", logger_prefix);
+		close_connection();
+		// if (this->connection_state == proxy_connection_state::resolve_server_address)
+		// {
+		// 	this->resolver.cancel();
+		// }
+		// else
+		// {
+			
+		// }
 	}
 	void http_proxy_connection::on_error(const error_code& error)
 	{
@@ -116,47 +108,9 @@ namespace http_proxy
 	}
 	void http_proxy_connection::async_connect_to_server(std::string server_host, std::uint32_t server_port)
 	{
-		auto self(this->shared_from_this());
-		asio::ip::tcp::resolver::query query(server_host, std::to_string(server_port));
-		this->connection_state = proxy_connection_state::resolve_proxy_server_address;
-		this->set_timer(timer_type::resolve);
-		this->resolver.async_resolve(query, [this, self, server_host](const error_code& error, asio::ip::tcp::resolver::iterator iterator)
-		{
-			if (this->cancel_timer(timer_type::resolve))
-			{
-				if (!error)
-				{
-					on_resolved(iterator);
-				}
-				else
-				{
-					logger->warn("{} fail to resolve server {}", logger_prefix, server_host);
-					this->on_error(error);
-				}
-			}
-		});
+		this->server_socket->async_connect(server_host, server_port);
 	}
-	void http_proxy_connection::on_resolved(asio::ip::tcp::resolver::iterator endpoint_iterator)
-	{
-		auto self = shared_from_this();
-		this->connection_state = proxy_connection_state::connecte_to_proxy_server;
-		this->set_timer(timer_type::connect);
-		this->server_socket.async_connect(*endpoint_iterator, asio::bind_executor(this->strand, [this, self, host = endpoint_iterator->host_name()](const error_code& error)
-		{
-			if (this->cancel_timer(timer_type::connect))
-			{
-				if (!error)
-				{
-					this->on_server_connected();
-				}
-				else
-				{
-					logger->warn("{} fail to connect to server {}", logger_prefix, host);
-					this->on_error(error);
-				}
-			}
-		}));
-	}
+
 	bool http_proxy_connection::init_cipher(const std::string& cipher_name, const std::string& rsa_pub_key)
 	{
 		std::array<unsigned char, 86> cipher_info_raw;
@@ -362,17 +316,16 @@ namespace http_proxy
 		return true;
 	}
 
-	void http_proxy_connection::async_read_data_from_server(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
+	void http_proxy_connection::async_read_data_from_server(bool set_timer)
 	{
-		logger->debug("{} async_read_data_from_server at_least_size {} at_most_size {}", logger_prefix, at_least_size, at_most_size);
+		logger->debug("{} async_read_data_from_server ");
 		auto self(this->shared_from_this());
 		if (set_timer)
 		{
 			this->set_timer(timer_type::up_read);
 		}
-		asio::async_read(this->server_socket,
+		this->server_socket->async_read_some(
 								asio::buffer(&this->server_read_buffer[0], at_most_size),
-								asio::transfer_at_least(at_least_size),
 								asio::bind_executor(this->strand, [this, self](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer(timer_type::up_read))
@@ -391,19 +344,17 @@ namespace http_proxy
 								);
 	}
 
-	void http_proxy_connection::async_read_data_from_client(bool set_timer, std::size_t at_least_size, std::size_t at_most_size)
+	void http_proxy_connection::async_read_data_from_client(bool set_timer)
 	{
-		logger->debug("{} async_read_data_from_client at_least_size {} at_most_size {}", logger_prefix, at_least_size, at_most_size);
-		assert(at_least_size <= at_most_size && at_most_size <= BUFFER_LENGTH);
+		logger->debug("{} async_read_data_from_client at_least_size {} at_most_size {}", logger_prefix);
 		auto self(this->shared_from_this());
 		if(set_timer)
 		{
+			this->set_timer(timer_type::down_read);
 		}
-		this->set_timer(timer_type::down_read);
 		
-		asio::async_read(this->client_socket,
+		this->client_socket->async_read_some(
 								asio::buffer(&this->client_read_buffer[0], at_most_size),
-								asio::transfer_at_least(at_least_size),
 								asio::bind_executor(this->strand, [this, self](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer(timer_type::down_read))
@@ -432,7 +383,7 @@ namespace http_proxy
 		auto self(this->shared_from_this());
 		this->set_timer(timer_type::up_send);
 
-		this->server_socket.async_write_some(asio::buffer(write_buffer + offset, remain_size),
+		this->server_socket->async_write_some(asio::buffer(write_buffer + offset, remain_size),
 			asio::bind_executor(this->strand, [this, self, write_buffer, offset, remain_size, total_size](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer(timer_type::up_send))
@@ -470,7 +421,7 @@ namespace http_proxy
 		auto self(this->shared_from_this());
 		this->set_timer(timer_type::down_send);
 
-		this->client_socket.async_write_some(asio::buffer(write_buffer + offset, remain_size),
+		this->client_socket->async_write_some(asio::buffer(write_buffer + offset, remain_size),
 			asio::bind_executor(this->strand, [this, self, write_buffer, offset, remain_size, total_size](const error_code& error, std::size_t bytes_transferred)
 		{
 			if (this->cancel_timer(timer_type::down_send))

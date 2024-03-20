@@ -1,25 +1,27 @@
 ﻿#include "http_proxy_server_session_manager.hpp"
 #include "http_proxy_server_config.hpp"
 #include "http_proxy_server_session.hpp"
+#include "tcp_socker_wrapper.hpp"
+
 namespace http_proxy
 {
-    http_proxy_server_session_manager::http_proxy_server_session_manager(asio::io_context& in_io, asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count):
-    http_proxy_session_manager(in_io, std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count, http_proxy_server_config::get_instance().get_timeout(), http_proxy_server_config::get_instance().get_rsa_private_key(), true)
-    {
+	http_proxy_server_session_manager::http_proxy_server_session_manager(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& in_client_socket, std::shared_ptr<socket_wrapper>&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count):
+	http_proxy_session_manager(in_io, std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count, http_proxy_server_config::get_instance().get_timeout(), http_proxy_server_config::get_instance().get_rsa_private_key(), true)
+	{
 
-    }
-	std::shared_ptr<http_proxy_server_session_manager> http_proxy_server_session_manager::create(asio::io_context& in_io, asio::ip::tcp::socket&& in_client_socket, asio::ip::tcp::socket&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count)
+	}
+	std::shared_ptr<http_proxy_server_session_manager> http_proxy_server_session_manager::create(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& in_client_socket, std::shared_ptr<socket_wrapper>&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count)
 	{
 		return std::make_shared<http_proxy_server_session_manager>(in_io, std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count);
 	}
-    void http_proxy_server_session_manager::start()
-    {
-        this->connection_context.connection_state = proxy_connection_state::read_cipher_data;
+	void http_proxy_server_session_manager::start()
+	{
+		this->connection_context.connection_state = proxy_connection_state::read_cipher_data;
 		this->async_read_data_from_client(true, 1, std::min<std::uint32_t>(this->rsa_key.modulus_size() + DATA_HEADER_LEN, BUFFER_LENGTH));
 		logger->info("{} new connection start", logger_prefix);
-    }
-    void http_proxy_server_session_manager::on_control_data_arrived(std::uint32_t connection_idx, session_data_cmd cmd_type, std::uint32_t data_size, const unsigned char* buffer)
-    {
+	}
+	void http_proxy_server_session_manager::on_control_data_arrived(std::uint32_t connection_idx, session_data_cmd cmd_type, std::uint32_t data_size, const unsigned char* buffer)
+	{
 		logger->info("{} on_control_data_arrived connection_idx {} cmd_type {}", logger_prefix, connection_idx, static_cast<std::uint32_t>(cmd_type));
 		switch (cmd_type)
 		{
@@ -36,9 +38,11 @@ namespace http_proxy
 			break;
 		case session_data_cmd::new_session:
 		{
-			auto& the_io_context = client_socket.get_executor();
+			auto& the_io_context = io;
+			auto socket_a = std::make_shared<tcp_socket_wrapper>(asio::ip::tcp::socket(the_io_context));
+			auto socket_b = std::make_shared<tcp_socket_wrapper>(asio::ip::tcp::socket(the_io_context));
 			auto cur_connection_count = http_proxy_server_config::get_instance().increase_connection_count();
-			auto new_session = http_proxy_server_session::create(io, std::move(asio::ip::tcp::socket(the_io_context)), std::move(asio::ip::tcp::socket(the_io_context)), logger, cur_connection_count, std::dynamic_pointer_cast<http_proxy_server_session_manager>(shared_from_this()), connection_idx);
+			auto new_session = http_proxy_server_session::create(io, std::move(socket_a), std::move(socket_b), logger, cur_connection_count, std::dynamic_pointer_cast<http_proxy_server_session_manager>(shared_from_this()), connection_idx);
 			mapped_session[connection_idx] = cur_connection_count;
 			new_session->start();
 		}
@@ -64,5 +68,5 @@ namespace http_proxy
 		default:
 			logger->warn("{} invalid session_data_cmd {}", logger_prefix, static_cast<std::uint32_t>(cmd_type));
 		}
-    }
+	}
 }
