@@ -1,4 +1,4 @@
-#include "tcp_socker_wrapper.hpp"
+#include "tcp_socket_wrapper.hpp"
 #include "http_proxy_connection.hpp"
 
 namespace http_proxy
@@ -82,13 +82,13 @@ namespace http_proxy
 		}));
 	}
 
-	void tcp_socket_wrapper::async_write_some(const asio::const_buffer& buffer, std::function<void(const asio::error_code&, std::size_t )> cb) 
+	void tcp_socket_wrapper::async_write_some(const asio::const_buffer& buffer, std::function<void(const asio::error_code&, std::size_t )>&& cb) 
 	{
-		m_socket.async_write_some(buffer, cb);
+		m_socket.async_write_some(buffer, std::move(cb));
 	}
 
-	void tcp_socket_wrapper::async_read_some(const asio::mutable_buffer& buffer, std::function<void(const asio::error_code&, std::size_t )> cb)
+	void tcp_socket_wrapper::async_read_some(const asio::mutable_buffer& buffer, std::function<void(const asio::error_code&, std::size_t )>&& cb)
 	{
-		m_socket.async_read_some(buffer, cb);
+		m_socket.async_read_some(buffer, std::move(cb));
 	}
 }

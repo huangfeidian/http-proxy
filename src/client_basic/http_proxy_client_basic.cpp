@@ -13,7 +13,8 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
-#include "tcp_socker_wrapper.hpp"
+#include "tcp_socket_wrapper.hpp"
+#include "kcp_socket_wrapper.hpp"
 
 namespace http_proxy
 {
@@ -73,9 +74,18 @@ namespace http_proxy
 		{
 			if (!error)
 			{
+				std::shared_ptr<socket_wrapper> other_socket;
+				auto cur_kcp_magic = http_proxy_client_config::get_instance().get_kcp_magic();
+				if (!cur_kcp_magic.empty())
+				{
+					other_socket = std::make_shared<kcp_socket_wrapper>(asio::ip::udp::socket(this->acceptor.get_executor()), cur_kcp_magic);
+				}
+				else
+				{
+					other_socket = std::make_shared<tcp_socket_wrapper>(asio::ip::tcp::socket(this->acceptor.get_executor()));
+				}
 				
-				auto other_socket = std::make_shared<tcp_socket_wrapper>(asio::ip::tcp::socket(this->acceptor.get_executor()));
-				auto connection = http_proxy_client_connection::create(io_context, std::move(socket), std::move(other_socket), this->logger, http_proxy_client_config::get_instance().increase_connection_count());
+				auto connection = http_proxy_client_connection::create(io_context, socket, other_socket, this->logger, http_proxy_client_config::get_instance().increase_connection_count());
 				connection->start();
 				this->start_accept();
 			}

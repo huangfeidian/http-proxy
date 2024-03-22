@@ -21,7 +21,7 @@ namespace http_proxy
 			return m_socket;
 		}
 		void async_connect(std::string server_host, std::uint32_t server_port) override;
-		void async_write_some(const asio::const_buffer& buffer, std::function<void(const asio::error_code&, std::size_t )> cb) override;
-		void async_read_some(const asio::mutable_buffer& buffer, std::function<void(const asio::error_code&, std::size_t )> cb) override;
+		void async_write_some(const asio::const_buffer& buffer, std::function<void(const asio::error_code&, std::size_t )>&& cb) override;
+		void async_read_some(const asio::mutable_buffer& buffer, std::function<void(const asio::error_code&, std::size_t )>&& cb) override;
 	};
 }

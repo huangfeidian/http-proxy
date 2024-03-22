@@ -34,6 +34,7 @@ namespace http_proxy
 		std::string get_cipher() const;
 		int get_timeout() const;
 		int get_workers() const;
+		std::string get_kcp_magic() const;
 		spdlog::level::level_enum get_log_level() const;
 		spdlog::level::level_enum get_console_log_level() const;
 		spdlog::level::level_enum get_file_log_level() const;

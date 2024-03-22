@@ -2,13 +2,13 @@
 #include "http_proxy_client_config.hpp"
 namespace http_proxy
 {
-    http_proxy_client_session_manager::http_proxy_client_session_manager(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& in_client_socket, std::shared_ptr<socket_wrapper>&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count):
+    http_proxy_client_session_manager::http_proxy_client_session_manager(asio::io_context& in_io, std::shared_ptr<socket_wrapper> in_client_socket, std::shared_ptr<socket_wrapper> in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count):
     http_proxy_session_manager(in_io, std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count, http_proxy_client_config::get_instance().get_timeout(), http_proxy_client_config::get_instance().get_rsa_public_key(), false),
 		_ping_timer(in_io)
     {
 
     }
-	std::shared_ptr<http_proxy_client_session_manager> http_proxy_client_session_manager::create(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& in_client_socket, std::shared_ptr<socket_wrapper>&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count)
+	std::shared_ptr<http_proxy_client_session_manager> http_proxy_client_session_manager::create(asio::io_context& in_io, std::shared_ptr<socket_wrapper> in_client_socket, std::shared_ptr<socket_wrapper> in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count)
 	{
 		return std::make_shared<http_proxy_client_session_manager>(in_io, std::move(in_client_socket), std::move(in_server_socket), logger, in_connection_count);
 	}

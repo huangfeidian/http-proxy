@@ -203,6 +203,11 @@ namespace http_proxy {
 		return (this->get_config_value<int>("auth") != 0);
 	}
 
+	std::string http_proxy_server_config::get_kcp_magic() const
+	{
+		return this->get_config_value<std::string>("kcp_magic");
+	}
+
 	http_proxy_server_config& http_proxy_server_config::get_instance()
 	{
 		static http_proxy_server_config instance;

@@ -36,6 +36,7 @@ public:
 	spdlog::level::level_enum get_file_log_level() const;
 	std::string get_log_file_name() const;
 	std::uint32_t increase_connection_count();
+	std::string get_kcp_magic() const;
 	static http_proxy_server_config& get_instance();
 };
 

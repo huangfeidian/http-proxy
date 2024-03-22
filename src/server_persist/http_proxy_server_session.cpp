@@ -4,7 +4,7 @@
 
 namespace http_proxy
 {
-    http_proxy_server_session::http_proxy_server_session(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& _client_socket, std::shared_ptr<socket_wrapper>&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::shared_ptr<http_proxy_server_session_manager> in_session_manager, std::uint32_t in_client_session_count)
+    http_proxy_server_session::http_proxy_server_session(asio::io_context& in_io, std::shared_ptr<socket_wrapper> _client_socket, std::shared_ptr<socket_wrapper> _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::shared_ptr<http_proxy_server_session_manager> in_session_manager, std::uint32_t in_client_session_count)
     :http_proxy_server_connection(in_io, std::move(_client_socket), std::move(_server_socket), logger, in_connection_count, "session"), 
     _session_manager(in_session_manager),
 	client_session_count(in_client_session_count)
@@ -12,7 +12,7 @@ namespace http_proxy
         
     }
 
-    std::shared_ptr<http_proxy_server_session> http_proxy_server_session::create(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& _client_socket, std::shared_ptr<socket_wrapper>&& _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::shared_ptr<http_proxy_server_session_manager> in_session_manager, std::uint32_t in_client_session_count)
+    std::shared_ptr<http_proxy_server_session> http_proxy_server_session::create(asio::io_context& in_io, std::shared_ptr<socket_wrapper> _client_socket, std::shared_ptr<socket_wrapper> _server_socket,std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::shared_ptr<http_proxy_server_session_manager> in_session_manager, std::uint32_t in_client_session_count)
     {
         auto result = std::make_shared<http_proxy_server_session>(in_io, std::move(_client_socket), std::move(_server_socket), logger, in_connection_count, in_session_manager, in_client_session_count);
         in_session_manager->add_session(result);

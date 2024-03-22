@@ -60,8 +60,8 @@ namespace http_proxy
 
 	public:
 		virtual ~http_proxy_connection();
-		static std::shared_ptr<http_proxy_connection> create(asio::io_context &in_io, std::shared_ptr<socket_wrapper>&& _in_client_socket, std::shared_ptr<socket_wrapper>&& _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout, const std::string &rsa_key);
-		http_proxy_connection(asio::io_context &in_io, std::shared_ptr<socket_wrapper>&&   in_client_socket, std::shared_ptr<socket_wrapper>&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t in_timeout, const std::string &rsa_key, std::string log_pre = "connection");
+		static std::shared_ptr<http_proxy_connection> create(asio::io_context &in_io, std::shared_ptr<socket_wrapper> _in_client_socket, std::shared_ptr<socket_wrapper> _in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t _in_timeout, const std::string &rsa_key);
+		http_proxy_connection(asio::io_context &in_io, std::shared_ptr<socket_wrapper>   in_client_socket, std::shared_ptr<socket_wrapper> in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t in_timeout, const std::string &rsa_key, std::string log_pre = "connection");
 		virtual void start();
 
 	protected:

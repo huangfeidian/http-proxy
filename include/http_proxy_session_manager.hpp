@@ -30,8 +30,8 @@ namespace http_proxy
 			std::vector<std::pair<unsigned char*, std::uint32_t>> receive_buffers; // buffer vector with capacity BUFFER_LENGTH
 		};
 	public:
-		http_proxy_session_manager(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& in_client_socket, std::shared_ptr<socket_wrapper>&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing);
-		static std::shared_ptr<http_proxy_session_manager> create(asio::io_context& in_io, std::shared_ptr<socket_wrapper>&& in_client_socket, std::shared_ptr<socket_wrapper>&& in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing);
+		http_proxy_session_manager(asio::io_context& in_io, std::shared_ptr<socket_wrapper> in_client_socket, std::shared_ptr<socket_wrapper> in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing);
+		static std::shared_ptr<http_proxy_session_manager> create(asio::io_context& in_io, std::shared_ptr<socket_wrapper> in_client_socket, std::shared_ptr<socket_wrapper> in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_count, std::uint32_t _in_timeout, const std::string& rsa_key, bool _in_is_downgoing);
 	public:
 		void post_send_task(std::uint32_t sender_session_idx, ::uint32_t _task_session, const unsigned char* send_buffer, std::uint32_t buffer_size);
 

@@ -34,8 +34,8 @@ namespace http_proxy
 		}
 
 		virtual void async_connect(std::string server_host, std::uint32_t server_port) = 0;
-		virtual void async_write_some(const asio::const_buffer& buffer, std::function<void(const asio::error_code&, std::size_t )>) = 0;
-		virtual void async_read_some(const asio::mutable_buffer& buffer, std::function<void(const asio::error_code&, std::size_t )>) = 0;
+		virtual void async_write_some(const asio::const_buffer& buffer, std::function<void(const asio::error_code&, std::size_t )>&&) = 0;
+		virtual void async_read_some(const asio::mutable_buffer& buffer, std::function<void(const asio::error_code&, std::size_t )>&&) = 0;
 
 	};
 }

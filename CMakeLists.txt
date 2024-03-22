@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.6)
 project(http-proxy)
 
 
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 find_package(OpenSSL REQUIRED)
 include_directories(${OPENSSL_INCLUDE_DIR})
@@ -29,7 +30,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest")
 add_definitions(-DASIO_MSVC)
 endif(MSVC)
 
-
+add_library(kcp ${CMAKE_SOURCE_DIR}/kcp/ikcp.c)
 
 file(GLOB_RECURSE PROXY_BASIC_SRCS ${CMAKE_SOURCE_DIR}/src/proxy_basic/*.cpp)
 file(GLOB_RECURSE CLIENT_BASIC_SRCS ${CMAKE_SOURCE_DIR}/src/client_basic/*.cpp)
@@ -39,7 +40,7 @@ file(GLOB_RECURSE SERVER_PERSIST_SRCS ${CMAKE_SOURCE_DIR}/src/server_persist/*.c
 file(GLOB_RECURSE RELAY_SRCS ${CMAKE_SOURCE_DIR}/src/relay/*.cpp)
 
 add_library(proxy_basic_lib ${PROXY_BASIC_SRCS})
-target_link_libraries(proxy_basic_lib nlohmann_json::nlohmann_json 	spdlog::spdlog ${OPENSSL_LIBRARIES})
+target_link_libraries(proxy_basic_lib nlohmann_json::nlohmann_json 	spdlog::spdlog ${OPENSSL_LIBRARIES} kcp)
 
 add_library(client_basic_lib ${CLIENT_BASIC_SRCS})
 target_link_libraries(client_basic_lib proxy_basic_lib)

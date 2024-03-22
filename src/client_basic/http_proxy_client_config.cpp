@@ -254,6 +254,11 @@ namespace http_proxy
 		return this->get_config_value<int>("workers");
 	}
 
+	std::string http_proxy_client_config::get_kcp_magic() const
+	{
+		return this->get_config_value<std::string>("kcp_magic");
+	}
+
 	http_proxy_client_config& http_proxy_client_config::get_instance()
 	{
 		static http_proxy_client_config instance;

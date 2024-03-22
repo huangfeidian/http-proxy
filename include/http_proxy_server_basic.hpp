@@ -3,6 +3,8 @@
 #include <spdlog/spdlog.h>
 
 #include <asio.hpp>
+#include <kcp.hpp>
+
 using error_code = asio::error_code;
 
 
@@ -10,7 +12,8 @@ namespace http_proxy {
 
 	class http_proxy_server_basic {
 		asio::io_context& io_context;
-		asio::ip::tcp::acceptor acceptor;
+		asio::ip::tcp::acceptor m_tcp_acceptor;
+		std::shared_ptr<moon::kcp::acceptor> m_kcp_acceptor;
 		std::shared_ptr<spdlog::logger> logger;
 	public:
 

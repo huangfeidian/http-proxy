@@ -9,7 +9,7 @@
 #include "http_proxy_client_persist.hpp"
 #include "http_proxy_client_session.hpp"
 #include "http_proxy_client_config.hpp"
-#include "tcp_socker_wrapper.hpp"
+#include "tcp_socket_wrapper.hpp"
 
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>

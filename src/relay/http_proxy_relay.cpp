@@ -12,7 +12,7 @@
 
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include "tcp_socker_wrapper.hpp"
+#include "tcp_socket_wrapper.hpp"
 
 namespace http_proxy
 {
