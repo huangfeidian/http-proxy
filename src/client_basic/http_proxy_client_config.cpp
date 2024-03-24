@@ -211,6 +211,15 @@ namespace http_proxy
 		{
 			set_config_value("log_file", std::string("ahpc_log.txt"));
 		}
+
+		if (json_obj.find("kcp_magic") != json_obj.end())
+		{
+			set_config_value("kcp_magic", static_cast<std::string>(json_obj["kcp_magic"]));
+		}
+		else
+		{
+			set_config_value("kcp_magic", std::string());
+		}
 		rollback = false;
 		return true;
 	}

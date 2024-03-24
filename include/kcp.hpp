@@ -634,7 +634,7 @@ namespace moon
                 console_log("%s.connection destructer: %u", (isserver_ ? "server" : "client"), conv_);
                 if (!isserver_ && nullptr != sock_)
                 {
-                    delete sock_;
+                    // delete sock_;
                     sock_ = nullptr;
                 }
 
@@ -668,7 +668,7 @@ namespace moon
             auto async_read(asio::basic_streambuf<Allocator>& b, size_t size, ReadHandler&& handler)
             {
                 return asio::async_initiate<ReadHandler, void(asio::error_code, std::size_t)>(
-                    initiate_async_read<false>(this), handler, asio::basic_streambuf_ref(b), size);
+                    initiate_async_read<false>(this), std::forward< ReadHandler>(handler), asio::basic_streambuf_ref(b), size);
             }
 
             /* This function is used to asynchronously receive data from kcp. The function call always returns immediately.
@@ -679,14 +679,14 @@ namespace moon
             auto async_read_some(const MutableBuffer& buffer, ReadHandler&& handler)
             {
                 return asio::async_initiate<ReadHandler, void(const std::error_code&, size_t)>(
-                    initiate_async_read<true>(this), handler, buffer, 0);
+                    initiate_async_read<true>(this), std::forward< ReadHandler>(handler), buffer, 0);
             }
 
             template<typename ConstBuffer, typename WriteHandler>
             auto async_write(const ConstBuffer& buffer, WriteHandler&& handler)
             {
                 return asio::async_initiate<WriteHandler, void(const std::error_code&, size_t)>(
-                    initiate_async_write(this), handler, buffer);
+                    initiate_async_write(this), std::forward< WriteHandler>(handler), buffer);
             }
 
             bool raw_send(const char* data, size_t size, uint8_t packet_type = packet_data)
@@ -911,8 +911,8 @@ namespace moon
 
                         do
                         {
-                            if (size < 24)
-                                break;
+                            //if (size < 24)
+                            //    break;
 
                             uint8_t packet_type = buffer->data()[0] & 0xF;
                             if (packet_type >= packet_type_max)

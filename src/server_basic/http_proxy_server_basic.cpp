@@ -38,6 +38,7 @@ void http_proxy_server_basic::run()
 	file_sink->set_level(config.get_file_log_level());
 	this->logger = std::make_shared<spdlog::logger>(std::string("ahps_basic"), spdlog::sinks_init_list{ console_sink, file_sink });
 	this->logger->set_level(config.get_log_level());
+	spdlog::flush_every(std::chrono::seconds(1));
 	if (kcp_mgaic.empty())
 	{
 		asio::ip::tcp::endpoint endpoint(asio::ip::address::from_string(config.get_bind_address()), config.get_listen_port());
@@ -50,6 +51,7 @@ void http_proxy_server_basic::run()
 		asio::ip::udp::endpoint endpoint(asio::ip::address::from_string(config.get_bind_address()), config.get_listen_port());
 
 		m_kcp_acceptor = std::make_shared<moon::kcp::acceptor>(io_context.get_executor(), endpoint, kcp_mgaic);
+		logger->info("bind udp on {} {}", config.get_bind_address(), config.get_listen_port());
 	}
 	this->start_accept();
 	std::vector<std::thread> td_vec;
@@ -78,10 +80,11 @@ void http_proxy_server_basic::start_accept()
 			{
 				if (kcp_conn)
 				{
+					logger->info("new kcp conn with index {}", kcp_conn->get_conv());
 					std::shared_ptr<kcp_socket_wrapper> cur_kcp_socket_wrapper = std::make_shared< kcp_socket_wrapper>(kcp_conn);
 					auto other_socket = std::make_shared<tcp_socket_wrapper>(asio::ip::tcp::socket(this->m_tcp_acceptor.get_executor()));
 					auto connection = http_proxy_server_connection::create(io_context, cur_kcp_socket_wrapper, std::move(other_socket), logger, http_proxy_server_config::get_instance().increase_connection_count());
-
+					logger->info("new kcp conn with index {} connection_counter {}", kcp_conn->get_conv(), connection->connection_count);
 					connection->start();
 				}
 
@@ -94,7 +97,7 @@ void http_proxy_server_basic::start_accept()
 		this->m_tcp_acceptor.async_accept(socket->get_socket(), [socket, this](const error_code& error) {
 			if (!error) {
 				auto other_socket = std::make_shared<tcp_socket_wrapper>(asio::ip::tcp::socket(this->m_tcp_acceptor.get_executor()));
-				auto connection = http_proxy_server_connection::create(io_context, std::move(socket), std::move(other_socket), logger, http_proxy_server_config::get_instance().increase_connection_count());
+				auto connection = http_proxy_server_connection::create(io_context, socket, std::move(other_socket), logger, http_proxy_server_config::get_instance().increase_connection_count());
 
 				connection->start();
 				this->start_accept();

@@ -85,6 +85,7 @@ namespace http_proxy
 
 	void kcp_socket_wrapper::on_udp_connected()
 	{
+		m_connection->logger->info("{} on_udp_connected", m_connection->logger_prefix);
 		m_kcp_data.push_back((char)moon::kcp::packet_handshake);
 		m_kcp_data.append(m_kcp_magic);
 		m_socket.async_send(asio::buffer(m_kcp_data), asio::bind_executor(m_connection->strand, [this, conn = m_connection->shared_from_this()](asio::error_code ec, std::size_t bytes_transferred)
@@ -96,7 +97,7 @@ namespace http_proxy
 					return;
 				}
 				m_kcp_data.clear();
-				m_kcp_data.resize(16, 0);
+				m_kcp_data.resize(4, 0);
 				m_socket.async_receive(asio::buffer(m_kcp_data), asio::bind_executor(m_connection->strand, [this, conn](asio::error_code ec2, std::size_t bytes_transferred2)
 					{
 						if (ec2)

@@ -57,13 +57,17 @@ namespace http_proxy
 	}
 	void http_proxy_connection::on_error(const error_code& error)
 	{
-		logger->warn("{} error shutdown connection {}", logger_prefix, error.message());
+		if(error != asio::error::eof)
+		{
+			logger->warn("{} error shutdown connection {}", logger_prefix, error.message());
+		}
+		
 		this->cancel_all_timers();
 		close_connection();
 	}
 	void http_proxy_connection::cancel_all_timers()
 	{
-		logger->warn("{} cancel all timers", logger_prefix);
+		logger->info("{} cancel all timers", logger_prefix);
 		int i = 0;
 		for (auto& one_timer : timers)
 		{

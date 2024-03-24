@@ -8,6 +8,7 @@
     "timeout": 240,
     "workers": 2,
     "log_level": "info",
-    "console_log_level": "warn",
-    "file_log_level": "info"
+    "console_log_level": "debug",
+    "file_log_level": "info",
+    "kcp_magic": "kcp"
 }
