@@ -4,6 +4,8 @@ project(http-proxy)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+option(WITH_ASAN "with address sanitierze" ON)
+
 find_package(OpenSSL REQUIRED)
 include_directories(${OPENSSL_INCLUDE_DIR})
 link_directories(${OPENSSL_LIBRARY_DIR})
@@ -22,6 +24,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 
 
 
+
 set(CMAKE_CXX_STANDARD 17)
 
 if(MSVC)
@@ -29,6 +32,13 @@ add_definitions(-DBOOST_ASIO_HAS_MOVE)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest")
 add_definitions(-DASIO_MSVC)
 endif(MSVC)
+
+if(WITH_ASAN)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -fsanitize=address -fno-omit-frame-pointer")
+else()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter")
+endif(WITH_ASAN)
+
 
 add_library(kcp ${CMAKE_SOURCE_DIR}/kcp/ikcp.c)
 

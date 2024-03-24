@@ -6,7 +6,7 @@
     "rsa_public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAokBkhbNcpAk2KTi3bSbO\nw1x9pgUxetqdPr5r17ciB1yJ3isjVNJjeAYilYjxNwYNObthRKKJWMbbcNt3HTld\nMzWubY4oQDgTErDlqJU5G+BJqB1vUeH0yRoiNHyN2aIY2SR8Nptt+1B2x3cltho0\ngiUD/8/xuI06jFXhuOvrClOML/lDFP6J2WoJD+hgWuxTqfhA1QvizpFy9U0MT1HW\nBTbF39NqcJwYv2cIpaHw7b+NTTcRbmh6tnK3CPk+yJuNX//Frx35fb0hhTqQ2Dmi\nUzG41Mnm064IZQWwYwar4LlOie+Jke5u7dUycIoCnnA5QHi5ARlMX8fMIk3kw/cK\nAQIDAQAB\n-----END PUBLIC KEY-----",
     "cipher": "aes-256-ofb",
     "timeout": 240,
-    "workers": 2,
+    "workers": 1,
     "log_level": "info",
     "console_log_level": "debug",
     "file_log_level": "info",
