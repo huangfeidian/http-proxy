@@ -340,7 +340,7 @@ namespace http_proxy
 				}
 				else
 				{
-					logger->warn("{} report error at {}", logger_prefix, "async_read_data_from_server");
+					logger->warn("{} report error {} at {}", logger_prefix, error.message(), "async_read_data_from_server");
 					this->on_error(error);
 				}
 			}
@@ -369,7 +369,7 @@ namespace http_proxy
 				}
 				else
 				{
-					logger->warn("{} report error at {}", logger_prefix, "async_read_data_from_client");
+					logger->warn("{} report error {} at {}", logger_prefix, error.message(),  "async_read_data_from_client");
 					this->on_error(error);
 				}
 			}
@@ -408,7 +408,7 @@ namespace http_proxy
 				}
 				else
 				{
-					logger->warn("{} report error at {}", logger_prefix, "async_send_data_to_server");
+					logger->warn("{} report error {} at {}", logger_prefix, error.message(), "async_send_data_to_server");
 					this->on_error(error);
 				}
 			}
@@ -445,7 +445,7 @@ namespace http_proxy
 				}
 				else
 				{
-					logger->warn("{} report error at {}", logger_prefix, "async_send_data_to_client");
+					logger->warn("{} report error {} at {}", logger_prefix, error.message(), "async_send_data_to_client");
 					this->on_error(error);
 				}
 			}

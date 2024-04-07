@@ -65,16 +65,17 @@ namespace http_proxy
 
 		virtual void async_read_some_impl() = 0;
 
-		void init_kcp_ctx();
+		
 
 		// udp每次收到数据时 都是以一个整的包接收的 不会出现包被拆散或者合并的情况
 		void on_receive(std::uint64_t packet_sz, time_t t);
 		
 		
-
+		void init_kcp_ctx();
 
 		virtual void close_impl() = 0;
 	public:
+		
 		virtual bool is_server() const = 0;
 		kcp_socket_wrapper(std::shared_ptr<asio::ip::udp::socket> in_socket);
 
@@ -187,6 +188,7 @@ namespace http_proxy
 		{
 			return true;
 		}
+		void start();
 		void shutdown() override;
 		void async_connect(std::string server_host, std::uint32_t server_port) override;
 	};
