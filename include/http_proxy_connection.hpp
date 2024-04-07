@@ -26,7 +26,7 @@ namespace http_proxy
 	public:
 		friend class tcp_socket_wrapper;
 		friend class kcp_socket_wrapper;
-
+		friend class kcp_client_socket_wrapper;
 	protected:
 		asio::io_context &io;
 		asio::strand<asio::io_context::executor_type> strand;
@@ -64,6 +64,10 @@ namespace http_proxy
 		http_proxy_connection(asio::io_context &in_io, std::shared_ptr<socket_wrapper>   in_client_socket, std::shared_ptr<socket_wrapper> in_server_socket, std::shared_ptr<spdlog::logger> logger, std::uint32_t in_connection_idx, std::uint32_t in_timeout, const std::string &rsa_key, std::string log_pre = "connection");
 		virtual void start();
 
+		std::shared_ptr<spdlog::logger>& get_logger()
+		{
+			return logger;
+		}
 	protected:
 		virtual void async_read_data_from_client(bool set_timer = true);
 		virtual void async_read_data_from_server(bool set_timer = true);

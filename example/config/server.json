@@ -3,7 +3,7 @@
     "listen_port": 1899,
     "rsa_private_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEAokBkhbNcpAk2KTi3bSbOw1x9pgUxetqdPr5r17ciB1yJ3isj\nVNJjeAYilYjxNwYNObthRKKJWMbbcNt3HTldMzWubY4oQDgTErDlqJU5G+BJqB1v\nUeH0yRoiNHyN2aIY2SR8Nptt+1B2x3cltho0giUD/8/xuI06jFXhuOvrClOML/lD\nFP6J2WoJD+hgWuxTqfhA1QvizpFy9U0MT1HWBTbF39NqcJwYv2cIpaHw7b+NTTcR\nbmh6tnK3CPk+yJuNX//Frx35fb0hhTqQ2DmiUzG41Mnm064IZQWwYwar4LlOie+J\nke5u7dUycIoCnnA5QHi5ARlMX8fMIk3kw/cKAQIDAQABAoIBAFsFHp82kIjhNgYH\n8DaGZ8WGtGIXVbuiukXBk0QPU0Kn8hu1PXvPDsf9QRd8HD2O4op5iMZ1G/G2lNIJ\n/Bdj39njinehIQltq513qU5acBAoUYnDAXkA9k5+n6OsH/NwENp3skr8BMXQTOH3\nACvZJY3A8C5o3CR47dheMWOIzXEbqmSRxED/LiLwCNCOXRx7Cevt3S4pCYQT7NU+\nWjZa6FQ5LjLty3rnMuUp8MijXvr8mP64r1kca58o61tlXXUserYj9UGjqY2eX6BE\n9XirGtCoefkoD2bv7uOcI6x03VyIC2Sk/lApgBL/V07YztoGvEbSDt+5e7NKxznm\nbH/zgnUCgYEA1+ehQcvrBS0BomXBZUsKaSxz2HAJBrhDG2sRhMFBoigwXpo1lcga\nZF1MWMk4u0GuSsKQnG7CYOXUIwjB5F3/tL+daZ/ibSGhba8X2kLMOIA8EeI2AYFB\nBdl2v/6YPHRtF2Ov4EULWHJTCrURCSo/lXHSPrVJSb1F1w8nsDKvs/8CgYEAwGIF\n0fyIymUFPZlQa7LuMG9wcZX0HvlrefNeJae4vaDWyVcQ8xNJ6QzHbdNQ52r3B6bu\nBhPAx0wwyykiMz64c5ucG/IXqK1Mik+OCbgieP+XX6zltXbckxw0HBwYMOXw5rot\nkH1UuYVhF5HN5ic3HtXMk0DpqNi7uE9HRwnBQf8CgYAWaWn43YUY9XIM/IkVzbNX\n9ZBU8FRPiUMWDog0AqeggJF80H8tfCcZMgIh2Ul1Tr0b75R5WJn+2vypYlhWL1fC\n2H0roLgtYedS7nEIbBSs7MrPhG7cuyEXzVohVflRlThZzDROkHw8AyoRm3gYPnV5\nOuZ7MfBYojgkueMBzFEm2wKBgQCUMe4x18q3viHPVa6xh+Abx3xiwxSOV6wHAQXh\nE9YnnSJXbo5L8OvablGhtEp6OdeZOWnZnJW/8F0V4tXJi+MiixgyHsdC1FxFnwrX\nSdSkSJ8ewF0i8DDx0aQCk1G/OSHdWkWHLER7tNcaBOMLC+JWCnPQawyTWIEidU9+\n1XDdmQKBgQCskrAk4NxQnNuozAdwqh24F6bQ58O+ECEF8W0m40Nc00UApr669/Y0\nveRhSYRs7A0REJHDdmRSLemkQgEvNa9Box/NTs6OS+cPM6ztAtULyzka/kjMdzio\nllpiKp0zu/ejnXbpYsyf3jT7CgeOfpvi5fubzd0LH4qCmKqG3Eoe3g==\n-----END RSA PRIVATE KEY-----",
     "timeout": 240,
-    "workers": 4,
+    "workers": 1,
     "auth": false,
     "users": [
         {
@@ -15,7 +15,7 @@
             "password": "bazqux"
         }
     ],
-    "log_level": "info",
+    "log_level": "debug",
     "console_log_level": "debug",
     "file_log_level": "info",
     "kcp_magic": "kcp"

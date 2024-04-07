@@ -79,7 +79,7 @@ namespace http_proxy
 				auto cur_kcp_magic = http_proxy_client_config::get_instance().get_kcp_magic();
 				if (!cur_kcp_magic.empty())
 				{
-					other_socket = std::make_shared<kcp_socket_wrapper>(asio::ip::udp::socket(this->acceptor.get_executor()), cur_kcp_magic);
+					other_socket = std::make_shared<kcp_client_socket_wrapper>(std::make_shared<asio::ip::udp::socket>(this->acceptor.get_executor()), cur_kcp_magic);
 				}
 				else
 				{

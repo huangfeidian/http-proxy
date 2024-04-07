@@ -31,13 +31,15 @@ if(MSVC)
 add_definitions(-DBOOST_ASIO_HAS_MOVE)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest")
 add_definitions(-DASIO_MSVC)
-endif(MSVC)
-
+else()
 if(WITH_ASAN)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -fsanitize=address -fno-omit-frame-pointer")
 else()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter")
 endif(WITH_ASAN)
+endif(MSVC)
+
+
 
 
 add_library(kcp ${CMAKE_SOURCE_DIR}/kcp/ikcp.c)

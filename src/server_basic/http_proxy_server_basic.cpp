@@ -50,7 +50,7 @@ void http_proxy_server_basic::run()
 	{
 		asio::ip::udp::endpoint endpoint(asio::ip::address::from_string(config.get_bind_address()), config.get_listen_port());
 
-		m_kcp_acceptor = std::make_shared<moon::kcp::acceptor>(io_context.get_executor(), endpoint, kcp_mgaic);
+		m_kcp_acceptor = std::make_shared<kcp_acceptor>(io_context, endpoint, logger,  kcp_mgaic);
 		logger->info("bind udp on {} {}", config.get_bind_address(), config.get_listen_port());
 	}
 	this->start_accept();
@@ -76,15 +76,15 @@ void http_proxy_server_basic::start_accept()
 {
 	if (m_kcp_acceptor)
 	{
-		m_kcp_acceptor->async_accept([this](moon::kcp::connection_ptr kcp_conn)
+		m_kcp_acceptor->async_accept([this](std::shared_ptr<kcp_server_socket_wrapper> kcp_socket)
 			{
-				if (kcp_conn)
+				if (kcp_socket)
 				{
-					logger->info("new kcp conn with index {}", kcp_conn->get_conv());
-					std::shared_ptr<kcp_socket_wrapper> cur_kcp_socket_wrapper = std::make_shared< kcp_socket_wrapper>(kcp_conn);
+					logger->info("new kcp conn with index {}", kcp_socket->get_conn_idx());
+
 					auto other_socket = std::make_shared<tcp_socket_wrapper>(asio::ip::tcp::socket(this->m_tcp_acceptor.get_executor()));
-					auto connection = http_proxy_server_connection::create(io_context, cur_kcp_socket_wrapper, std::move(other_socket), logger, http_proxy_server_config::get_instance().increase_connection_count());
-					logger->info("new kcp conn with index {} connection_counter {}", kcp_conn->get_conv(), connection->connection_count);
+					auto connection = http_proxy_server_connection::create(io_context, kcp_socket, std::move(other_socket), logger, http_proxy_server_config::get_instance().increase_connection_count());
+					logger->info("new kcp conn with index {} connection_counter {}", kcp_socket->get_conn_idx(), connection->connection_count);
 					connection->start();
 				}
 

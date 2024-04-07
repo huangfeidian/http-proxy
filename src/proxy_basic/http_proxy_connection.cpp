@@ -322,7 +322,7 @@ namespace http_proxy
 
 	void http_proxy_connection::async_read_data_from_server(bool set_timer)
 	{
-		logger->debug("{} async_read_data_from_server ");
+		logger->debug("{} async_read_data_from_server ", logger_prefix);
 		auto self(this->shared_from_this());
 		if (set_timer)
 		{
@@ -350,7 +350,7 @@ namespace http_proxy
 
 	void http_proxy_connection::async_read_data_from_client(bool set_timer)
 	{
-		logger->debug("{} async_read_data_from_client at_least_size {} at_most_size {}", logger_prefix);
+		logger->debug("{} async_read_data_from_client", logger_prefix);
 		auto self(this->shared_from_this());
 		if(set_timer)
 		{
