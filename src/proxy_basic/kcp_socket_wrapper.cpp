@@ -1,4 +1,4 @@
-#include "kcp_socket_wrapper.hpp"
+ï»¿#include "kcp_socket_wrapper.hpp"
 #include "http_proxy_connection.hpp"
 
 namespace http_proxy
@@ -90,11 +90,10 @@ namespace http_proxy
 	void kcp_client_socket_wrapper::on_udp_connected()
 	{
 		m_connection->logger->info("{} on_udp_connected", m_connection->logger_prefix);
-		m_kcp_handshake_data.push_back((char)kcp_packet_type::handshake);
 		m_kcp_handshake_data.append(m_kcp_magic);
 		m_socket->async_send(asio::buffer(m_kcp_handshake_data), asio::bind_executor(m_connection->strand, [this, conn = m_connection->shared_from_this()](asio::error_code ec, std::size_t bytes_transferred)
 			{
-				
+
 				if (ec)
 				{
 					m_connection->logger->warn("{} fail to send handshake data to server with err {}", m_connection->logger_prefix, ec.message());
@@ -108,7 +107,7 @@ namespace http_proxy
 					{
 						if (ec2)
 						{
-							m_connection->logger->warn("{} fail to receive handshake data to server with error " , m_connection->logger_prefix, ec2.message());
+							m_connection->logger->warn("{} fail to receive handshake data to server with error ", m_connection->logger_prefix, ec2.message());
 							m_connection->on_error(ec2);
 							return;
 						}
@@ -116,7 +115,7 @@ namespace http_proxy
 						{
 							assert(false);
 						}
-						
+
 						std::memcpy(&m_kcp_conn_index, m_kcp_handshake_data.data(), sizeof(m_kcp_conn_index));
 						m_connection->logger->debug("{} suc to get kcp conn index {}", m_connection->logger_prefix, m_kcp_conn_index);
 						init_kcp_ctx();
@@ -126,22 +125,24 @@ namespace http_proxy
 						start_kcp_update_timer();
 					}));
 			}));
-		
+
 	}
 
 	void kcp_socket_wrapper::async_write_some(const asio::const_buffer& buffer, std::function<void(const asio::error_code&, std::size_t)>&& handler)
 	{
 
-		m_connection->logger->debug("{} async_write_some with data sz {}", m_connection->logger_prefix, buffer.size());
-		// Èç¹ûÒÑ¾­ÔÚ·¢ËÍ¹ý³ÌÖÐ Ö±½Ó·µ»ØÊ§°Ü
-		if (!m_kcp_ctx || m_send_cb )
+		m_connection->logger->debug("{} kcp_socket_wrapper::async_write_some with data sz {}", m_connection->logger_prefix, buffer.size());
+		// ï¿½ï¿½ï¿½ï¿½Ñ¾ï¿½ï¿½Ú·ï¿½ï¿½Í¹ï¿½ï¿½ï¿½ï¿½ï¿½ Ö±ï¿½Ó·ï¿½ï¿½ï¿½Ê§ï¿½ï¿½
+		if (!m_kcp_ctx || m_send_cb)
 		{
+			m_connection->get_logger()->error("{} kcp_socket_wrapper::async_write_some fail", m_connection->logger_prefix);
 			asio::post(
 				asio::bind_executor(m_socket->get_executor(), std::bind(std::move(handler), !is_open() ? asio::error::operation_aborted : asio::error::in_progress, 0)));
 			return;
 		}
-		if (buffer.size() + 1>= m_send_buffer.capacity())
+		if (buffer.size() + 1 >= m_send_buffer.capacity())
 		{
+			m_connection->get_logger()->error("{} kcp_socket_wrapper::async_write_some fail", m_connection->logger_prefix);
 			asio::post(
 				asio::bind_executor(m_socket->get_executor(), std::bind(std::move(handler), asio::error::message_size, 0)));
 			return;
@@ -152,31 +153,45 @@ namespace http_proxy
 		m_send_buffer[0] = std::uint8_t(kcp_packet_type::data);
 		auto cur_data_begin = reinterpret_cast<const std::uint8_t*>(buffer.data());
 		std::copy(cur_data_begin, cur_data_begin + buffer.size(), m_send_buffer.data() + 1);
-		// ·¢ËÍ±¨´í Ö±½Ó·µ»Ø·¢ËÍµÄÊý¾ÝÌ«´óµÄ´íÎóÂë
+		std::string debug_info;
+		for (int i = 0; i < std::min(10, int(buffer.size())); i++)
+		{
+			debug_info += std::to_string(int(m_send_buffer[i]));
+			debug_info += ",";
+		}
+		m_connection->logger->debug("{} kcp_socket_wrapper::async_write_some header data is {}", m_connection->logger_prefix, debug_info);
+		// ï¿½ï¿½ï¿½Í±ï¿½ï¿½ï¿½ Ö±ï¿½Ó·ï¿½ï¿½Ø·ï¿½ï¿½Íµï¿½ï¿½ï¿½ï¿½ï¿½Ì«ï¿½ï¿½Ä´ï¿½ï¿½ï¿½ï¿½ï¿½
 		if (ikcp_send(m_kcp_ctx.get(), reinterpret_cast<const char*>(m_send_buffer.data()), buffer.size() + 1) < 0)
 		{
+			m_connection->get_logger()->error("{} kcp_socket_wrapper::async_write_some fail", m_connection->logger_prefix);
 			asio::post(
 				asio::bind_executor(m_socket->get_executor(), std::bind(std::move(handler), asio::error::message_size, 0)));
 			return;
 		}
-		// ·¢ËÍ´°¿ÚÊ£Óà°üÐ¡ÓÚÒ»¶¨Öµ ÔòÈÏÎªÒÑ¾­·¢ËÍ kcp»á×Ô¼º´¦ÀíÖØ´«Ïà¹Ø
-		if (ikcp_waitsnd(m_kcp_ctx.get()) <= m_idle_send_packet_count)
+		// ï¿½ï¿½ï¿½Í´ï¿½ï¿½ï¿½Ê£ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½Ò»ï¿½ï¿½Öµ ï¿½ï¿½ï¿½ï¿½Îªï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½ kcpï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø´ï¿½ï¿½ï¿½ï¿½
+		// ï¿½Í»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½Ï¸ï¿½pingpong ï¿½ï¿½ï¿½ï¿½Ö»ï¿½Ð·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å»ï¿½
+		if (is_server())
 		{
-
-			asio::post(
-				asio::bind_executor(m_socket->get_executor(), std::bind(std::move(handler), asio::error_code{}, 0)));
-			return;
+			if (ikcp_waitsnd(m_kcp_ctx.get()) <= m_idle_send_packet_count)
+			{
+				m_connection->logger->debug("{} kcp_socket_wrapper::async_write_some finish with size ", m_connection->logger_prefix, m_send_buffer.size());
+				asio::post(
+					asio::bind_executor(m_socket->get_executor(), std::bind(std::move(handler), asio::error_code{}, m_send_buffer.size() - 1)));
+				return;
+			}
 		}
 
+
 		m_send_cb = std::move(handler);
-		
+
 	}
 
 	void kcp_socket_wrapper::async_read_some(const asio::mutable_buffer& buffer, std::function<void(const asio::error_code&, std::size_t)>&& handler)
 	{
-		m_connection->get_logger()->debug("{} async_read_some with buffer sz {}", m_connection->logger_prefix, buffer.size());
+		m_connection->get_logger()->debug("{} kcp_socket_wrapper::async_read_some with buffer sz {}", m_connection->logger_prefix, buffer.size());
 		if (!m_kcp_ctx || m_read_cb || !is_open())
 		{
+			m_connection->get_logger()->error("{} kcp_socket_wrapper::async_read_some fail", m_connection->logger_prefix);
 			asio::post(
 				asio::bind_executor(m_socket->get_executor(), std::bind(std::move(handler), !is_open() ? asio::error::operation_aborted : asio::error::in_progress, 0)));
 			return;
@@ -190,7 +205,7 @@ namespace http_proxy
 
 	void kcp_client_socket_wrapper::async_read_some_impl()
 	{
-		m_socket->async_receive(m_read_dest, [this](const asio::error_code& ec, std::size_t read_sz)
+		m_socket->async_receive(asio::buffer(m_read_buffer.data(), m_read_dest.size() + 1), [this](const asio::error_code& ec, std::size_t read_sz)
 			{
 				if (ec)
 				{
@@ -218,7 +233,7 @@ namespace http_proxy
 
 	kcp_socket_wrapper::~kcp_socket_wrapper()
 	{
-		
+
 	}
 
 	void kcp_socket_wrapper::init_kcp_ctx()
@@ -229,7 +244,7 @@ namespace http_proxy
 		ikcp_setmtu(m_kcp_ctx.get(), 1200);
 		m_kcp_ctx->rx_minrto = 10;
 		m_kcp_ctx->stream = 1;
-		// ÕâÀï°ó¶¨ÕæÕýµÄ·¢ËÍº¯Êý
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä·ï¿½ï¿½Íºï¿½ï¿½ï¿½
 		ikcp_setoutput(m_kcp_ctx.get(), [](const char* buf, int len, ikcpcb*, void* user) {
 			kcp_socket_wrapper* conn = (kcp_socket_wrapper*)user;
 			conn->async_write_some_impl(buf, 0, len);
@@ -239,10 +254,17 @@ namespace http_proxy
 
 	void kcp_client_socket_wrapper::async_write_some_impl(const char* buf, std::uint32_t offset, std::uint32_t remain_sz)
 	{
-		m_socket->async_send_to(asio::buffer(buf + offset, remain_sz), m_remote_endpoint, [this, conn = m_connection->shared_from_this()](const std::error_code&, size_t)
+		m_connection->get_logger()->debug("{} kcp_client_socket_wrapper::async_write_some_impl with buffer offset {} remain_sz {}", m_connection->logger_prefix, offset, remain_sz);
+		std::string debug_info;
+		for (int i = 0; i < std::min(10, int(remain_sz)); i++)
+		{
+			debug_info += std::to_string(int(buf[offset + i]));
+			debug_info += ",";
+		}
+		m_connection->get_logger()->debug("{} kcp_client_socket_wrapper::kcp_client_socket_wrapper::async_write_some_impl  debug info {}", m_connection->logger_prefix, debug_info);
+		m_socket->async_send_to(asio::buffer(buf + offset, remain_sz), m_remote_endpoint, [this, conn = m_connection->shared_from_this()](const std::error_code& ec, size_t size)
 			{
-				// udpµÄ·¢ËÍ²»»áÓÐÊ§°Ü ¶øÇÒÊÇÕû°ü·¢ËÍ
-				check_write_finish();
+				m_connection->get_logger()->debug("{} kcp_client_socket_wrapper::async_write_some_impl finish with size {} ", m_connection->logger_prefix, size);
 			});
 	}
 
@@ -251,12 +273,28 @@ namespace http_proxy
 	{
 		if (m_read_cb)
 		{
-			int n = ikcp_recv(m_kcp_ctx.get(), reinterpret_cast<char*>(m_read_dest.data()), m_read_dest.size());
+			int n = ikcp_recv(m_kcp_ctx.get(), reinterpret_cast<char*>(m_read_buffer.data()), m_read_dest.size() + 1);
 			if (n > 0)
 			{
-				// ¶ÁÈ¡µ½ÁËÒ»¸öpacket
+				char cur_op_code = m_read_buffer[0];
+				std::copy(m_read_buffer.data() + 1, m_read_buffer.data() + n, reinterpret_cast<char*>(m_read_dest.data()));
 				auto temp_read_cb = std::move(m_read_cb);
-				temp_read_cb(asio::error_code{}, n);
+				if (cur_op_code == std::uint8_t(kcp_packet_type::data))
+				{
+					// ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½packet
+					temp_read_cb(asio::error_code{}, n - 1);
+				}
+				else
+				{
+					temp_read_cb(asio::error::operation_aborted, 0);
+				}
+			}
+			else
+			{
+				if (!is_server())
+				{
+					async_read_some_impl();
+				}
 			}
 		}
 	}
@@ -265,54 +303,42 @@ namespace http_proxy
 	{
 		if (m_send_cb)
 		{
-			// ÈÎºÎÊ±ºòÊ£Óà·¢ËÍ´°¿ÚÊýÁ¿Ð¡ÓÚÒ»¶¨Öµ¶¼ÈÏÎª·¢ËÍ³É¹¦
-			if (ikcp_waitsnd(m_kcp_ctx.get()) <= m_idle_send_packet_count)
+			auto temp_wati_snd = ikcp_waitsnd(m_kcp_ctx.get());
+			m_connection->get_logger()->debug("kcp_client_socket_wrapper::check_write_finish  temp_wati_snd {}", temp_wati_snd);
+			if (is_server())
 			{
-				auto temp_cb = std::move(m_send_cb);
-				temp_cb(asio::error_code{}, 0);
+				// ï¿½Îºï¿½Ê±ï¿½ï¿½Ê£ï¿½à·¢ï¿½Í´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½Ò»ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½Í³É¹ï¿½
+				if (temp_wati_snd <= m_idle_send_packet_count)
+				{
+					auto temp_cb = std::move(m_send_cb);
+					temp_cb(asio::error_code{}, m_send_buffer.size() - 1);
+				}
 			}
+			else
+			{
+				// ï¿½Í»ï¿½ï¿½ï¿½ï¿½Ï¸ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+				if (temp_wati_snd == 0)
+				{
+					auto temp_cb = std::move(m_send_cb);
+					temp_cb(asio::error_code{}, m_send_buffer.size() - 1);
+				}
+			}
+
 		}
 	}
 
 	void kcp_socket_wrapper::on_receive(std::uint64_t packet_sz, time_t t)
 	{
 
-		if (m_state == connection_state::idle)
-		{
-			m_state = connection_state::opened;
-		}
 		m_last_recv_tick = t;
-		std::uint8_t opcode = static_cast<std::uint8_t>(m_read_buffer[0]);
-		m_connection->get_logger()->debug("{} on_receive with packet_sz {} op_code {}", m_connection->logger_prefix, packet_sz, opcode);
-		switch (opcode)
-		{
-			case std::uint8_t(kcp_packet_type::disconnect) :
-			{
-				if (nullptr != m_kcp_ctx)
-				{
-					close(asio::error::make_error_code(asio::error::eof));
-				}
-				return;
-			}
-			case std::uint8_t(kcp_packet_type::keepalive) :
-			{
-				return;
-			}
-			case std::uint8_t(kcp_packet_type::data):
-			{
-				if (nullptr == m_kcp_ctx)
-				{
-					init_kcp_ctx();
-				}
-				ikcp_input(m_kcp_ctx.get(), m_read_buffer.data() + 1, packet_sz - 1);
-				m_next_kcp_tick = 0;
-				
-				check_read_finish();
-				check_write_finish();
-			}
-			default:
-				break;
-		}
+
+		m_connection->get_logger()->debug("{} on_receive with packet_sz {} ", m_connection->logger_prefix, packet_sz);
+
+		ikcp_input(m_kcp_ctx.get(), m_read_buffer.data(), packet_sz);
+		m_next_kcp_tick = 0;
+
+		check_read_finish();
+		check_write_finish();
 	}
 	time_t kcp_socket_wrapper::do_update(time_t now)
 	{
@@ -352,7 +378,7 @@ namespace http_proxy
 		std::string temp_str;
 		temp_str.push_back(std::uint8_t(kcp_packet_type::disconnect));
 
-		
+
 		m_socket->send_to(asio::buffer(temp_str), m_remote_endpoint);
 		asio::error_code ignore;
 		m_socket->close(ignore);
@@ -402,7 +428,7 @@ namespace http_proxy
 					do_receive();
 					return;
 				}
-				
+
 				do
 				{
 					if (size == 0)
@@ -411,14 +437,28 @@ namespace http_proxy
 					}
 					std::uint8_t packet_type = m_read_buffer[0];
 					m_logger->debug("kcp_acceptor::do_receive remote {} port {} packet_type {} data_sz {}", m_read_from_endpoint.address().to_string(), m_read_from_endpoint.port(), packet_type, size);
-					if (packet_type >= std::uint8_t(kcp_packet_type::max))
+					std::string debug_info;
+					for (int i = 0; i < std::min(10, int(size)); i++)
 					{
-						m_logger->error("async_receive_from with packet_type {}", packet_type);
-						break;
+						debug_info += std::to_string(int(m_read_buffer[i]));
+						debug_info += ",";
 					}
-					if (packet_type == std::uint8_t(kcp_packet_type::handshake))
+					m_logger->debug("kcp_acceptor::do_receive remote {} port {} debug info {}", m_read_from_endpoint.address().to_string(), m_read_from_endpoint.port(), debug_info);
+					std::shared_ptr<kcp_server_socket_wrapper> temp_conn;
+					auto temp_iter = m_client_connections.find(m_read_from_endpoint);
+					if (temp_iter != m_client_connections.end())
 					{
-						if (size - 1 != m_magic.size() || m_magic != std::string(m_read_buffer.data() + 1, size - 1))
+						temp_conn = temp_iter->second;
+						if (temp_conn->get_state() == connection_state::closed)
+						{
+							temp_conn->close(asio::error::make_error_code(asio::error::operation_aborted));
+							temp_conn.reset();
+							m_client_connections.erase(temp_iter);
+						}
+					}
+					if (!temp_conn)
+					{
+						if (size != m_magic.size() || m_magic != std::string(m_read_buffer.data(), size))
 						{
 							m_logger->error("async_receive_from handshake fail sz {}", size);
 							break;
@@ -428,52 +468,28 @@ namespace http_proxy
 							m_logger->error("async_receive_from handshake fail accept cb empty");
 							break;
 						}
-						std::shared_ptr<kcp_server_socket_wrapper> temp_conn;
-						auto temp_iter = m_client_connections.find(m_read_from_endpoint);
-						if (temp_iter != m_client_connections.end())
-						{
-							temp_conn = temp_iter->second;
-							if (temp_conn->get_state() != connection_state::idle)
+						temp_conn = std::make_shared<kcp_server_socket_wrapper>(m_socket, *this, m_read_from_endpoint, make_conn_idx());
+						m_logger->info("create new kcp conn {}", temp_conn->get_conn_idx());
+						m_client_connections[m_read_from_endpoint] = temp_conn;
+						temp_conn->start();
+						std::shared_ptr<std::string> response = std::make_shared<std::string>();
+						uint32_t conv = temp_conn->get_conn_idx();
+						response->append(reinterpret_cast<const char*>(&conv), sizeof(conv));
+
+						auto b = asio::buffer(response->data(), response->size());
+						m_socket->async_send_to(b, m_read_from_endpoint, [response = std::move(response), temp_conn, this](std::error_code, size_t)
 							{
-								temp_conn->close(asio::error::make_error_code(asio::error::operation_aborted));
-								temp_conn.reset();
-								m_client_connections.erase(temp_iter);
-							}
-						}
-						if (!temp_conn)
-						{
-							temp_conn = std::make_shared<kcp_server_socket_wrapper>(m_socket, *this, m_read_from_endpoint, make_conn_idx());
-							m_logger->info("create new kcp conn {}", temp_conn->get_conn_idx());
-							m_client_connections[m_read_from_endpoint] = temp_conn;
-							std::shared_ptr<std::string> response = std::make_shared<std::string>();
-							uint32_t conv = temp_conn->get_conn_idx();
-							response->append(reinterpret_cast<const char*>(&conv), sizeof(conv));
+								m_logger->info("send new kcp conn {} to client ", temp_conn->get_conn_idx());
 
-							auto b = asio::buffer(response->data(), response->size());
-							m_socket->async_send_to(b, m_read_from_endpoint, [response = std::move(response), temp_conn, this](std::error_code, size_t)
-								{
-									m_logger->info("send new kcp conn {} to client ", temp_conn->get_conn_idx());
-									temp_conn->start();
-									
-									auto temp_cb = std::move(m_accept_cb);
-									temp_cb(temp_conn);
-								});
-							
-						}
 
-						
+								auto temp_cb = std::move(m_accept_cb);
+								temp_cb(temp_conn);
+							});
+
 					}
 					else
 					{
-						auto temp_iter = m_client_connections.find(m_read_from_endpoint);
-						if (temp_iter != m_client_connections.end())
-						{
-							temp_iter->second->on_receive(m_read_buffer.data(), size, m_now);
-						}
-						else
-						{
-							m_logger->error("fail to find connection for endpoint {}", m_read_from_endpoint.address().to_string());
-						}
+						temp_conn->on_receive(m_read_buffer.data(), size, m_now);
 					}
 				} while (0);
 				do_receive();
@@ -483,7 +499,7 @@ namespace http_proxy
 	void kcp_server_socket_wrapper::on_receive(const char* data, std::uint64_t size, time_t ts)
 	{
 		std::lock_guard<std::mutex> temp_lock(m_logic_mutex);
-		
+
 		std::copy(data, data + size, m_read_buffer.data());
 		kcp_socket_wrapper::on_receive(size, ts);
 	}
@@ -529,7 +545,7 @@ namespace http_proxy
 	void kcp_acceptor::do_send(asio::ip::udp::endpoint send_to_endpoint, std::string_view data)
 	{
 		std::lock_guard<std::mutex> temp_lock(m_send_queue_lock);
-		m_send_queues.push(std::make_pair(send_to_endpoint, std::make_shared<std::string>(data.data(),data.size())));
+		m_send_queues.push(std::make_pair(send_to_endpoint, std::make_shared<std::string>(data.data(), data.size())));
 		if (m_send_queues.size() == 1)
 		{
 			auto cur_front = m_send_queues.front();
@@ -547,7 +563,7 @@ namespace http_proxy
 		{
 			return;
 		}
-		
+
 		auto cur_front_endpoint = m_send_queues.front().first;
 		auto temp_iter = m_client_connections.find(cur_front_endpoint);
 		if (temp_iter != m_client_connections.end())
@@ -575,7 +591,7 @@ namespace http_proxy
 
 	void kcp_server_socket_wrapper::async_read_some_impl()
 	{
-		
+
 
 
 	}
@@ -605,7 +621,7 @@ namespace http_proxy
 
 	void kcp_acceptor::close()
 	{
-		
+
 		asio::error_code ignore;
 		m_update_timer.cancel(ignore);
 		m_socket->cancel(ignore);
