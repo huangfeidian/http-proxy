@@ -61,7 +61,7 @@ namespace http_proxy
 
 		time_t do_update(time_t now);
 
-		virtual void async_write_some_impl(const char* buf, std::uint32_t offset, std::uint32_t remain_sz) = 0;
+		virtual void async_write_some_impl(const char* buf,  std::uint32_t remain_sz) = 0;
 
 		virtual void async_read_some_impl() = 0;
 
@@ -111,7 +111,7 @@ namespace http_proxy
 		std::string m_kcp_magic;
 		asio::ip::udp::resolver m_resolver;
 		asio::steady_timer m_update_timer;
-		void async_write_some_impl(const char* buf, std::uint32_t offset, std::uint32_t remain_sz) override;
+		void async_write_some_impl(const char* buf,  std::uint32_t remain_sz) override;
 		void async_read_some_impl() override;
 		void close_impl() override;
 		void start_kcp_update_timer();
@@ -176,7 +176,7 @@ namespace http_proxy
 	protected:
 		// 这里什么都不做 直接等待acceptor的通知
 		void async_read_some_impl() override;
-		void async_write_some_impl(const char* buf, std::uint32_t offset, std::uint32_t remain_sz) override;
+		void async_write_some_impl(const char* buf, std::uint32_t remain_sz) override;
 
 		void close_impl() override;
 	public:
